@@ -3,32 +3,55 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#2e7d32">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <title>NutriPreço</title>
+
+  <link rel="manifest" href="data:application/manifest+json;utf-8,%7B%22name%22%3A%22NutriPre%C3%A7o%22%2C%22short_name%22%3A%22NutriPre%C3%A7o%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23f4f6f8%22%2C%22theme_color%22%3A%22%232e7d32%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22https%3A%2F%2Fcdn-icons-png.flaticon.com%2F512%2F2424%2F2424444.png%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fpng%22%7D%5D%7D">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2424/2424444.png">
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
+
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background-color: #f4f6f8; color: #222; padding-bottom: 30px; }
+    body { background-color: #f4f6f8; color: #222; padding-bottom: 40px; }
     header { background-color: #2e7d32; color: white; padding: 16px; text-align: center; font-size: 20px; font-weight: bold; }
     .container { max-width: 480px; margin: 0 auto; padding: 16px; }
-    #scanner-container { background: #000; border-radius: 12px; overflow: hidden; position: relative; margin-bottom: 16px; }
+
+    #scanner-container { background: #000; border-radius: 14px; overflow: hidden; position: relative; margin-bottom: 16px; }
     #reader { width: 100%; min-height: 250px; }
-    .scan-btn { width: 100%; background: #2e7d32; color: #fff; border: none; padding: 14px; font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer; margin-bottom: 16px; }
-    .card { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-    .card-title { font-size: 17px; font-weight: bold; color: #2e7d32; margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 8px; }
-    .nutri-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #f0f0f0; }
+    .scan-btn { width: 100%; background: #2e7d32; color: #fff; border: none; padding: 15px; font-size: 17px; font-weight: bold; border-radius: 10px; cursor: pointer; }
+
+    .card { background: #fff; border-radius: 14px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .card-title { font-size: 16px; font-weight: bold; color: #2e7d32; margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 8px; display: flex; justify-content: space-between; }
+    .nutri-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #f0f0f0; font-size: 15px; }
     .nutri-val { font-weight: bold; }
-    label { font-size: 14px; color: #555; display: block; margin-top: 10px; margin-bottom: 4px; }
+
+    .market-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+    .chip { padding: 8px 12px; background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .chip.active { background: #2e7d32; color: #fff; border-color: #2e7d32; }
+
+    label { font-size: 14px; color: #555; display: block; margin-top: 10px; margin-bottom: 5px; }
     input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; }
-    .price-input { font-size: 24px; font-weight: bold; text-align: center; color: #2e7d32; border: 2px solid #2e7d32; margin-top: 6px; }
-    .save-btn { width: 100%; background: #2e7d32; color: white; border: none; padding: 14px; font-size: 17px; font-weight: bold; border-radius: 8px; margin-top: 16px; cursor: pointer; }
-    .reset-btn { width: 100%; background: #eceff1; color: #555; border: none; padding: 10px; font-size: 14px; border-radius: 8px; margin-top: 8px; cursor: pointer; }
-    .loading { text-align: center; padding: 20px; font-weight: bold; color: #2e7d32; }
+    .price-input { font-size: 26px; font-weight: bold; text-align: center; color: #2e7d32; border: 2px solid #2e7d32; margin-top: 6px; }
+
+    .history-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #fafafa; border-radius: 8px; margin-bottom: 8px; border-left: 4px solid #2e7d32; }
+    .best-price-badge { background: #e8f5e9; color: #2e7d32; padding: 8px 12px; border-radius: 8px; font-weight: bold; margin-bottom: 12px; font-size: 14px; text-align: center; }
+    .no-history { font-size: 13px; color: #888; text-align: center; padding: 10px; }
+
+    .save-btn { width: 100%; background: #2e7d32; color: white; border: none; padding: 15px; font-size: 17px; font-weight: bold; border-radius: 10px; margin-top: 16px; cursor: pointer; }
+    .reset-btn { width: 100%; background: #eceff1; color: #444; border: none; padding: 12px; font-size: 15px; font-weight: 600; border-radius: 10px; margin-top: 10px; cursor: pointer; }
+
+    .loading { text-align: center; padding: 30px 20px; font-weight: bold; color: #2e7d32; font-size: 16px; }
     .hidden { display: none; }
   </style>
 </head>
 <body>
+
   <header>🥗 NutriPreço</header>
+
   <div class="container">
     <div id="scan-section">
       <div id="scanner-container">
@@ -36,27 +59,56 @@
       </div>
       <button class="scan-btn" id="start-btn" onclick="startScanner()">📷 Iniciar Câmera</button>
     </div>
-    <div id="loading" class="loading hidden">Buscando informações do produto...</div>
+
+    <div id="loading" class="loading hidden">🔍 Consultando produto e preços na região...</div>
+
     <div id="result-section" class="hidden">
+      <!-- Nutrientes -->
       <div class="card">
-        <h2 id="prod-name" style="font-size: 18px; margin-bottom: 4px;">Nome do Produto</h2>
-        <p id="prod-brand" style="color: #666; font-size: 13px; margin-bottom: 12px;">Marca | EAN</p>
-        <div class="card-title">Informações Nutricionais (por 100g)</div>
+        <h2 id="prod-name" style="font-size: 20px; margin-bottom: 4px;">Nome do Produto</h2>
+        <p id="prod-brand" style="color: #666; font-size: 14px; margin-bottom: 14px;">Marca | EAN</p>
+
+        <div class="card-title">Qualidade Nutricional (por 100g)</div>
         <div class="nutri-row"><span>🔥 Calorias</span><span class="nutri-val" id="prod-cal">0 kcal</span></div>
         <div class="nutri-row"><span>🍬 Açúcares</span><span class="nutri-val" id="prod-sugar">0 g</span></div>
         <div class="nutri-row"><span>🧂 Sódio</span><span class="nutri-val" id="prod-sodium">0 g</span></div>
       </div>
+
+      <!-- Histórico de Preços -->
       <div class="card">
-        <div class="card-title">💰 Salvar Preço no Histórico</div>
-        <label>Mercado:</label>
-        <input type="text" id="market-input" value="Supermercado em Cabo Frio">
-        <label>Preço Atual (R$):</label>
+        <div class="card-title">
+          <span>📊 Preços na Região</span>
+          <span style="font-size: 12px; color: #666; font-weight: normal;">Cabo Frio</span>
+        </div>
+        <div id="best-price-box" class="best-price-badge hidden"></div>
+        <div id="history-list"></div>
+      </div>
+
+      <!-- Formulário de Preço -->
+      <div class="card">
+        <div class="card-title">💰 Salvar no Histórico de Compras</div>
+        
+        <label>Selecione o Supermercado:</label>
+        <div class="market-chips">
+          <div class="chip active" onclick="selectMarket(this, 'Atacadão')">Atacadão</div>
+          <div class="chip" onclick="selectMarket(this, 'Assaí')">Assaí</div>
+          <div class="chip" onclick="selectMarket(this, 'Supermarket')">Supermarket</div>
+          <div class="chip" onclick="selectMarket(this, 'Extra')">Extra</div>
+          <div class="chip" onclick="selectMarket(this, 'Princesa')">Princesa</div>
+          <div class="chip" onclick="selectMarket(this, 'Outro')">Outro</div>
+        </div>
+
+        <input type="text" id="market-input" value="Atacadão">
+
+        <label>Preço Atual na Gôndola (R$):</label>
         <input type="number" step="0.01" id="price-input" class="price-input" placeholder="0,00">
-        <button class="save-btn" onclick="savePrice()">Confirmar e Gravar</button>
+
+        <button class="save-btn" onclick="savePrice()">Confirmar e Gravar Preço</button>
         <button class="reset-btn" onclick="resetScan()">Escanear Outro Produto</button>
       </div>
     </div>
   </div>
+
   <script>
     const SUPABASE_URL = 'https://fzoyldcfyiigwyxxhosd.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_asGr3f2xfay96fUJAkIHBg_L5vfLYvv';
@@ -66,10 +118,24 @@
     let currentBarcode = '';
     let currentName = '';
     let currentBrand = '';
+    let currentProdDbId = null;
+
+    function selectMarket(el, name) {
+      document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      el.classList.add('active');
+      const input = document.getElementById('market-input');
+      if (name === 'Outro') {
+        input.value = '';
+        input.focus();
+      } else {
+        input.value = name;
+      }
+    }
 
     function startScanner() {
       document.getElementById('start-btn').classList.add('hidden');
       html5QrCode = new Html5Qrcode("reader");
+      
       html5QrCode.start(
         { facingMode: "environment" },
         { fps: 10, qrbox: { width: 250, height: 150 } },
@@ -82,60 +148,133 @@
     }
 
     async function onCodeScanned(barcode) {
-      if (html5QrCode) { await html5QrCode.stop(); }
+      if (html5QrCode) {
+        await html5QrCode.stop();
+      }
+
       document.getElementById('scan-section').classList.add('hidden');
       document.getElementById('loading').classList.remove('hidden');
+
       currentBarcode = barcode;
+
       try {
         const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json`);
         const data = await res.json();
+
         if (data.status === 1 && data.product) {
           const p = data.product;
           currentName = p.product_name || 'Produto sem nome';
           currentBrand = p.brands || 'Marca não informada';
+
           document.getElementById('prod-name').innerText = currentName;
           document.getElementById('prod-brand').innerText = `${currentBrand} | EAN: ${barcode}`;
           document.getElementById('prod-cal').innerText = (p.nutriments?.['energy-kcal_100g'] ?? 'N/D') + ' kcal';
           document.getElementById('prod-sugar').innerText = (p.nutriments?.sugars_100g ?? 'N/D') + ' g';
           document.getElementById('prod-sodium').innerText = (p.nutriments?.sodium_100g ?? 'N/D') + ' g';
         } else {
-          currentName = 'Produto novo';
+          currentName = 'Produto Novo';
           currentBrand = '';
-          document.getElementById('prod-name').innerText = 'Produto Novo (Primeiro Registro)';
+          document.getElementById('prod-name').innerText = 'Produto Novo';
           document.getElementById('prod-brand').innerText = `EAN: ${barcode}`;
           document.getElementById('prod-cal').innerText = 'N/D';
           document.getElementById('prod-sugar').innerText = 'N/D';
           document.getElementById('prod-sodium').innerText = 'N/D';
         }
-        document.getElementById('loading').classList.add('hidden');
-        document.getElementById('result-section').classList.remove('hidden');
-      } catch (e) {
-        alert('Erro ao buscar dados do produto.');
-        resetScan();
-      }
-    }
 
-    async function savePrice() {
-      const priceVal = parseFloat(document.getElementById('price-input').value);
-      if (!priceVal || isNaN(priceVal)) {
-        alert('Por favor, digite um preço válido.');
-        return;
-      }
-      try {
-        const { data: prodData, error: err1 } = await client.from('produtos').upsert({
+        const { data: prodData } = await client.from('produtos').upsert({
           codigo_barras: currentBarcode,
           nome: currentName,
           marca: currentBrand
         }, { onConflict: 'codigo_barras' }).select();
 
         if (prodData && prodData[0]) {
-          await client.from('registros_precos').insert({
-            produto_id: prodData[0].id,
-            preco: priceVal
-          });
+          currentProdDbId = prodData[0].id;
+          await loadPriceHistory(currentProdDbId);
         }
-        alert('Sucesso! Preço de R$ ' + priceVal.toFixed(2) + ' gravado no Supabase!');
+
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('result-section').classList.remove('hidden');
+      } catch (e) {
+        alert('Erro ao buscar dados do produto: ' + e.message);
         resetScan();
+      }
+    }
+
+    async function loadPriceHistory(productId) {
+      const historyList = document.getElementById('history-list');
+      const bestPriceBox = document.getElementById('best-price-box');
+      historyList.innerHTML = '';
+      bestPriceBox.classList.add('hidden');
+
+      const { data: precos } = await client
+        .from('registros_precos')
+        .select('preco, data_registro, mercados(nome)')
+        .eq('produto_id', productId)
+        .order('data_registro', { ascending: false })
+        .limit(5);
+
+      if (!precos || precos.length === 0) {
+        historyList.innerHTML = '<div class="no-history">Nenhum preço registrado ainda nesta região.</div>';
+        return;
+      }
+
+      const valores = precos.map(p => parseFloat(p.preco));
+      const menor = Math.min(...valores);
+      bestPriceBox.innerText = `🏆 Menor preço registrado: R$ ${menor.toFixed(2)}`;
+      bestPriceBox.classList.remove('hidden');
+
+      precos.forEach(item => {
+        const dataObj = new Date(item.data_registro);
+        const dataFormatada = dataObj.toLocaleDateString('pt-BR') + ' às ' + dataObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        const mercadoNome = item.mercados?.nome || 'Supermercado';
+
+        const row = document.createElement('div');
+        row.className = 'history-item';
+        row.innerHTML = `
+          <div>
+            <strong style="font-size: 15px; color: #111;">${mercadoNome}</strong>
+            <div style="font-size: 12px; color: #777;">${dataFormatada}</div>
+          </div>
+          <div style="font-size: 17px; font-weight: bold; color: #2e7d32;">
+            R$ ${parseFloat(item.preco).toFixed(2)}
+          </div>
+        `;
+        historyList.appendChild(row);
+      });
+    }
+
+    async function savePrice() {
+      const priceVal = parseFloat(document.getElementById('price-input').value);
+      const marketName = document.getElementById('market-input').value.trim() || 'Supermercado Local';
+
+      if (!priceVal || isNaN(priceVal)) {
+        alert('Por favor, digite um preço válido.');
+        return;
+      }
+
+      try {
+        let mercadoId = null;
+        const { data: mkData } = await client.from('mercados').select('id').eq('nome', marketName).limit(1);
+        
+        if (mkData && mkData.length > 0) {
+          mercadoId = mkData[0].id;
+        } else {
+          const { data: newMk } = await client.from('mercados').insert({
+            nome: marketName,
+            cidade: 'Cabo Frio'
+          }).select();
+          if (newMk && newMk[0]) mercadoId = newMk[0].id;
+        }
+
+        await client.from('registros_precos').insert({
+          produto_id: currentProdDbId,
+          mercado_id: mercadoId,
+          preco: priceVal
+        });
+
+        alert('Sucesso! Preço de R$ ' + priceVal.toFixed(2) + ' registrado no ' + marketName + '!');
+        await loadPriceHistory(currentProdDbId);
+        document.getElementById('price-input').value = '';
       } catch (err) {
         alert('Erro ao salvar no banco: ' + err.message);
       }
