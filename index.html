@@ -8,57 +8,94 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>NutriPreço</title>
 
+  <!-- Manifesto PWA para ativar o botão INSTALAR no Chrome -->
   <link rel="manifest" href="data:application/manifest+json;utf-8,%7B%22name%22%3A%22NutriPre%C3%A7o%22%2C%22short_name%22%3A%22NutriPre%C3%A7o%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23f4f6f8%22%2C%22theme_color%22%3A%22%232e7d32%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22https%3A%2F%2Fcdn-icons-png.flaticon.com%2F512%2F2424%2F2424444.png%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fpng%22%7D%5D%7D">
   <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2424/2424444.png">
 
+  <!-- Bibliotecas externas gratuitas -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background-color: #f4f6f8; color: #222; padding-bottom: 40px; }
-    header { background-color: #2e7d32; color: white; padding: 16px; text-align: center; font-size: 20px; font-weight: bold; }
+    body { background-color: #f4f6f8; color: #222; padding-bottom: 90px; }
+    header { background-color: #2e7d32; color: white; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100; }
+    header h1 { font-size: 19px; font-weight: bold; }
+    .auth-btn { background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.4); padding: 6px 12px; border-radius: 20px; font-size: 12px; cursor: pointer; font-weight: bold; }
+
     .container { max-width: 480px; margin: 0 auto; padding: 16px; }
 
-    #scanner-container { background: #000; border-radius: 14px; overflow: hidden; position: relative; margin-bottom: 16px; }
-    #reader { width: 100%; min-height: 250px; }
-    .scan-btn { width: 100%; background: #2e7d32; color: #fff; border: none; padding: 15px; font-size: 17px; font-weight: bold; border-radius: 10px; cursor: pointer; }
+    /* Câmera / Scanner */
+    #scanner-container { background: #000; border-radius: 14px; overflow: hidden; position: relative; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    #reader { width: 100%; min-height: 240px; }
+    .scan-btn { width: 100%; background: #2e7d32; color: #fff; border: none; padding: 15px; font-size: 16px; font-weight: bold; border-radius: 10px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; box-shadow: 0 4px 10px rgba(46,125,50,0.25); }
 
+    /* Cartões */
     .card { background: #fff; border-radius: 14px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-    .card-title { font-size: 16px; font-weight: bold; color: #2e7d32; margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
-    .nutri-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #f0f0f0; font-size: 15px; }
-    .nutri-val { font-weight: bold; }
+    .card-title { font-size: 15px; font-weight: bold; color: #2e7d32; margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+    .card-title-price { color: #1b5e20; font-size: 16px; }
 
-    /* Indicador Comparativo Dinâmico */
-    .compare-alert { padding: 14px; border-radius: 10px; margin-top: 12px; font-weight: bold; font-size: 15px; line-height: 1.4; }
+    /* Preço e Comparativo */
+    .best-price-badge { background: #e8f5e9; color: #2e7d32; padding: 10px 12px; border-radius: 8px; font-weight: bold; margin-bottom: 12px; font-size: 14px; text-align: center; border: 1px solid #c8e6c9; }
+    .compare-alert { padding: 12px; border-radius: 10px; margin-top: 12px; font-weight: bold; font-size: 14px; line-height: 1.4; }
     .compare-alert.cheaper { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
     .compare-alert.expensive { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
     .compare-alert.equal { background: #e3f2fd; color: #1565c0; border: 1px solid #bbdefb; }
 
-    .market-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
-    .chip { padding: 8px 12px; background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    /* Atalho Preço Confere */
+    .confirm-price-box { background: #f1f8e9; border: 1.5px dashed #2e7d32; border-radius: 10px; padding: 12px; margin-bottom: 14px; text-align: center; }
+    .confirm-price-btn { background: #2e7d32; color: #fff; border: none; padding: 11px 16px; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; margin-top: 8px; width: 100%; box-shadow: 0 2px 6px rgba(46,125,50,0.2); }
+
+    /* Seletor de Mercados */
+    .market-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+    .chip { padding: 6px 11px; background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; }
     .chip.active { background: #2e7d32; color: #fff; border-color: #2e7d32; }
 
-    label { font-size: 14px; color: #555; display: block; margin-top: 10px; margin-bottom: 5px; font-weight: 500; }
-    input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; }
-    .price-input { font-size: 26px; font-weight: bold; text-align: center; color: #2e7d32; border: 2px solid #2e7d32; margin-top: 6px; }
+    label { font-size: 13px; color: #555; display: block; margin-top: 10px; margin-bottom: 4px; font-weight: 500; }
+    input { width: 100%; padding: 11px; border: 1px solid #ccc; border-radius: 8px; font-size: 15px; }
+    .price-input { font-size: 28px; font-weight: bold; text-align: center; color: #2e7d32; border: 2px solid #2e7d32; margin-top: 4px; background: #fafafa; }
 
-    .history-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #fafafa; border-radius: 8px; margin-bottom: 8px; border-left: 4px solid #2e7d32; }
-    .best-price-badge { background: #e8f5e9; color: #2e7d32; padding: 10px 12px; border-radius: 8px; font-weight: bold; margin-bottom: 12px; font-size: 14px; text-align: center; }
-    .no-history { font-size: 13px; color: #888; text-align: center; padding: 10px; }
+    /* Histórico */
+    .history-item { display: flex; justify-content: space-between; align-items: center; padding: 9px; background: #fafafa; border-radius: 8px; margin-bottom: 7px; border-left: 4px solid #2e7d32; }
+    .time-badge { font-size: 11px; color: #666; display: inline-block; background: #eee; padding: 2px 6px; border-radius: 4px; margin-top: 3px; }
 
-    .save-btn { width: 100%; background: #2e7d32; color: white; border: none; padding: 15px; font-size: 17px; font-weight: bold; border-radius: 10px; margin-top: 16px; cursor: pointer; }
-    .reset-btn { width: 100%; background: #eceff1; color: #444; border: none; padding: 12px; font-size: 15px; font-weight: 600; border-radius: 10px; margin-top: 10px; cursor: pointer; }
+    /* Nutrição */
+    .nutri-row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px dashed #f0f0f0; font-size: 14px; }
+    .nutri-val { font-weight: bold; }
 
-    .loading { text-align: center; padding: 30px 20px; font-weight: bold; color: #2e7d32; font-size: 16px; }
-    .hidden { display: none; }
+    /* Botões */
+    .save-btn { width: 100%; background: #2e7d32; color: white; border: none; padding: 15px; font-size: 16px; font-weight: bold; border-radius: 10px; margin-top: 14px; cursor: pointer; box-shadow: 0 4px 10px rgba(46,125,50,0.25); }
+    .reset-btn { width: 100%; background: #eceff1; color: #444; border: none; padding: 11px; font-size: 14px; font-weight: 600; border-radius: 10px; margin-top: 8px; cursor: pointer; }
+
+    /* Barra Fixa Pré-Caixa */
+    .cart-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 2px solid #2e7d32; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -3px 10px rgba(0,0,0,0.08); z-index: 99; }
+    .cart-info strong { font-size: 19px; color: #2e7d32; display: block; }
+    .cart-info span { font-size: 12px; color: #666; }
+    .cart-btn { background: #2e7d32; color: #fff; border: none; padding: 10px 16px; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; }
+
+    /* Modais */
+    .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: flex-end; z-index: 200; }
+    .modal-content { background: #fff; width: 100%; max-width: 480px; max-height: 80vh; border-radius: 20px 20px 0 0; padding: 20px; overflow-y: auto; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+    .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
+    .qty-btn { background: #eee; border: none; width: 26px; height: 26px; border-radius: 50%; font-weight: bold; cursor: pointer; }
+
+    .auth-box { padding: 10px 0; }
+    .auth-box input { margin-bottom: 10px; }
+
+    .loading { text-align: center; padding: 30px 20px; font-weight: bold; color: #2e7d32; }
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
 
-  <header>🥗 NutriPreço</header>
+  <header>
+    <h1>🥗 NutriPreço</h1>
+    <button class="auth-btn" id="header-auth-btn" onclick="openAuthModal()">👤 Entrar</button>
+  </header>
 
   <div class="container">
+    <!-- Seção Scanner -->
     <div id="scan-section">
       <div id="scanner-container">
         <div id="reader"></div>
@@ -66,35 +103,38 @@
       <button class="scan-btn" id="start-btn" onclick="startScanner()">📷 Iniciar Câmera</button>
     </div>
 
-    <div id="loading" class="loading hidden">🔍 Consultando produto e preços em Cabo Frio...</div>
+    <div id="loading" class="loading hidden">🔍 Consultando preços em Cabo Frio e produto...</div>
 
+    <!-- Seção Resultado -->
     <div id="result-section" class="hidden">
-      <!-- Ficha Nutricional -->
-      <div class="card">
-        <h2 id="prod-name" style="font-size: 20px; margin-bottom: 4px;">Nome do Produto</h2>
-        <p id="prod-brand" style="color: #666; font-size: 14px; margin-bottom: 14px;">Marca | EAN</p>
+      
+      <!-- Cabeçalho do Produto -->
+      <div class="card" style="padding-bottom: 10px; margin-bottom: 12px;">
+        <h2 id="prod-name" style="font-size: 20px; color: #1a1a1a; margin-bottom: 3px;">Nome do Produto</h2>
+        <p id="prod-brand" style="color: #666; font-size: 13px; margin-bottom: 0;">Marca | EAN</p>
 
-        <div class="card-title">Qualidade Nutricional (por 100g)</div>
-        <div class="nutri-row"><span>🔥 Energia / Calorias</span><span class="nutri-val" id="prod-cal">0 kcal</span></div>
-        <div class="nutri-row"><span>🍬 Açúcares</span><span class="nutri-val" id="prod-sugar">0 g</span></div>
-        <div class="nutri-row"><span>🧂 Sódio</span><span class="nutri-val" id="prod-sodium">0 g</span></div>
-      </div>
-
-      <!-- Comparativo na Região -->
-      <div class="card">
-        <div class="card-title">
-          <span>📊 Comparativo em Cabo Frio</span>
-          <span style="font-size: 12px; color: #666; font-weight: normal;">Tempo Real</span>
+        <!-- Campo para dar nome caso produto não exista no catálogo -->
+        <div id="unnamed-box" class="hidden" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee;">
+          <label style="color:#2e7d32; font-weight:bold;">📝 Produto sem nome no catálogo. Digite o nome dele:</label>
+          <input type="text" id="manual-name-input" placeholder="Ex: Biscoito Recheado 130g">
         </div>
-        <div id="best-price-box" class="best-price-badge hidden"></div>
-        <div id="history-list"></div>
       </div>
 
-      <!-- Formulário com Comparativo em Tempo Real -->
-      <div class="card">
-        <div class="card-title">💰 Onde você está agora?</div>
-        
-        <label>Selecione o Supermercado:</label>
+      <!-- 1º LUGAR: PREÇO & ECONOMIA -->
+      <div class="card" style="border: 2px solid #c8e6c9;">
+        <div class="card-title card-title-price">
+          <span>💰 Preço & Economia</span>
+          <span style="font-size: 12px; color: #666; font-weight: normal;">Cabo Frio</span>
+        </div>
+
+        <div id="best-price-box" class="best-price-badge hidden"></div>
+
+        <div id="quick-confirm-box" class="confirm-price-box hidden">
+          <div>Preço visto recentemente aqui: <strong id="quick-confirm-val">R$ 0,00</strong></div>
+          <button class="confirm-price-btn" onclick="confirmExistingPrice()">👍 Preço Confere (+ Colocar no Carrinho)</button>
+        </div>
+
+        <label>Supermercado onde você está:</label>
         <div class="market-chips">
           <div class="chip active" onclick="selectMarket(this, 'Atacadão')">Atacadão</div>
           <div class="chip" onclick="selectMarket(this, 'Assaí')">Assaí</div>
@@ -110,11 +150,69 @@
         <label>Preço deste Produto na Gôndola (R$):</label>
         <input type="number" step="0.01" id="price-input" class="price-input" placeholder="0,00" oninput="checkPriceComparison()">
 
-        <!-- Alerta Dinâmico Verde / Vermelho -->
         <div id="compare-alert" class="compare-alert hidden"></div>
 
-        <button class="save-btn" onclick="savePrice()">Confirmar e Gravar Preço</button>
-        <button class="reset-btn" onclick="resetScan()">Escanear Outro Produto</button>
+        <button class="save-btn" onclick="saveAndAddToCart()">➕ Gravar e Colocar no Meu Pré-Caixa</button>
+      </div>
+
+      <!-- Histórico de Outros Mercados -->
+      <div class="card">
+        <div class="card-title">
+          <span>📊 Últimos Preços em Outros Mercados</span>
+        </div>
+        <div id="history-list"></div>
+      </div>
+
+      <!-- 2º LUGAR: SAÚDE & NUTRIÇÃO -->
+      <div class="card">
+        <div class="card-title">🥗 Informações Nutricionais (por 100g)</div>
+        <div class="nutri-row"><span>🔥 Energia / Calorias</span><span class="nutri-val" id="prod-cal">0 kcal</span></div>
+        <div class="nutri-row"><span>🍬 Açúcares</span><span class="nutri-val" id="prod-sugar">0 g</span></div>
+        <div class="nutri-row"><span>🧂 Sódio</span><span class="nutri-val" id="prod-sodium">0 g</span></div>
+      </div>
+
+      <button class="reset-btn" onclick="resetScan()" style="margin-bottom: 20px;">📷 Escanear Outro Produto</button>
+    </div>
+  </div>
+
+  <!-- Barra Fixa do Pré-Caixa -->
+  <div class="cart-bar" id="cart-bar">
+    <div class="cart-info">
+      <span>Meu Pré-Caixa (<span id="cart-count">0</span> itens):</span>
+      <strong id="cart-total">R$ 0,00</strong>
+    </div>
+    <button class="cart-btn" onclick="openCartModal()">Ver Carrinho</button>
+  </div>
+
+  <!-- Modal do Carrinho -->
+  <div class="modal hidden" id="cart-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 style="color: #2e7d32;">🛒 Meu Pré-Caixa (Carrinho)</h3>
+        <button style="border:none; background:none; font-size:22px; cursor:pointer;" onclick="closeCartModal()">✕</button>
+      </div>
+      <div id="cart-items-list" style="margin-bottom: 20px;"></div>
+      <div style="display:flex; justify-content:space-between; font-size:18px; font-weight:bold; margin-bottom:15px;">
+        <span>Total da Compra:</span>
+        <span id="modal-cart-total" style="color: #2e7d32;">R$ 0,00</span>
+      </div>
+      <button class="reset-btn" style="background:#ffebee; color:#c62828;" onclick="clearCart()">🗑️ Limpar Carrinho</button>
+    </div>
+  </div>
+
+  <!-- Modal de Login -->
+  <div class="modal hidden" id="auth-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 style="color: #2e7d32;">👤 Identificação de Usuário</h3>
+        <button style="border:none; background:none; font-size:22px; cursor:pointer;" onclick="closeAuthModal()">✕</button>
+      </div>
+      <div class="auth-box">
+        <p style="font-size:13px; color:#666; margin-bottom:12px;">Identifique-se para cadastrar preços confiáveis e salvar seu histórico.</p>
+        <input type="email" id="auth-email" placeholder="Seu e-mail">
+        <input type="password" id="auth-password" placeholder="Sua senha (mínimo 6 dígitos)">
+        <button class="save-btn" onclick="handleAuth('login')">Entrar na Conta</button>
+        <button class="reset-btn" onclick="handleAuth('signup')">Criar Nova Conta Grátis</button>
       </div>
     </div>
   </div>
@@ -130,6 +228,67 @@
     let currentBrand = '';
     let currentProdDbId = null;
     let cachedPrices = [];
+    let existingPriceForCurrentMarket = null;
+
+    let cart = JSON.parse(localStorage.getItem('nutri_cart') || '[]');
+    let currentUser = null;
+
+    window.addEventListener('DOMContentLoaded', () => {
+      updateCartDisplay();
+      checkAuthSession();
+    });
+
+    async function checkAuthSession() {
+      const { data: { session } } = await client.auth.getSession();
+      if (session?.user) {
+        currentUser = session.user;
+        document.getElementById('header-auth-btn').innerText = '👤 ' + (currentUser.email.split('@')[0]);
+      }
+    }
+
+    function openAuthModal() {
+      if (currentUser) {
+        if (confirm(`Conectado como ${currentUser.email}.\nDeseja sair da conta?`)) {
+          client.auth.signOut();
+          currentUser = null;
+          document.getElementById('header-auth-btn').innerText = '👤 Entrar';
+        }
+        return;
+      }
+      document.getElementById('auth-modal').classList.remove('hidden');
+    }
+
+    function closeAuthModal() {
+      document.getElementById('auth-modal').classList.add('hidden');
+    }
+
+    async function handleAuth(type) {
+      const email = document.getElementById('auth-email').value.trim();
+      const password = document.getElementById('auth-password').value;
+
+      if (!email || password.length < 6) {
+        alert('Digite um e-mail válido e uma senha de no mínimo 6 caracteres.');
+        return;
+      }
+
+      try {
+        if (type === 'login') {
+          const { data, error } = await client.auth.signInWithPassword({ email, password });
+          if (error) throw error;
+          currentUser = data.user;
+          alert('Login realizado com sucesso!');
+        } else {
+          const { data, error } = await client.auth.signUp({ email, password });
+          if (error) throw error;
+          currentUser = data.user;
+          alert('Conta criada com sucesso!');
+        }
+        document.getElementById('header-auth-btn').innerText = '👤 ' + (currentUser.email.split('@')[0]);
+        closeAuthModal();
+      } catch (err) {
+        alert('Erro: ' + err.message);
+      }
+    }
 
     function selectMarket(el, name) {
       document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
@@ -141,18 +300,18 @@
       } else {
         input.value = name;
       }
+      checkQuickConfirm();
       checkPriceComparison();
     }
 
     function startScanner() {
       document.getElementById('start-btn').classList.add('hidden');
       html5QrCode = new Html5Qrcode("reader");
-      
       html5QrCode.start(
         { facingMode: "environment" },
         { fps: 10, qrbox: { width: 250, height: 150 } },
         (decodedText) => { onCodeScanned(decodedText); },
-        (error) => {}
+        () => {}
       ).catch(err => {
         alert("Erro ao acessar a câmera: " + err);
         document.getElementById('start-btn').classList.remove('hidden');
@@ -160,42 +319,40 @@
     }
 
     async function onCodeScanned(barcode) {
-      if (html5QrCode) {
-        await html5QrCode.stop();
-      }
+      if (html5QrCode) await html5QrCode.stop();
 
       document.getElementById('scan-section').classList.add('hidden');
       document.getElementById('loading').classList.remove('hidden');
-
+      document.getElementById('unnamed-box').classList.add('hidden');
       currentBarcode = barcode;
 
       try {
         const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json`);
         const data = await res.json();
 
-        if (data.status === 1 && data.product) {
+        if (data.status === 1 && data.product && data.product.product_name) {
           const p = data.product;
-          currentName = p.product_name || 'Produto sem nome';
+          currentName = p.product_name;
           currentBrand = p.brands || 'Marca não informada';
-
           document.getElementById('prod-name').innerText = currentName;
           document.getElementById('prod-brand').innerText = `${currentBrand} | EAN: ${barcode}`;
           document.getElementById('prod-cal').innerText = (p.nutriments?.['energy-kcal_100g'] ?? 'N/D') + ' kcal';
           document.getElementById('prod-sugar').innerText = (p.nutriments?.sugars_100g ?? 'N/D') + ' g';
           document.getElementById('prod-sodium').innerText = (p.nutriments?.sodium_100g ?? 'N/D') + ' g';
         } else {
-          currentName = 'Produto Novo';
+          currentName = '';
           currentBrand = '';
           document.getElementById('prod-name').innerText = 'Produto Novo';
           document.getElementById('prod-brand').innerText = `EAN: ${barcode}`;
           document.getElementById('prod-cal').innerText = 'N/D';
           document.getElementById('prod-sugar').innerText = 'N/D';
           document.getElementById('prod-sodium').innerText = 'N/D';
+          document.getElementById('unnamed-box').classList.remove('hidden');
         }
 
         const { data: prodData } = await client.from('produtos').upsert({
           codigo_barras: currentBarcode,
-          nome: currentName,
+          nome: currentName || 'Produto sem nome',
           marca: currentBrand
         }, { onConflict: 'codigo_barras' }).select();
 
@@ -207,7 +364,7 @@
         document.getElementById('loading').classList.add('hidden');
         document.getElementById('result-section').classList.remove('hidden');
       } catch (e) {
-        alert('Erro ao buscar dados do produto: ' + e.message);
+        alert('Erro ao buscar dados: ' + e.message);
         resetScan();
       }
     }
@@ -229,6 +386,7 @@
 
       if (cachedPrices.length === 0) {
         historyList.innerHTML = '<div class="no-history">Nenhum preço registrado ainda nesta região.</div>';
+        checkQuickConfirm();
         return;
       }
 
@@ -237,29 +395,54 @@
       const registroMaisBarato = cachedPrices.find(p => parseFloat(p.preco) === menor);
       const mercadoBarato = registroMaisBarato?.mercados?.nome || 'Mercado';
 
-      bestPriceBox.innerHTML = `🏆 <b>Menor Preço:</b> R$ ${menor.toFixed(2)} (${mercadoBarato})`;
+      bestPriceBox.innerHTML = `🏆 <b>Menor Preço em Cabo Frio:</b> R$ ${menor.toFixed(2)} (${mercadoBarato})`;
       bestPriceBox.classList.remove('hidden');
 
       cachedPrices.slice(0, 5).forEach(item => {
         const dataObj = new Date(item.data_registro);
-        const dataFormatada = dataObj.toLocaleDateString('pt-BR') + ' às ' + dataObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        const tempoFormatado = formatRelativeTime(dataObj);
         const mercadoNome = item.mercados?.nome || 'Supermercado';
 
         const row = document.createElement('div');
         row.className = 'history-item';
         row.innerHTML = `
           <div>
-            <strong style="font-size: 15px; color: #111;">${mercadoNome}</strong>
-            <div style="font-size: 12px; color: #777;">${dataFormatada}</div>
+            <strong style="font-size: 14px; color: #111;">${mercadoNome}</strong>
+            <div class="time-badge">🕒 ${tempoFormatado}</div>
           </div>
-          <div style="font-size: 17px; font-weight: bold; color: #2e7d32;">
+          <div style="font-size: 16px; font-weight: bold; color: #2e7d32;">
             R$ ${parseFloat(item.preco).toFixed(2)}
           </div>
         `;
         historyList.appendChild(row);
       });
 
+      checkQuickConfirm();
       checkPriceComparison();
+    }
+
+    function formatRelativeTime(date) {
+      const diffHrs = Math.round((new Date() - date) / (1000 * 60 * 60));
+      if (diffHrs < 1) return 'Visto há pouco';
+      if (diffHrs < 24) return `Visto há ${diffHrs}h`;
+      const diffDays = Math.round(diffHrs / 24);
+      return diffDays === 1 ? 'Visto ontem' : `Visto há ${diffDays} dias`;
+    }
+
+    function checkQuickConfirm() {
+      const currentMarket = document.getElementById('market-input').value.trim();
+      const confirmBox = document.getElementById('quick-confirm-box');
+      const confirmVal = document.getElementById('quick-confirm-val');
+
+      const match = cachedPrices.find(p => (p.mercados?.nome || '').toLowerCase() === currentMarket.toLowerCase());
+      if (match) {
+        existingPriceForCurrentMarket = parseFloat(match.preco);
+        confirmVal.innerText = `R$ ${existingPriceForCurrentMarket.toFixed(2)}`;
+        confirmBox.classList.remove('hidden');
+      } else {
+        existingPriceForCurrentMarket = null;
+        confirmBox.classList.add('hidden');
+      }
     }
 
     function checkPriceComparison() {
@@ -294,14 +477,35 @@
       }
     }
 
-    async function savePrice() {
+    async function confirmExistingPrice() {
+      if (!existingPriceForCurrentMarket) return;
+      await recordPriceInDb(existingPriceForCurrentMarket);
+      addToCart(currentName || 'Produto', existingPriceForCurrentMarket);
+      resetScan();
+    }
+
+    async function saveAndAddToCart() {
       const priceVal = parseFloat(document.getElementById('price-input').value);
-      const marketName = document.getElementById('market-input').value.trim() || 'Supermercado Local';
+      const manualName = document.getElementById('manual-name-input').value.trim();
+
+      if (!currentName && manualName) {
+        currentName = manualName;
+        document.getElementById('prod-name').innerText = currentName;
+        await client.from('produtos').update({ nome: currentName }).eq('id', currentProdDbId);
+      }
 
       if (!priceVal || isNaN(priceVal)) {
         alert('Por favor, digite um preço válido.');
         return;
       }
+
+      await recordPriceInDb(priceVal);
+      addToCart(currentName || 'Produto', priceVal);
+      resetScan();
+    }
+
+    async function recordPriceInDb(priceVal) {
+      const marketName = document.getElementById('market-input').value.trim() || 'Supermercado Local';
 
       try {
         let mercadoId = null;
@@ -320,21 +524,91 @@
         await client.from('registros_precos').insert({
           produto_id: currentProdDbId,
           mercado_id: mercadoId,
-          preco: priceVal
+          preco: priceVal,
+          usuario_id: currentUser?.id || null
         });
-
-        alert(`Sucesso! Preço de R$ ${priceVal.toFixed(2)} registrado no ${marketName}!`);
-        await loadPriceHistory(currentProdDbId);
-        document.getElementById('price-input').value = '';
-        document.getElementById('compare-alert').classList.add('hidden');
       } catch (err) {
-        alert('Erro ao salvar no banco: ' + err.message);
+        console.error('Erro ao salvar no banco:', err);
+      }
+    }
+
+    function addToCart(name, price) {
+      const existing = cart.find(i => i.barcode === currentBarcode);
+      if (existing) {
+        existing.qty += 1;
+      } else {
+        cart.push({ barcode: currentBarcode, name: name, price: price, qty: 1 });
+      }
+      localStorage.setItem('nutri_cart', JSON.stringify(cart));
+      updateCartDisplay();
+      alert(`🛒 ${name} adicionado ao Pré-Caixa!`);
+    }
+
+    function updateCartDisplay() {
+      const total = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
+      const count = cart.reduce((acc, item) => acc + item.qty, 0);
+
+      document.getElementById('cart-count').innerText = count;
+      document.getElementById('cart-total').innerText = `R$ ${total.toFixed(2)}`;
+      document.getElementById('modal-cart-total').innerText = `R$ ${total.toFixed(2)}`;
+    }
+
+    function openCartModal() {
+      const list = document.getElementById('cart-items-list');
+      list.innerHTML = '';
+
+      if (cart.length === 0) {
+        list.innerHTML = '<div style="text-align:center; color:#888; padding:20px;">O seu carrinho ainda está vazio.<br>Bipe produtos para somar!</div>';
+      } else {
+        cart.forEach((item, idx) => {
+          const itemDiv = document.createElement('div');
+          itemDiv.className = 'cart-item';
+          itemDiv.innerHTML = `
+            <div>
+              <strong>${item.name}</strong>
+              <div style="font-size:12px; color:#666;">R$ ${item.price.toFixed(2)} un.</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <button class="qty-btn" onclick="changeQty(${idx}, -1)">-</button>
+              <span style="font-weight:bold;">${item.qty}</span>
+              <button class="qty-btn" onclick="changeQty(${idx}, 1)">+</button>
+              <strong style="margin-left:8px; color:#2e7d32;">R$ ${(item.price * item.qty).toFixed(2)}</strong>
+            </div>
+          `;
+          list.appendChild(itemDiv);
+        });
+      }
+
+      document.getElementById('cart-modal').classList.remove('hidden');
+    }
+
+    function closeCartModal() {
+      document.getElementById('cart-modal').classList.add('hidden');
+    }
+
+    function changeQty(idx, delta) {
+      cart[idx].qty += delta;
+      if (cart[idx].qty <= 0) cart.splice(idx, 1);
+      localStorage.setItem('nutri_cart', JSON.stringify(cart));
+      updateCartDisplay();
+      openCartModal();
+    }
+
+    function clearCart() {
+      if (confirm('Deseja limpar todos os itens do carrinho?')) {
+        cart = [];
+        localStorage.removeItem('nutri_cart');
+        updateCartDisplay();
+        closeCartModal();
       }
     }
 
     function resetScan() {
       document.getElementById('price-input').value = '';
+      document.getElementById('manual-name-input').value = '';
       document.getElementById('compare-alert').classList.add('hidden');
+      document.getElementById('quick-confirm-box').classList.add('hidden');
+      document.getElementById('unnamed-box').classList.add('hidden');
       document.getElementById('result-section').classList.add('hidden');
       document.getElementById('scan-section').classList.remove('hidden');
       document.getElementById('start-btn').classList.remove('hidden');
