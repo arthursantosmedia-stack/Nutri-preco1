@@ -6,7 +6,14 @@
   <meta name="theme-color" content="#2e7d32">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <title>NutriPreço</title>
+  <title>NutriPreço — Calculadora de Mercado & Comparador</title>
+
+  <!-- Card Oficial de Compartilhamento no WhatsApp -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://arthursantosmedia-stack.github.io/Nutri-preco1/">
+  <meta property="og:title" content="NutriPreço — Calculadora de Mercado & Economia">
+  <meta property="og:description" content="Some o carrinho em tempo real, veja a tabela nutricional e saiba onde está mais barato em Cabo Frio.">
+  <meta property="og:image" content="https://cdn-icons-png.flaticon.com/512/2424/2424444.png">
 
   <!-- Ligação com o Manifesto PWA -->
   <link rel="manifest" href="manifest.json">
@@ -181,11 +188,24 @@
         <h3 style="color: #2e7d32;">🛒 Meu Pré-Caixa (Carrinho)</h3>
         <button style="border:none; background:none; font-size:22px; cursor:pointer;" onclick="closeCartModal()">✕</button>
       </div>
+
       <div id="cart-items-list" style="margin-bottom: 20px;"></div>
+
       <div style="display:flex; justify-content:space-between; font-size:18px; font-weight:bold; margin-bottom:15px;">
         <span>Total da Compra:</span>
         <span id="modal-cart-total" style="color: #2e7d32;">R$ 0,00</span>
       </div>
+
+      <!-- BOTÕES: SALVAR HISTÓRICO E ENVIAR NO WHATSAPP COM LINK VIRAL -->
+      <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+        <button onclick="finalizarESalvarCompra()" style="flex: 1; background: #2e7d32; color: white; padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; font-size: 14px;">
+          💾 Salvar Compra
+        </button>
+        <button onclick="compartilharNoWhatsApp()" style="flex: 1; background: #25D366; color: white; padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; font-size: 14px;">
+          📲 WhatsApp
+        </button>
+      </div>
+
       <button class="reset-btn" style="background:#ffebee; color:#c62828;" onclick="clearCart()">🗑️ Limpar Carrinho</button>
     </div>
   </div>
@@ -227,7 +247,6 @@
       updateCartDisplay();
       checkAuthSession();
 
-      // Registro do Service Worker para permitir instalação nativa
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('./sw.js').catch(() => {});
       }
@@ -242,6 +261,8 @@
     }
 
     function openAuthModal() {
+      if (currentUser) {
+        if (confirm(`Conectado como ${currentUser.email}.\nDesejafunction openAuthModal() {
       if (currentUser) {
         if (confirm(`Conectado como ${currentUser.email}.\nDeseja sair da conta?`)) {
           client.auth.signOut();
@@ -364,6 +385,16 @@
       }
     }
 
+    function formatRelativeTime(date) {
+      const now = new Date();
+      const diffMs = now - date;
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      if (diffDays === 0) return 'Visto hoje';
+      if (diffDays === 1) return 'Visto ontem';
+      if (diffDays < 7) return `Visto há ${diffDays} dias`;
+      return date.toLocaleDateString('pt-BR');
+    }
+
     async function loadPriceHistory(productId) {
       const historyList = document.getElementById('history-list');
       const bestPriceBox = document.getElementById('best-price-box');
@@ -380,7 +411,7 @@
       cachedPrices = precos || [];
 
       if (cachedPrices.length === 0) {
-        historyList.innerHTML = '<div class="no-history">Nenhum preço registrado ainda nesta região.</div>';
+        historyList.innerHTML = '<div style="font-size:13px; color:#888; font-style:italic; text-align:center; padding:10px;">Nenhum preço registrado ainda nesta região. Seja o primeiro!</div>';
         checkQuickConfirm();
         return;
       }
@@ -390,7 +421,7 @@
       const registroMaisBarato = cachedPrices.find(p => parseFloat(p.preco) === menor);
       const mercadoBarato = registroMaisBarato?.mercados?.nome || 'Mercado';
 
-      bestPriceBox.innerHTML = `🏆 <b>Menor Preço em Cabo Frio:</b> R$ ${menor.toFixed(2)} (${mercadoBarato})`;
+      bestPriceBox.innerHTML = `🏆 <b>Menor Preço em Cabo Frio:</b> R$ ${menor.toFixed(2).replace('.', ',')} (${mercadoBarato})`;
       bestPriceBox.classList.remove('hidden');
 
       cachedPrices.slice(0, 5).forEach(item => {
@@ -402,47 +433,48 @@
         row.className = 'history-item';
         row.innerHTML = `
           <div>
-            <strong style="font-size: 14px; color: #111;">${mercadoNome}</strong>
-            <div class="time-badge">🕒 ${tempoFormatado}</div>
+            <strong style="color: #222;">${mercadoNome}</strong>
+            <div><span class="time-badge">${tempoFormatado}</span></div>
           </div>
           <div style="font-size: 16px; font-weight: bold; color: #2e7d32;">
-            R$ ${parseFloat(item.preco).toFixed(2)}
+            R$ ${parseFloat(item.preco).toFixed(2).replace('.', ',')}
           </div>
         `;
         historyList.appendChild(row);
       });
 
       checkQuickConfirm();
-      checkPriceComparison();
-    }
-
-    function formatRelativeTime(date) {
-      const diffHrs = Math.round((new Date() - date) / (1000 * 60 * 60));
-      if (diffHrs < 1) return 'Visto há pouco';
-      if (diffHrs < 24) return `Visto há ${diffHrs}h`;
-      const diffDays = Math.round(diffHrs / 24);
-      return diffDays === 1 ? 'Visto ontem' : `Visto há ${diffDays} dias`;
     }
 
     function checkQuickConfirm() {
-      const currentMarket = document.getElementById('market-input').value.trim();
-      const confirmBox = document.getElementById('quick-confirm-box');
-      const confirmVal = document.getElementById('quick-confirm-val');
+      const quickBox = document.getElementById('quick-confirm-box');
+      const marketName = document.getElementById('market-input').value.trim();
+      existingPriceForCurrentMarket = null;
 
-      const match = cachedPrices.find(p => (p.mercados?.nome || '').toLowerCase() === currentMarket.toLowerCase());
+      if (!marketName || cachedPrices.length === 0) {
+        quickBox.classList.add('hidden');
+        return;
+      }
+
+      const match = cachedPrices.find(p => (p.mercados?.nome || '').toLowerCase() === marketName.toLowerCase());
       if (match) {
         existingPriceForCurrentMarket = parseFloat(match.preco);
-        confirmVal.innerText = `R$ ${existingPriceForCurrentMarket.toFixed(2)}`;
-        confirmBox.classList.remove('hidden');
+        document.getElementById('quick-confirm-val').innerText = 'R$ ' + existingPriceForCurrentMarket.toFixed(2).replace('.', ',');
+        quickBox.classList.remove('hidden');
       } else {
-        existingPriceForCurrentMarket = null;
-        confirmBox.classList.add('hidden');
+        quickBox.classList.add('hidden');
+      }
+    }
+
+    function confirmExistingPrice() {
+      if (existingPriceForCurrentMarket !== null) {
+        document.getElementById('price-input').value = existingPriceForCurrentMarket.toFixed(2);
+        saveAndAddToCart();
       }
     }
 
     function checkPriceComparison() {
       const priceVal = parseFloat(document.getElementById('price-input').value);
-      const currentMarket = document.getElementById('market-input').value.trim();
       const alertBox = document.getElementById('compare-alert');
 
       if (!priceVal || isNaN(priceVal) || cachedPrices.length === 0) {
@@ -450,164 +482,68 @@
         return;
       }
 
-      const outroMercado = cachedPrices.find(p => (p.mercados?.nome || '').toLowerCase() !== currentMarket.toLowerCase()) || cachedPrices[0];
-      const outroPreco = parseFloat(outroMercado.preco);
-      const outroNome = outroMercado.mercados?.nome || 'outro mercado';
-
-      const diff = priceVal - outroPreco;
-      const diffAbs = Math.abs(diff).toFixed(2);
-      const perc = Math.round((Math.abs(diff) / outroPreco) * 100);
+      const valores = cachedPrices.map(p => parseFloat(p.preco));
+      const menor = Math.min(...valores);
+      const diff = priceVal - menor;
 
       alertBox.classList.remove('hidden', 'cheaper', 'expensive', 'equal');
 
-      if (diff < -0.05) {
-        alertBox.classList.add('cheaper');
-        alertBox.innerHTML = `🟢 ⬇️ <b>Mais barato aqui!</b> Você economiza <b>R$ ${diffAbs} (${perc}%)</b> em relação ao ${outroNome} (R$ ${outroPreco.toFixed(2)}).`;
-      } else if (diff > 0.05) {
-        alertBox.classList.add('expensive');
-        alertBox.innerHTML = `🔴 ⬆️ <b>Mais caro aqui!</b> Está custando <b>R$ ${diffAbs} a mais (+${perc}%)</b> do que no ${outroNome} (R$ ${outroPreco.toFixed(2)}).`;
+      if (diff < -0.01) {
+        const perc = Math.round((Math.abs(diff) / menor) * 100);
+        alertBox.className = 'compare-alert cheaper';
+        alertBox.innerHTML = `🔥 <b>Novo Menor Preço!</b> Você está pagando <b>R$ ${Math.abs(diff).toFixed(2).replace('.', ',')} (${perc}%) mais barato</b> que o menor valor registrado!`;
+      } else if (diff > 0.01) {
+        const perc = Math.round((diff / menor) * 100);
+        alertBox.className = 'compare-alert expensive';
+        alertBox.innerHTML = `⚠️ <b>Atenção:</b> Está <b>R$ ${diff.toFixed(2).replace('.', ',')} (${perc}%) mais caro</b> que o menor preço encontrado em Cabo Frio (R$ ${menor.toFixed(2).replace('.', ',')}).`;
       } else {
-        alertBox.classList.add('equal');
-        alertBox.innerHTML = `⚖️ <b>Mesmo preço!</b> Valor idêntico ao registrado no ${outroNome} (R$ ${outroPreco.toFixed(2)}).`;
+        alertBox.className = 'compare-alert equal';
+        alertBox.innerHTML = `✨ <b>Bom Preço!</b> Este é igual ao menor preço registrado na cidade.`;
       }
-    }
-
-    async function confirmExistingPrice() {
-      if (!existingPriceForCurrentMarket) return;
-      await recordPriceInDb(existingPriceForCurrentMarket);
-      addToCart(currentName || 'Produto', existingPriceForCurrentMarket);
-      resetScan();
     }
 
     async function saveAndAddToCart() {
       const priceVal = parseFloat(document.getElementById('price-input').value);
+      const marketName = document.getElementById('market-input').value.trim() || 'Supermercado Local';
       const manualName = document.getElementById('manual-name-input').value.trim();
 
-      if (!currentName && manualName) {
-        currentName = manualName;
-        document.getElementById('prod-name').innerText = currentName;
-        await client.from('produtos').update({ nome: currentName }).eq('id', currentProdDbId);
-      }
-
-      if (!priceVal || isNaN(priceVal)) {
-        alert('Por favor, digite um preço válido.');
+      if (!priceVal || isNaN(priceVal) || priceVal <= 0) {
+        alert('Por favor, informe um preço válido.');
         return;
       }
 
-      await recordPriceInDb(priceVal);
-      addToCart(currentName || 'Produto', priceVal);
-      resetScan();
-    }
-
-    async function recordPriceInDb(priceVal) {
-      const marketName = document.getElementById('market-input').value.trim() || 'Supermercado Local';
+      if (manualName && !currentName) {
+        currentName = manualName;
+        await client.from('produtos').update({ nome: currentName }).eq('id', currentProdDbId);
+      }
 
       try {
         let mercadoId = null;
         const { data: mkData } = await client.from('mercados').select('id').eq('nome', marketName).limit(1);
-        
+
         if (mkData && mkData.length > 0) {
           mercadoId = mkData[0].id;
         } else {
-          const { data: newMk } = await client.from('mercados').insert({
-            nome: marketName,
-            cidade: 'Cabo Frio'
-          }).select();
+          const { data: newMk } = await client.from('mercados').insert({ nome: marketName, cidade: 'Cabo Frio' }).select();
           if (newMk && newMk[0]) mercadoId = newMk[0].id;
         }
 
         await client.from('registros_precos').insert({
           produto_id: currentProdDbId,
           mercado_id: mercadoId,
-          preco: priceVal,
-          usuario_id: currentUser?.id || null
+          preco: priceVal
         });
-      } catch (err) {
-        console.error('Erro ao salvar no banco:', err);
-      }
-    }
 
-    function addToCart(name, price) {
-      const existing = cart.find(i => i.barcode === currentBarcode);
-      if (existing) {
-        existing.qty += 1;
-      } else {
-        cart.push({ barcode: currentBarcode, name: name, price: price, qty: 1 });
-      }
-      localStorage.setItem('nutri_cart', JSON.stringify(cart));
-      updateCartDisplay();
-      alert(`🛒 ${name} adicionado ao Pré-Caixa!`);
-    }
-
-    function updateCartDisplay() {
-      const total = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
-      const count = cart.reduce((acc, item) => acc + item.qty, 0);
-
-      document.getElementById('cart-count').innerText = count;
-      document.getElementById('cart-total').innerText = `R$ ${total.toFixed(2)}`;
-      document.getElementById('modal-cart-total').innerText = `R$ ${total.toFixed(2)}`;
-    }
-
-    function openCartModal() {
-      const list = document.getElementById('cart-items-list');
-      list.innerHTML = '';
-
-      if (cart.length === 0) {
-        list.innerHTML = '<div style="text-align:center; color:#888; padding:20px;">O seu carrinho ainda está vazio.<br>Bipe produtos para somar!</div>';
-      } else {
-        cart.forEach((item, idx) => {
-          const itemDiv = document.createElement('div');
-          itemDiv.className = 'cart-item';
-          itemDiv.innerHTML = `
-            <div>
-              <strong>${item.name}</strong>
-              <div style="font-size:12px; color:#666;">R$ ${item.price.toFixed(2)} un.</div>
-            </div>
-            <div style="display:flex; align-items:center; gap:8px;">
-              <button class="qty-btn" onclick="changeQty(${idx}, -1)">-</button>
-              <span style="font-weight:bold;">${item.qty}</span>
-              <button class="qty-btn" onclick="changeQty(${idx}, 1)">+</button>
-              <strong style="margin-left:8px; color:#2e7d32;">R$ ${(item.price * item.qty).toFixed(2)}</strong>
-            </div>
-          `;
-          list.appendChild(itemDiv);
-        });
-      }
-
-      document.getElementById('cart-modal').classList.remove('hidden');
-    }
-
-    function closeCartModal() {
-      document.getElementById('cart-modal').classList.add('hidden');
-    }
-
-    function changeQty(idx, delta) {
-      cart[idx].qty += delta;
-      if (cart[idx].qty <= 0) cart.splice(idx, 1);
-      localStorage.setItem('nutri_cart', JSON.stringify(cart));
-      updateCartDisplay();
-      openCartModal();
-    }
-
-    function clearCart() {
-      if (confirm('Deseja limpar todos os itens do carrinho?')) {
-        cart = [];
-        localStorage.removeItem('nutri_cart');
-        updateCartDisplay();
-        closeCartModal();
-      }
-    }
-
-    function resetScan() {
-      document.getElementById('price-input').value = '';
-      document.getElementById('manual-name-input').value = '';
-      document.getElementById('compare-alert').classList.add('hidden');
-      document.getElementById('quick-confirm-box').classList.add('hidden');
-      document.getElementById('unnamed-box').classList.add('hidden');
-      document.getElementById('result-section').classList.add('hidden');
-      document.getElementById('scan-section').classList.remove('hidden');
-      document.getElementById('start-btn').classList.remove('hidden');
-    }
-  </script>
-</body>
-</html>
+        // Adiciona ao Carrinho (Pré-Caixa)
+        const itemIndex = cart.findIndex(i => i.barcode === currentBarcode);
+        if (itemIndex > -1) {
+          cart[itemIndex].qty += 1;
+          cart[itemIndex].price = priceVal;
+          cart[itemIndex].market = marketName;
+        } else {
+          cart.push({
+            id: currentProdDbId || Date.now(),
+            barcode: currentBarcode,
+            name: currentName || 'Produto',
+            brand: currentBrand,
+            price: priceVal,
