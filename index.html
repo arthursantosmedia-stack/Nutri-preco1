@@ -253,16 +253,16 @@
     });
 
     async function checkAuthSession() {
-      const { data: { session } } = await client.auth.getSession();
-      if (session?.user) {
-        currentUser = session.user;
-        document.getElementById('header-auth-btn').innerText = '👤 ' + (currentUser.email.split('@')[0]);
-      }
+      try {
+        const { data: { session } } = await client.auth.getSession();
+        if (session?.user) {
+          currentUser = session.user;
+          document.getElementById('header-auth-btn').innerText = '👤 ' + (currentUser.email.split('@')[0]);
+        }
+      } catch (e) {}
     }
 
     function openAuthModal() {
-      if (currentUser) {
-        if (confirm(`Conectado como ${currentUser.email}.\nDesejafunction openAuthModal() {
       if (currentUser) {
         if (confirm(`Conectado como ${currentUser.email}.\nDeseja sair da conta?`)) {
           client.auth.signOut();
@@ -547,3 +547,179 @@
             name: currentName || 'Produto',
             brand: currentBrand,
             price: priceVal,
+            market: marketName,
+            qty: 1
+          });
+        }
+
+        localStorage.setItem('nutri_cart', JSON.stringify(cart));
+        updateCartDisplay();
+
+        alert(`✅ Preço salvo e produto adicionado ao seu Pré-Caixa!`);
+        resetScan();
+      } catch (err) {
+        alert('Erro ao gravar: ' + err.message);
+      }
+    }
+
+    function resetScan() {
+      document.getElementById('price-input').value = '';
+      document.getElementById('manual-name-input').value = '';
+      document.getElementById('result-section').classList.add('hidden');
+      document.getElementById('scan-section').classList.remove('hidden');
+      document.getElementById('start-btn').classList.remove('hidden');
+    }
+
+    // ==========================================
+    // PRÉ-CAIXA / CARRINHO
+    // ==========================================
+    function updateCartDisplay() {
+      const totalCount = cart.reduce((acc, i) => acc + i.qty, 0);
+      const totalPrice = cart.reduce((acc, i) => acc + (i.price * i.qty), 0);
+
+      document.getElementById('cart-count').innerText = totalCount;
+      document.getElementById('cart-total').innerText = 'R$ ' + totalPrice.toFixed(2).replace('.', ',');
+      document.getElementById('modal-cart-total').innerText = 'R$ ' + totalPrice.toFixed(2).replace('.', ',');
+
+      const list = document.getElementById('cart-items-list');
+      if (cart.length === 0) {
+        list.innerHTML = '<div style="text-align:center; color:#888; padding:20px;">Seu carrinho está vazio.</div>';
+        return;
+      }
+
+      list.innerHTML = '';
+      cart.forEach((item, index) => {
+        const itemRow = document.createElement('div');
+        itemRow.className = 'cart-item';
+        itemRow.innerHTML = `
+          <div style="flex: 1; padding-right: 10px;">
+            <div style="font-weight: 600; font-size: 14px; color: #222;">${item.name}</div>
+            <div style="font-size: 12px; color: #666;">R$ ${item.price.toFixed(2).replace('.', ',')} cada</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <button class="qty-btn" onclick="changeQty(${index}, -1)">-</button>
+            <span style="font-weight: bold; font-size: 14px; min-width: 18px; text-align: center;">${item.qty}</span>
+            <button class="qty-btn" onclick="changeQty(${index}, 1)">+</button>
+            <span style="font-weight: bold; color: #2e7d32; font-size: 14px; margin-left: 6px;">R$ ${(item.price * item.qty).toFixed(2).replace('.', ',')}</span>
+          </div>
+        `;
+        list.appendChild(itemRow);
+      });
+    }
+
+    function changeQty(index, delta) {
+      cart[index].qty += delta;
+      if (cart[index].qty <= 0) {
+        cart.splice(index, 1);
+      }
+      localStorage.setItem('nutri_cart', JSON.stringify(cart));
+      updateCartDisplay();
+    }
+
+    function clearCart() {
+      if (cart.length === 0) return;
+      if (confirm('Deseja realmente limpar todo o carrinho?')) {
+        cart = [];
+        localStorage.setItem('nutri_cart', JSON.stringify(cart));
+        updateCartDisplay();
+      }
+    }
+
+    function openCartModal() {
+      updateCartDisplay();
+      document.getElementById('cart-modal').classList.remove('hidden');
+    }
+
+    function closeCartModal() {
+      document.getElementById('cart-modal').classList.add('hidden');
+    }
+
+    // ==========================================
+    // 1. SALVAR COMPRA CONCLUÍDA NO HISTÓRICO
+    // ==========================================
+    function finalizarESalvarCompra() {
+      if (!cart || cart.length === 0) {
+        alert("Seu carrinho está vazio!");
+        return;
+      }
+
+      const mercadoEl = document.querySelector(".chip.active") || document.getElementById("market-input");
+      const mercadoSelecionado = mercadoEl ? (mercadoEl.innerText || mercadoEl.value) : "Mercado em Cabo Frio";
+
+      const dataAtual = new Date();
+      const dataFormatada = dataAtual.toLocaleDateString("pt-BR") + " às " + 
+        dataAtual.toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit' });
+
+      const totalCompra = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
+
+      const novaCompra = {
+        id: "compra_" + Date.now(),
+        data: dataFormatada,
+        mercado: mercadoSelecionado,
+        total: totalCompra,
+        itens: [...cart]
+      };
+
+      const historico = JSON.parse(localStorage.getItem("nutripreco_historico") || "[]");
+      historico.unshift(novaCompra);
+      localStorage.setItem("nutripreco_historico", JSON.stringify(historico));
+
+      alert(`✅ Compra de R$ ${totalCompra.toFixed(2).replace('.', ',')} salva com sucesso no seu histórico!`);
+
+      if (confirm("Deseja compartilhar o resumo dessa compra no WhatsApp?")) {
+        compartilharNoWhatsApp(novaCompra);
+      }
+
+      // Zera o carrinho atual
+      cart = [];
+      localStorage.setItem('nutri_cart', JSON.stringify(cart));
+      updateCartDisplay();
+      closeCartModal();
+    }
+
+    // ==========================================
+    // 2. COMPARTILHAR NO WHATSAPP COM LINK VIRAL
+    // ==========================================
+    function compartilharNoWhatsApp(compraObj = null) {
+      let itensParaEnviar = [];
+      let mercado = "";
+      let total = 0;
+      let dataStr = "";
+
+      if (compraObj) {
+        itensParaEnviar = compraObj.itens;
+        mercado = compraObj.mercado;
+        total = compraObj.total;
+        dataStr = compraObj.data;
+      } else {
+        if (!cart || cart.length === 0) {
+          alert("Adicione itens ao carrinho antes de compartilhar!");
+          return;
+        }
+        itensParaEnviar = cart;
+        const mercadoEl = document.querySelector(".chip.active") || document.getElementById("market-input");
+        mercado = mercadoEl ? (mercadoEl.innerText || mercadoEl.value) : "Mercado em Cabo Frio";
+        total = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
+        dataStr = new Date().toLocaleDateString("pt-BR");
+      }
+
+      let msg = `🛒 *Minha Compra no ${mercado}*\n`;
+      msg += `📅 Data: ${dataStr}\n`;
+      msg += `💰 *Total: R$ ${total.toFixed(2).replace('.', ',')}*\n\n`;
+      msg += `📋 *Itens:*\n`;
+
+      itensParaEnviar.forEach(item => {
+        const sub = item.price * item.qty;
+        msg += `• ${item.qty}x ${item.name} — R$ ${sub.toFixed(2).replace('.', ',')}\n`;
+      });
+
+      msg += `\n─────────────────────\n`;
+      msg += `💡 *Calculei meu carrinho e comparei preços no NutriPreço!*\n`;
+      msg += `Acesse grátis e economize você também:\n`;
+      msg += `👉 https://arthursantosmedia-stack.github.io/Nutri-preco1/`;
+
+      window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, "_blank");
+    }
+  </script>
+</body>
+</html>
