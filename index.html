@@ -25,20 +25,26 @@
     .scan-btn { width: 100%; background: #2e7d32; color: #fff; border: none; padding: 15px; font-size: 17px; font-weight: bold; border-radius: 10px; cursor: pointer; }
 
     .card { background: #fff; border-radius: 14px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-    .card-title { font-size: 16px; font-weight: bold; color: #2e7d32; margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 8px; display: flex; justify-content: space-between; }
+    .card-title { font-size: 16px; font-weight: bold; color: #2e7d32; margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
     .nutri-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #f0f0f0; font-size: 15px; }
     .nutri-val { font-weight: bold; }
+
+    /* Indicador Comparativo Dinâmico */
+    .compare-alert { padding: 14px; border-radius: 10px; margin-top: 12px; font-weight: bold; font-size: 15px; line-height: 1.4; }
+    .compare-alert.cheaper { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+    .compare-alert.expensive { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
+    .compare-alert.equal { background: #e3f2fd; color: #1565c0; border: 1px solid #bbdefb; }
 
     .market-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
     .chip { padding: 8px 12px; background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; }
     .chip.active { background: #2e7d32; color: #fff; border-color: #2e7d32; }
 
-    label { font-size: 14px; color: #555; display: block; margin-top: 10px; margin-bottom: 5px; }
+    label { font-size: 14px; color: #555; display: block; margin-top: 10px; margin-bottom: 5px; font-weight: 500; }
     input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; }
     .price-input { font-size: 26px; font-weight: bold; text-align: center; color: #2e7d32; border: 2px solid #2e7d32; margin-top: 6px; }
 
     .history-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #fafafa; border-radius: 8px; margin-bottom: 8px; border-left: 4px solid #2e7d32; }
-    .best-price-badge { background: #e8f5e9; color: #2e7d32; padding: 8px 12px; border-radius: 8px; font-weight: bold; margin-bottom: 12px; font-size: 14px; text-align: center; }
+    .best-price-badge { background: #e8f5e9; color: #2e7d32; padding: 10px 12px; border-radius: 8px; font-weight: bold; margin-bottom: 12px; font-size: 14px; text-align: center; }
     .no-history { font-size: 13px; color: #888; text-align: center; padding: 10px; }
 
     .save-btn { width: 100%; background: #2e7d32; color: white; border: none; padding: 15px; font-size: 17px; font-weight: bold; border-radius: 10px; margin-top: 16px; cursor: pointer; }
@@ -60,48 +66,52 @@
       <button class="scan-btn" id="start-btn" onclick="startScanner()">📷 Iniciar Câmera</button>
     </div>
 
-    <div id="loading" class="loading hidden">🔍 Consultando produto e preços na região...</div>
+    <div id="loading" class="loading hidden">🔍 Consultando produto e preços em Cabo Frio...</div>
 
     <div id="result-section" class="hidden">
-      <!-- Nutrientes -->
+      <!-- Ficha Nutricional -->
       <div class="card">
         <h2 id="prod-name" style="font-size: 20px; margin-bottom: 4px;">Nome do Produto</h2>
         <p id="prod-brand" style="color: #666; font-size: 14px; margin-bottom: 14px;">Marca | EAN</p>
 
         <div class="card-title">Qualidade Nutricional (por 100g)</div>
-        <div class="nutri-row"><span>🔥 Calorias</span><span class="nutri-val" id="prod-cal">0 kcal</span></div>
+        <div class="nutri-row"><span>🔥 Energia / Calorias</span><span class="nutri-val" id="prod-cal">0 kcal</span></div>
         <div class="nutri-row"><span>🍬 Açúcares</span><span class="nutri-val" id="prod-sugar">0 g</span></div>
         <div class="nutri-row"><span>🧂 Sódio</span><span class="nutri-val" id="prod-sodium">0 g</span></div>
       </div>
 
-      <!-- Histórico de Preços -->
+      <!-- Comparativo na Região -->
       <div class="card">
         <div class="card-title">
-          <span>📊 Preços na Região</span>
-          <span style="font-size: 12px; color: #666; font-weight: normal;">Cabo Frio</span>
+          <span>📊 Comparativo em Cabo Frio</span>
+          <span style="font-size: 12px; color: #666; font-weight: normal;">Tempo Real</span>
         </div>
         <div id="best-price-box" class="best-price-badge hidden"></div>
         <div id="history-list"></div>
       </div>
 
-      <!-- Formulário de Preço -->
+      <!-- Formulário com Comparativo em Tempo Real -->
       <div class="card">
-        <div class="card-title">💰 Salvar no Histórico de Compras</div>
+        <div class="card-title">💰 Onde você está agora?</div>
         
         <label>Selecione o Supermercado:</label>
         <div class="market-chips">
           <div class="chip active" onclick="selectMarket(this, 'Atacadão')">Atacadão</div>
           <div class="chip" onclick="selectMarket(this, 'Assaí')">Assaí</div>
+          <div class="chip" onclick="selectMarket(this, 'Multimarket')">Multimarket</div>
           <div class="chip" onclick="selectMarket(this, 'Supermarket')">Supermarket</div>
           <div class="chip" onclick="selectMarket(this, 'Extra')">Extra</div>
           <div class="chip" onclick="selectMarket(this, 'Princesa')">Princesa</div>
           <div class="chip" onclick="selectMarket(this, 'Outro')">Outro</div>
         </div>
 
-        <input type="text" id="market-input" value="Atacadão">
+        <input type="text" id="market-input" value="Atacadão" oninput="checkPriceComparison()">
 
-        <label>Preço Atual na Gôndola (R$):</label>
-        <input type="number" step="0.01" id="price-input" class="price-input" placeholder="0,00">
+        <label>Preço deste Produto na Gôndola (R$):</label>
+        <input type="number" step="0.01" id="price-input" class="price-input" placeholder="0,00" oninput="checkPriceComparison()">
+
+        <!-- Alerta Dinâmico Verde / Vermelho -->
+        <div id="compare-alert" class="compare-alert hidden"></div>
 
         <button class="save-btn" onclick="savePrice()">Confirmar e Gravar Preço</button>
         <button class="reset-btn" onclick="resetScan()">Escanear Outro Produto</button>
@@ -119,6 +129,7 @@
     let currentName = '';
     let currentBrand = '';
     let currentProdDbId = null;
+    let cachedPrices = [];
 
     function selectMarket(el, name) {
       document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
@@ -130,6 +141,7 @@
       } else {
         input.value = name;
       }
+      checkPriceComparison();
     }
 
     function startScanner() {
@@ -211,19 +223,24 @@
         .select('preco, data_registro, mercados(nome)')
         .eq('produto_id', productId)
         .order('data_registro', { ascending: false })
-        .limit(5);
+        .limit(10);
 
-      if (!precos || precos.length === 0) {
+      cachedPrices = precos || [];
+
+      if (cachedPrices.length === 0) {
         historyList.innerHTML = '<div class="no-history">Nenhum preço registrado ainda nesta região.</div>';
         return;
       }
 
-      const valores = precos.map(p => parseFloat(p.preco));
+      const valores = cachedPrices.map(p => parseFloat(p.preco));
       const menor = Math.min(...valores);
-      bestPriceBox.innerText = `🏆 Menor preço registrado: R$ ${menor.toFixed(2)}`;
+      const registroMaisBarato = cachedPrices.find(p => parseFloat(p.preco) === menor);
+      const mercadoBarato = registroMaisBarato?.mercados?.nome || 'Mercado';
+
+      bestPriceBox.innerHTML = `🏆 <b>Menor Preço:</b> R$ ${menor.toFixed(2)} (${mercadoBarato})`;
       bestPriceBox.classList.remove('hidden');
 
-      precos.forEach(item => {
+      cachedPrices.slice(0, 5).forEach(item => {
         const dataObj = new Date(item.data_registro);
         const dataFormatada = dataObj.toLocaleDateString('pt-BR') + ' às ' + dataObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
         const mercadoNome = item.mercados?.nome || 'Supermercado';
@@ -241,6 +258,40 @@
         `;
         historyList.appendChild(row);
       });
+
+      checkPriceComparison();
+    }
+
+    function checkPriceComparison() {
+      const priceVal = parseFloat(document.getElementById('price-input').value);
+      const currentMarket = document.getElementById('market-input').value.trim();
+      const alertBox = document.getElementById('compare-alert');
+
+      if (!priceVal || isNaN(priceVal) || cachedPrices.length === 0) {
+        alertBox.classList.add('hidden');
+        return;
+      }
+
+      const outroMercado = cachedPrices.find(p => (p.mercados?.nome || '').toLowerCase() !== currentMarket.toLowerCase()) || cachedPrices[0];
+      const outroPreco = parseFloat(outroMercado.preco);
+      const outroNome = outroMercado.mercados?.nome || 'outro mercado';
+
+      const diff = priceVal - outroPreco;
+      const diffAbs = Math.abs(diff).toFixed(2);
+      const perc = Math.round((Math.abs(diff) / outroPreco) * 100);
+
+      alertBox.classList.remove('hidden', 'cheaper', 'expensive', 'equal');
+
+      if (diff < -0.05) {
+        alertBox.classList.add('cheaper');
+        alertBox.innerHTML = `🟢 ⬇️ <b>Mais barato aqui!</b> Você economiza <b>R$ ${diffAbs} (${perc}%)</b> em relação ao ${outroNome} (R$ ${outroPreco.toFixed(2)}).`;
+      } else if (diff > 0.05) {
+        alertBox.classList.add('expensive');
+        alertBox.innerHTML = `🔴 ⬆️ <b>Mais caro aqui!</b> Está custando <b>R$ ${diffAbs} a mais (+${perc}%)</b> do que no ${outroNome} (R$ ${outroPreco.toFixed(2)}).`;
+      } else {
+        alertBox.classList.add('equal');
+        alertBox.innerHTML = `⚖️ <b>Mesmo preço!</b> Valor idêntico ao registrado no ${outroNome} (R$ ${outroPreco.toFixed(2)}).`;
+      }
     }
 
     async function savePrice() {
@@ -272,9 +323,10 @@
           preco: priceVal
         });
 
-        alert('Sucesso! Preço de R$ ' + priceVal.toFixed(2) + ' registrado no ' + marketName + '!');
+        alert(`Sucesso! Preço de R$ ${priceVal.toFixed(2)} registrado no ${marketName}!`);
         await loadPriceHistory(currentProdDbId);
         document.getElementById('price-input').value = '';
+        document.getElementById('compare-alert').classList.add('hidden');
       } catch (err) {
         alert('Erro ao salvar no banco: ' + err.message);
       }
@@ -282,6 +334,7 @@
 
     function resetScan() {
       document.getElementById('price-input').value = '';
+      document.getElementById('compare-alert').classList.add('hidden');
       document.getElementById('result-section').classList.add('hidden');
       document.getElementById('scan-section').classList.remove('hidden');
       document.getElementById('start-btn').classList.remove('hidden');
