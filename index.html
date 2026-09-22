@@ -8,11 +8,11 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>NutriPreço</title>
 
-  <!-- Manifesto PWA para ativar o botão INSTALAR no Chrome -->
-  <link rel="manifest" href="data:application/manifest+json;utf-8,%7B%22name%22%3A%22NutriPre%C3%A7o%22%2C%22short_name%22%3A%22NutriPre%C3%A7o%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23f4f6f8%22%2C%22theme_color%22%3A%22%232e7d32%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22https%3A%2F%2Fcdn-icons-png.flaticon.com%2F512%2F2424%2F2424444.png%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fpng%22%7D%5D%7D">
+  <!-- Ligação com o Manifesto PWA -->
+  <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2424/2424444.png">
 
-  <!-- Bibliotecas externas gratuitas -->
+  <!-- Bibliotecas -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
 
@@ -25,7 +25,7 @@
 
     .container { max-width: 480px; margin: 0 auto; padding: 16px; }
 
-    /* Câmera / Scanner */
+    /* Scanner */
     #scanner-container { background: #000; border-radius: 14px; overflow: hidden; position: relative; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
     #reader { width: 100%; min-height: 240px; }
     .scan-btn { width: 100%; background: #2e7d32; color: #fff; border: none; padding: 15px; font-size: 16px; font-weight: bold; border-radius: 10px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; box-shadow: 0 4px 10px rgba(46,125,50,0.25); }
@@ -35,18 +35,15 @@
     .card-title { font-size: 15px; font-weight: bold; color: #2e7d32; margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
     .card-title-price { color: #1b5e20; font-size: 16px; }
 
-    /* Preço e Comparativo */
     .best-price-badge { background: #e8f5e9; color: #2e7d32; padding: 10px 12px; border-radius: 8px; font-weight: bold; margin-bottom: 12px; font-size: 14px; text-align: center; border: 1px solid #c8e6c9; }
     .compare-alert { padding: 12px; border-radius: 10px; margin-top: 12px; font-weight: bold; font-size: 14px; line-height: 1.4; }
     .compare-alert.cheaper { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
     .compare-alert.expensive { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
     .compare-alert.equal { background: #e3f2fd; color: #1565c0; border: 1px solid #bbdefb; }
 
-    /* Atalho Preço Confere */
     .confirm-price-box { background: #f1f8e9; border: 1.5px dashed #2e7d32; border-radius: 10px; padding: 12px; margin-bottom: 14px; text-align: center; }
     .confirm-price-btn { background: #2e7d32; color: #fff; border: none; padding: 11px 16px; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; margin-top: 8px; width: 100%; box-shadow: 0 2px 6px rgba(46,125,50,0.2); }
 
-    /* Seletor de Mercados */
     .market-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
     .chip { padding: 6px 11px; background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; }
     .chip.active { background: #2e7d32; color: #fff; border-color: #2e7d32; }
@@ -55,15 +52,12 @@
     input { width: 100%; padding: 11px; border: 1px solid #ccc; border-radius: 8px; font-size: 15px; }
     .price-input { font-size: 28px; font-weight: bold; text-align: center; color: #2e7d32; border: 2px solid #2e7d32; margin-top: 4px; background: #fafafa; }
 
-    /* Histórico */
     .history-item { display: flex; justify-content: space-between; align-items: center; padding: 9px; background: #fafafa; border-radius: 8px; margin-bottom: 7px; border-left: 4px solid #2e7d32; }
     .time-badge { font-size: 11px; color: #666; display: inline-block; background: #eee; padding: 2px 6px; border-radius: 4px; margin-top: 3px; }
 
-    /* Nutrição */
     .nutri-row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px dashed #f0f0f0; font-size: 14px; }
     .nutri-val { font-weight: bold; }
 
-    /* Botões */
     .save-btn { width: 100%; background: #2e7d32; color: white; border: none; padding: 15px; font-size: 16px; font-weight: bold; border-radius: 10px; margin-top: 14px; cursor: pointer; box-shadow: 0 4px 10px rgba(46,125,50,0.25); }
     .reset-btn { width: 100%; background: #eceff1; color: #444; border: none; padding: 11px; font-size: 14px; font-weight: 600; border-radius: 10px; margin-top: 8px; cursor: pointer; }
 
@@ -95,7 +89,6 @@
   </header>
 
   <div class="container">
-    <!-- Seção Scanner -->
     <div id="scan-section">
       <div id="scanner-container">
         <div id="reader"></div>
@@ -105,15 +98,12 @@
 
     <div id="loading" class="loading hidden">🔍 Consultando preços em Cabo Frio e produto...</div>
 
-    <!-- Seção Resultado -->
     <div id="result-section" class="hidden">
-      
-      <!-- Cabeçalho do Produto -->
+      <!-- Cabeçalho -->
       <div class="card" style="padding-bottom: 10px; margin-bottom: 12px;">
         <h2 id="prod-name" style="font-size: 20px; color: #1a1a1a; margin-bottom: 3px;">Nome do Produto</h2>
         <p id="prod-brand" style="color: #666; font-size: 13px; margin-bottom: 0;">Marca | EAN</p>
 
-        <!-- Campo para dar nome caso produto não exista no catálogo -->
         <div id="unnamed-box" class="hidden" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee;">
           <label style="color:#2e7d32; font-weight:bold;">📝 Produto sem nome no catálogo. Digite o nome dele:</label>
           <input type="text" id="manual-name-input" placeholder="Ex: Biscoito Recheado 130g">
@@ -155,7 +145,7 @@
         <button class="save-btn" onclick="saveAndAddToCart()">➕ Gravar e Colocar no Meu Pré-Caixa</button>
       </div>
 
-      <!-- Histórico de Outros Mercados -->
+      <!-- Histórico -->
       <div class="card">
         <div class="card-title">
           <span>📊 Últimos Preços em Outros Mercados</span>
@@ -236,6 +226,11 @@
     window.addEventListener('DOMContentLoaded', () => {
       updateCartDisplay();
       checkAuthSession();
+
+      // Registro do Service Worker para permitir instalação nativa
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      }
     });
 
     async function checkAuthSession() {
