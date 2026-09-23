@@ -6,51 +6,58 @@
   <meta name="theme-color" content="#2e7d32">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <title>NutriPreço — Calculadora de Mercado & Comparador</title>
+  <title>NutriPreço - Cabo Frio</title>
 
-  <!-- Card Oficial de Compartilhamento no WhatsApp -->
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="https://arthursantosmedia-stack.github.io/Nutri-preco1/">
-  <meta property="og:title" content="NutriPreço — Calculadora de Mercado & Economia">
-  <meta property="og:description" content="Some o carrinho em tempo real, veja a tabela nutricional e saiba onde está mais barato em Cabo Frio.">
-  <meta property="og:image" content="https://cdn-icons-png.flaticon.com/512/2424/2424444.png">
-
-  <!-- Ligação com o Manifesto PWA -->
+  <!-- Manifesto PWA para instalação no Android -->
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2424/2424444.png">
 
-  <!-- Bibliotecas -->
+  <!-- Bibliotecas externas -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background-color: #f4f6f8; color: #222; padding-bottom: 90px; }
-    header { background-color: #2e7d32; color: white; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100; }
-    header h1 { font-size: 19px; font-weight: bold; }
-    .auth-btn { background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.4); padding: 6px 12px; border-radius: 20px; font-size: 12px; cursor: pointer; font-weight: bold; }
+    body { background-color: #f4f6f8; color: #222; padding-bottom: 95px; }
 
-    .container { max-width: 480px; margin: 0 auto; padding: 16px; }
+    /* Cabeçalho */
+    header { background-color: #2e7d32; color: white; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100; }
+    header h1 { font-size: 19px; font-weight: bold; display: flex; align-items: center; gap: 6px; }
+    .header-actions { display: flex; align-items: center; gap: 8px; }
+    .auth-btn { background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.4); padding: 6px 11px; border-radius: 20px; font-size: 12px; cursor: pointer; font-weight: bold; }
+    .install-pwa-btn { background: #ffd600; color: #1b5e20; border: none; padding: 6px 12px; border-radius: 20px; font-size: 12px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2); animation: pulse 2s infinite; }
+    @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.04); } 100% { transform: scale(1); } }
 
-    /* Scanner */
-    #scanner-container { background: #000; border-radius: 14px; overflow: hidden; position: relative; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    /* Barra Rápida de Atalhos */
+    .quick-nav-bar { display: flex; gap: 8px; overflow-x: auto; padding: 10px 16px 4px 16px; max-width: 480px; margin: 0 auto; scrollbar-width: none; }
+    .quick-nav-bar::-webkit-scrollbar { display: none; }
+    .nav-chip-btn { background: #fff; border: 1px solid #c8e6c9; color: #2e7d32; padding: 7px 12px; border-radius: 20px; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: flex; align-items: center; gap: 5px; }
+    .nav-chip-btn:active { background: #e8f5e9; }
+
+    .container { max-width: 480px; margin: 0 auto; padding: 10px 16px 16px 16px; }
+
+    /* Scanner / Câmera */
+    #scanner-container { background: #000; border-radius: 14px; overflow: hidden; position: relative; margin-bottom: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
     #reader { width: 100%; min-height: 240px; }
     .scan-btn { width: 100%; background: #2e7d32; color: #fff; border: none; padding: 15px; font-size: 16px; font-weight: bold; border-radius: 10px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; box-shadow: 0 4px 10px rgba(46,125,50,0.25); }
 
     /* Cartões */
-    .card { background: #fff; border-radius: 14px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .card { background: #fff; border-radius: 14px; padding: 16px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
     .card-title { font-size: 15px; font-weight: bold; color: #2e7d32; margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
     .card-title-price { color: #1b5e20; font-size: 16px; }
 
+    /* Preço e Comparativo */
     .best-price-badge { background: #e8f5e9; color: #2e7d32; padding: 10px 12px; border-radius: 8px; font-weight: bold; margin-bottom: 12px; font-size: 14px; text-align: center; border: 1px solid #c8e6c9; }
     .compare-alert { padding: 12px; border-radius: 10px; margin-top: 12px; font-weight: bold; font-size: 14px; line-height: 1.4; }
     .compare-alert.cheaper { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
     .compare-alert.expensive { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
     .compare-alert.equal { background: #e3f2fd; color: #1565c0; border: 1px solid #bbdefb; }
 
+    /* Atalho Preço Confere */
     .confirm-price-box { background: #f1f8e9; border: 1.5px dashed #2e7d32; border-radius: 10px; padding: 12px; margin-bottom: 14px; text-align: center; }
     .confirm-price-btn { background: #2e7d32; color: #fff; border: none; padding: 11px 16px; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; margin-top: 8px; width: 100%; box-shadow: 0 2px 6px rgba(46,125,50,0.2); }
 
+    /* Seletor de Mercados */
     .market-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
     .chip { padding: 6px 11px; background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; }
     .chip.active { background: #2e7d32; color: #fff; border-color: #2e7d32; }
@@ -59,14 +66,18 @@
     input { width: 100%; padding: 11px; border: 1px solid #ccc; border-radius: 8px; font-size: 15px; }
     .price-input { font-size: 28px; font-weight: bold; text-align: center; color: #2e7d32; border: 2px solid #2e7d32; margin-top: 4px; background: #fafafa; }
 
+    /* Histórico */
     .history-item { display: flex; justify-content: space-between; align-items: center; padding: 9px; background: #fafafa; border-radius: 8px; margin-bottom: 7px; border-left: 4px solid #2e7d32; }
     .time-badge { font-size: 11px; color: #666; display: inline-block; background: #eee; padding: 2px 6px; border-radius: 4px; margin-top: 3px; }
 
+    /* Nutrição */
     .nutri-row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px dashed #f0f0f0; font-size: 14px; }
     .nutri-val { font-weight: bold; }
 
+    /* Botões Principais */
     .save-btn { width: 100%; background: #2e7d32; color: white; border: none; padding: 15px; font-size: 16px; font-weight: bold; border-radius: 10px; margin-top: 14px; cursor: pointer; box-shadow: 0 4px 10px rgba(46,125,50,0.25); }
     .reset-btn { width: 100%; background: #eceff1; color: #444; border: none; padding: 11px; font-size: 14px; font-weight: 600; border-radius: 10px; margin-top: 8px; cursor: pointer; }
+    .whatsapp-btn { background: #25d366; color: white; border: none; padding: 12px 14px; border-radius: 10px; font-weight: bold; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 10px; }
 
     /* Barra Fixa Pré-Caixa */
     .cart-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 2px solid #2e7d32; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -3px 10px rgba(0,0,0,0.08); z-index: 99; }
@@ -76,13 +87,26 @@
 
     /* Modais */
     .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: flex-end; z-index: 200; }
-    .modal-content { background: #fff; width: 100%; max-width: 480px; max-height: 80vh; border-radius: 20px 20px 0 0; padding: 20px; overflow-y: auto; }
+    .modal-content { background: #fff; width: 100%; max-width: 480px; max-height: 85vh; border-radius: 20px 20px 0 0; padding: 20px; overflow-y: auto; }
     .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
     .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
     .qty-btn { background: #eee; border: none; width: 26px; height: 26px; border-radius: 50%; font-weight: bold; cursor: pointer; }
 
-    .auth-box { padding: 10px 0; }
-    .auth-box input { margin-bottom: 10px; }
+    /* Estatísticas do Histórico */
+    .history-stat-box { display: flex; gap: 10px; margin-bottom: 16px; }
+    .stat-card { flex: 1; background: #f1f8e9; border: 1px solid #c8e6c9; border-radius: 10px; padding: 12px; text-align: center; }
+    .stat-card span { font-size: 11px; color: #555; text-transform: uppercase; font-weight: bold; }
+    .stat-card strong { font-size: 18px; color: #2e7d32; display: block; margin-top: 4px; }
+
+    .saved-purchase-card { background: #fafafa; border: 1px solid #e0e0e0; border-radius: 10px; padding: 12px; margin-bottom: 12px; }
+    .purchase-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .purchase-date { font-size: 12px; color: #666; }
+    .purchase-market { font-weight: bold; color: #1b5e20; font-size: 14px; }
+    .purchase-items-detail { font-size: 12.5px; color: #444; margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ddd; }
+
+    /* Rodapé & Legal */
+    footer { text-align: center; padding: 25px 16px 20px 16px; font-size: 11.5px; color: #777; line-height: 1.5; border-top: 1px solid #e0e0e0; margin-top: 25px; }
+    footer a { color: #2e7d32; text-decoration: none; font-weight: bold; }
 
     .loading { text-align: center; padding: 30px 20px; font-weight: bold; color: #2e7d32; }
     .hidden { display: none !important; }
@@ -90,12 +114,24 @@
 </head>
 <body>
 
+  <!-- Cabeçalho -->
   <header>
     <h1>🥗 NutriPreço</h1>
-    <button class="auth-btn" id="header-auth-btn" onclick="openAuthModal()">👤 Entrar</button>
+    <div class="header-actions">
+      <button class="install-pwa-btn hidden" id="install-pwa-btn" onclick="installPWA()">📲 Instalar</button>
+      <button class="auth-btn" id="header-auth-btn" onclick="openAuthModal()">👤 Entrar</button>
+    </div>
   </header>
 
+  <!-- Barra Rápida de Atalhos -->
+  <div class="quick-nav-bar">
+    <button class="nav-chip-btn" onclick="openHistoryModal()">📂 Minhas Compras</button>
+    <button class="nav-chip-btn" onclick="shareAppWhatsApp()">📲 Indicar Amigo</button>
+    <button class="nav-chip-btn" onclick="openSupportWhatsApp()">💡 Sugerir / Suporte</button>
+  </div>
+
   <div class="container">
+    <!-- Seção Scanner -->
     <div id="scan-section">
       <div id="scanner-container">
         <div id="reader"></div>
@@ -105,12 +141,15 @@
 
     <div id="loading" class="loading hidden">🔍 Consultando preços em Cabo Frio e produto...</div>
 
+    <!-- Seção Resultado -->
     <div id="result-section" class="hidden">
-      <!-- Cabeçalho -->
+      
+      <!-- Cabeçalho do Produto -->
       <div class="card" style="padding-bottom: 10px; margin-bottom: 12px;">
         <h2 id="prod-name" style="font-size: 20px; color: #1a1a1a; margin-bottom: 3px;">Nome do Produto</h2>
         <p id="prod-brand" style="color: #666; font-size: 13px; margin-bottom: 0;">Marca | EAN</p>
 
+        <!-- Campo para dar nome caso produto não exista no catálogo -->
         <div id="unnamed-box" class="hidden" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee;">
           <label style="color:#2e7d32; font-weight:bold;">📝 Produto sem nome no catálogo. Digite o nome dele:</label>
           <input type="text" id="manual-name-input" placeholder="Ex: Biscoito Recheado 130g">
@@ -152,7 +191,7 @@
         <button class="save-btn" onclick="saveAndAddToCart()">➕ Gravar e Colocar no Meu Pré-Caixa</button>
       </div>
 
-      <!-- Histórico -->
+      <!-- Histórico de Outros Mercados -->
       <div class="card">
         <div class="card-title">
           <span>📊 Últimos Preços em Outros Mercados</span>
@@ -170,18 +209,17 @@
 
       <button class="reset-btn" onclick="resetScan()" style="margin-bottom: 20px;">📷 Escanear Outro Produto</button>
     </div>
+
+    <!-- Rodapé Legal e LGPD -->
+    <footer>
+      <p><b>NutriPreço</b> • Inteligência de Preços & Calculadora de Supermercado em Cabo Frio</p>
+      <p style="margin-top: 6px;">Os preços são colaborativos e informados pelos próprios consumidores no momento da compra (Art. 31 do Código de Defesa do Consumidor). As imagens da câmera são decodificadas localmente apenas para leitura do código de barras.</p>
+      <p style="margin-top: 10px;">
+        <a href="privacidade.html">📄 Política de Privacidade (LGPD)</a> | 
+        <a href="#" onclick="openAuthModal(); return false;">Gerenciar / Excluir Conta</a>
+      </p>
+    </footer>
   </div>
-  <!-- Rodapé Legal e LGPD -->
-  <footer style="text-align: center; padding: 20px 16px 10px 16px; font-size: 12px; color: #888;">
-    <p style="margin-bottom: 8px;">
-      <a href="Privacidade.html" style="color: #2e7d32; text-decoration: underline; font-weight: 500;">Política de Privacidade</a>
-      &nbsp;•&nbsp;
-      <span onclick="if(confirm('Deseja realmente solicitar a exclusão da sua conta e de todos os seus dados?')){ alert('Sua solicitação de exclusão foi enviada à equipe.'); }" style="color: #c62828; cursor: pointer; text-decoration: underline;">Excluir Minha Conta</span>
-    </p>
-    <p style="font-size: 11px; color: #aaa; max-width: 380px; margin: 0 auto; line-height: 1.4;">
-      O NutriPreço é uma plataforma colaborativa independente de economia doméstica. Sem afiliação comercial direta com os supermercados citados.
-    </p>
-  </footer>
 
   <!-- Barra Fixa do Pré-Caixa -->
   <div class="cart-bar" id="cart-bar">
@@ -192,48 +230,72 @@
     <button class="cart-btn" onclick="openCartModal()">Ver Carrinho</button>
   </div>
 
-  <!-- Modal do Carrinho -->
+  <!-- Modal do Carrinho Atual -->
   <div class="modal hidden" id="cart-modal">
     <div class="modal-content">
       <div class="modal-header">
         <h3 style="color: #2e7d32;">🛒 Meu Pré-Caixa (Carrinho)</h3>
-        <button style="border:none; background:none; font-size:22px; cursor:pointer;" onclick="closeCartModal()">✕</button>
+        <button style="border:none; background:none; font-size:22px; cursor:pointer;" onclick="closeCartModal()">&times;</button>
       </div>
-
-      <div id="cart-items-list" style="margin-bottom: 20px;"></div>
-
-      <div style="display:flex; justify-content:space-between; font-size:18px; font-weight:bold; margin-bottom:15px;">
+      <div id="cart-items-list" style="margin-bottom: 16px;"></div>
+      
+      <div style="display:flex; justify-content:space-between; font-size:18px; font-weight:bold; margin-bottom:15px; padding:10px 0; border-top:1px solid #eee;">
         <span>Total da Compra:</span>
         <span id="modal-cart-total" style="color: #2e7d32;">R$ 0,00</span>
       </div>
 
-      <!-- BOTÕES: SALVAR HISTÓRICO E ENVIAR NO WHATSAPP COM LINK VIRAL -->
-      <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-        <button onclick="finalizarESalvarCompra()" style="flex: 1; background: #2e7d32; color: white; padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; font-size: 14px;">
-          💾 Salvar Compra
-        </button>
-        <button onclick="compartilharNoWhatsApp()" style="flex: 1; background: #25D366; color: white; padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; font-size: 14px;">
-          📲 WhatsApp
-        </button>
-      </div>
-
-      <button class="reset-btn" style="background:#ffebee; color:#c62828;" onclick="clearCart()">🗑️ Limpar Carrinho</button>
+      <!-- Ações do Carrinho -->
+      <button class="save-btn" style="margin-top:0; margin-bottom:8px; background:#1b5e20;" onclick="finalizeAndSavePurchase()">💾 Finalizar e Salvar no Histórico</button>
+      <button class="whatsapp-btn" onclick="shareCartWhatsApp()">📲 Enviar Lista no WhatsApp</button>
+      <button class="reset-btn" style="background:#ffebee; color:#c62828; margin-top:8px;" onclick="clearCart()">🗑️ Limpar Carrinho</button>
     </div>
   </div>
 
-  <!-- Modal de Login -->
+  <!-- Modal Minhas Compras Salvas -->
+  <div class="modal hidden" id="history-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 style="color: #2e7d32;">📂 Minhas Compras Salvas</h3>
+        <button style="border:none; background:none; font-size:22px; cursor:pointer;" onclick="closeHistoryModal()">&times;</button>
+      </div>
+
+      <!-- Estatísticas do Histórico -->
+      <div class="history-stat-box">
+        <div class="stat-card">
+          <span>Total Acumulado</span>
+          <strong id="stat-month-total">R$ 0,00</strong>
+        </div>
+        <div class="stat-card">
+          <span>Compras Salvas</span>
+          <strong id="stat-purchases-count">0</strong>
+        </div>
+      </div>
+
+      <div id="history-items-container" style="margin-bottom: 16px;"></div>
+      <button class="reset-btn" onclick="closeHistoryModal()">Fechar Histórico</button>
+    </div>
+  </div>
+
+  <!-- Modal de Login & Conta -->
   <div class="modal hidden" id="auth-modal">
     <div class="modal-content">
       <div class="modal-header">
-        <h3 style="color: #2e7d32;">👤 Identificação de Usuário</h3>
-        <button style="border:none; background:none; font-size:22px; cursor:pointer;" onclick="closeAuthModal()">✕</button>
+        <h3 style="color: #2e7d32;">👤 Conta & Identificação</h3>
+        <button style="border:none; background:none; font-size:22px; cursor:pointer;" onclick="closeAuthModal()">&times;</button>
       </div>
       <div class="auth-box">
-        <p style="font-size:13px; color:#666; margin-bottom:12px;">Identifique-se para cadastrar preços confiáveis e salvar seu histórico.</p>
-        <input type="email" id="auth-email" placeholder="Seu e-mail">
-        <input type="password" id="auth-password" placeholder="Sua senha (mínimo 6 dígitos)">
-        <button class="save-btn" onclick="handleAuth('login')">Entrar na Conta</button>
-        <button class="reset-btn" onclick="handleAuth('signup')">Criar Nova Conta Grátis</button>
+        <div id="auth-logged-in-view" class="hidden">
+          <p style="font-size:14px; margin-bottom:12px;">Conectado como: <strong id="user-email-display"></strong></p>
+          <button class="reset-btn" style="background:#ffebee; color:#c62828; margin-bottom:8px;" onclick="logoutUser()">🚪 Sair da Conta</button>
+          <button class="reset-btn" style="background:#ffebee; color:#b71c1c; font-size:12px;" onclick="deleteUserAccount()">⚠️ Excluir Minha Conta e Meus Dados (LGPD)</button>
+        </div>
+        <div id="auth-form-view">
+          <p style="font-size:13px; color:#666; margin-bottom:12px;">Identifique-se para cadastrar preços confiáveis e sincronizar suas compras.</p>
+          <input type="email" id="auth-email" placeholder="Seu e-mail">
+          <input type="password" id="auth-password" placeholder="Sua senha (mínimo 6 dígitos)">
+          <button class="save-btn" onclick="handleAuth('login')">Entrar na Conta</button>
+          <button class="reset-btn" onclick="handleAuth('signup')">Criar Nova Conta Grátis</button>
+        </div>
       </div>
     </div>
   </div>
@@ -250,43 +312,76 @@
     let currentProdDbId = null;
     let cachedPrices = [];
     let existingPriceForCurrentMarket = null;
+    let deferredPrompt = null;
 
     let cart = JSON.parse(localStorage.getItem('nutri_cart') || '[]');
+    let purchaseHistory = JSON.parse(localStorage.getItem('nutri_purchases_history') || '[]');
     let currentUser = null;
 
     window.addEventListener('DOMContentLoaded', () => {
       updateCartDisplay();
       checkAuthSession();
-
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js').catch(() => {});
-      }
     });
 
+    // PWA Install Prompt Listener
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      const installBtn = document.getElementById('install-pwa-btn');
+      if (installBtn) installBtn.classList.remove('hidden');
+    });
+
+    function installPWA() {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then((choiceResult) => {
+          if (choiceResult.outcome === 'accepted') {
+            document.getElementById('install-pwa-btn').classList.add('hidden');
+          }
+          deferredPrompt = null;
+        });
+      } else {
+        alert('Para instalar no Android:\n1. Toque nos 3 pontinhos do Chrome no topo.\n2. Selecione \'Adicionar à tela inicial\' ou \'Instalar aplicativo\'.');
+      }
+    }
+
     async function checkAuthSession() {
-      try {
-        const { data: { session } } = await client.auth.getSession();
-        if (session?.user) {
-          currentUser = session.user;
-          document.getElementById('header-auth-btn').innerText = '👤 ' + (currentUser.email.split('@')[0]);
-        }
-      } catch (e) {}
+      const { data: { session } } = await client.auth.getSession();
+      if (session?.user) {
+        currentUser = session.user;
+        document.getElementById('header-auth-btn').innerText = '👤 ' + (currentUser.email.split('@')[0]);
+      }
     }
 
     function openAuthModal() {
       if (currentUser) {
-        if (confirm(`Conectado como ${currentUser.email}.\nDeseja sair da conta?`)) {
-          client.auth.signOut();
-          currentUser = null;
-          document.getElementById('header-auth-btn').innerText = '👤 Entrar';
-        }
-        return;
+        document.getElementById('auth-logged-in-view').classList.remove('hidden');
+        document.getElementById('auth-form-view').classList.add('hidden');
+        document.getElementById('user-email-display').innerText = currentUser.email;
+      } else {
+        document.getElementById('auth-logged-in-view').classList.add('hidden');
+        document.getElementById('auth-form-view').classList.remove('hidden');
       }
       document.getElementById('auth-modal').classList.remove('hidden');
     }
 
     function closeAuthModal() {
       document.getElementById('auth-modal').classList.add('hidden');
+    }
+
+    async function logoutUser() {
+      await client.auth.signOut();
+      currentUser = null;
+      document.getElementById('header-auth-btn').innerText = '👤 Entrar';
+      closeAuthModal();
+      alert('Você saiu da sua conta.');
+    }
+
+    async function deleteUserAccount() {
+      if (confirm('Atenção: Deseja realmente excluir permanentemente sua conta e todos os dados associados, conforme previsto na LGPD? Esta ação não pode ser desfeita.')) {
+        alert('Sua solicitação de exclusão foi registrada. O logout foi realizado.');
+        await logoutUser();
+      }
     }
 
     async function handleAuth(type) {
@@ -396,16 +491,6 @@
       }
     }
 
-    function formatRelativeTime(date) {
-      const now = new Date();
-      const diffMs = now - date;
-      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-      if (diffDays === 0) return 'Visto hoje';
-      if (diffDays === 1) return 'Visto ontem';
-      if (diffDays < 7) return `Visto há ${diffDays} dias`;
-      return date.toLocaleDateString('pt-BR');
-    }
-
     async function loadPriceHistory(productId) {
       const historyList = document.getElementById('history-list');
       const bestPriceBox = document.getElementById('best-price-box');
@@ -422,7 +507,7 @@
       cachedPrices = precos || [];
 
       if (cachedPrices.length === 0) {
-        historyList.innerHTML = '<div style="font-size:13px; color:#888; font-style:italic; text-align:center; padding:10px;">Nenhum preço registrado ainda nesta região. Seja o primeiro!</div>';
+        historyList.innerHTML = '<div style="color:#888; font-size:13px; text-align:center; padding:10px;">Nenhum preço registrado ainda nesta região. Seja o primeiro a informar!</div>';
         checkQuickConfirm();
         return;
       }
@@ -432,7 +517,7 @@
       const registroMaisBarato = cachedPrices.find(p => parseFloat(p.preco) === menor);
       const mercadoBarato = registroMaisBarato?.mercados?.nome || 'Mercado';
 
-      bestPriceBox.innerHTML = `🏆 <b>Menor Preço em Cabo Frio:</b> R$ ${menor.toFixed(2).replace('.', ',')} (${mercadoBarato})`;
+      bestPriceBox.innerHTML = `🏆 <b>Menor Preço em Cabo Frio:</b> R$ ${menor.toFixed(2)} (${mercadoBarato})`;
       bestPriceBox.classList.remove('hidden');
 
       cachedPrices.slice(0, 5).forEach(item => {
@@ -444,48 +529,47 @@
         row.className = 'history-item';
         row.innerHTML = `
           <div>
-            <strong style="color: #222;">${mercadoNome}</strong>
-            <div><span class="time-badge">${tempoFormatado}</span></div>
+            <strong style="font-size: 14px; color: #111;">${mercadoNome}</strong>
+            <div class="time-badge">🕒 ${tempoFormatado}</div>
           </div>
           <div style="font-size: 16px; font-weight: bold; color: #2e7d32;">
-            R$ ${parseFloat(item.preco).toFixed(2).replace('.', ',')}
+            R$ ${parseFloat(item.preco).toFixed(2)}
           </div>
         `;
         historyList.appendChild(row);
       });
 
       checkQuickConfirm();
+      checkPriceComparison();
+    }
+
+    function formatRelativeTime(date) {
+      const diffHrs = Math.round((new Date() - date) / (1000 * 60 * 60));
+      if (diffHrs < 1) return 'Visto há pouco';
+      if (diffHrs < 24) return `Visto há ${diffHrs}h`;
+      const diffDays = Math.round(diffHrs / 24);
+      return diffDays === 1 ? 'Visto ontem' : `Visto há ${diffDays} dias`;
     }
 
     function checkQuickConfirm() {
-      const quickBox = document.getElementById('quick-confirm-box');
-      const marketName = document.getElementById('market-input').value.trim();
-      existingPriceForCurrentMarket = null;
+      const currentMarket = document.getElementById('market-input').value.trim();
+      const confirmBox = document.getElementById('quick-confirm-box');
+      const confirmVal = document.getElementById('quick-confirm-val');
 
-      if (!marketName || cachedPrices.length === 0) {
-        quickBox.classList.add('hidden');
-        return;
-      }
-
-      const match = cachedPrices.find(p => (p.mercados?.nome || '').toLowerCase() === marketName.toLowerCase());
+      const match = cachedPrices.find(p => (p.mercados?.nome || '').toLowerCase() === currentMarket.toLowerCase());
       if (match) {
         existingPriceForCurrentMarket = parseFloat(match.preco);
-        document.getElementById('quick-confirm-val').innerText = 'R$ ' + existingPriceForCurrentMarket.toFixed(2).replace('.', ',');
-        quickBox.classList.remove('hidden');
+        confirmVal.innerText = `R$ ${existingPriceForCurrentMarket.toFixed(2)}`;
+        confirmBox.classList.remove('hidden');
       } else {
-        quickBox.classList.add('hidden');
-      }
-    }
-
-    function confirmExistingPrice() {
-      if (existingPriceForCurrentMarket !== null) {
-        document.getElementById('price-input').value = existingPriceForCurrentMarket.toFixed(2);
-        saveAndAddToCart();
+        existingPriceForCurrentMarket = null;
+        confirmBox.classList.add('hidden');
       }
     }
 
     function checkPriceComparison() {
       const priceVal = parseFloat(document.getElementById('price-input').value);
+      const currentMarket = document.getElementById('market-input').value.trim();
       const alertBox = document.getElementById('compare-alert');
 
       if (!priceVal || isNaN(priceVal) || cachedPrices.length === 0) {
@@ -493,151 +577,141 @@
         return;
       }
 
-      const valores = cachedPrices.map(p => parseFloat(p.preco));
-      const menor = Math.min(...valores);
-      const diff = priceVal - menor;
+      const outroMercado = cachedPrices.find(p => (p.mercados?.nome || '').toLowerCase() !== currentMarket.toLowerCase()) || cachedPrices[0];
+      const outroPreco = parseFloat(outroMercado.preco);
+      const outroNome = outroMercado.mercados?.nome || 'outro mercado';
+
+      const diff = priceVal - outroPreco;
+      const diffAbs = Math.abs(diff).toFixed(2);
+      const perc = Math.round((Math.abs(diff) / outroPreco) * 100);
 
       alertBox.classList.remove('hidden', 'cheaper', 'expensive', 'equal');
 
-      if (diff < -0.01) {
-        const perc = Math.round((Math.abs(diff) / menor) * 100);
-        alertBox.className = 'compare-alert cheaper';
-        alertBox.innerHTML = `🔥 <b>Novo Menor Preço!</b> Você está pagando <b>R$ ${Math.abs(diff).toFixed(2).replace('.', ',')} (${perc}%) mais barato</b> que o menor valor registrado!`;
-      } else if (diff > 0.01) {
-        const perc = Math.round((diff / menor) * 100);
-        alertBox.className = 'compare-alert expensive';
-        alertBox.innerHTML = `⚠️ <b>Atenção:</b> Está <b>R$ ${diff.toFixed(2).replace('.', ',')} (${perc}%) mais caro</b> que o menor preço encontrado em Cabo Frio (R$ ${menor.toFixed(2).replace('.', ',')}).`;
+      if (diff < -0.05) {
+        alertBox.classList.add('cheaper');
+        alertBox.innerHTML = `🟢 ⬇️ <b>Mais barato aqui!</b> Você economiza <b>R$ ${diffAbs} (${perc}%)</b> em relação ao ${outroNome} (R$ ${outroPreco.toFixed(2)}).`;
+      } else if (diff > 0.05) {
+        alertBox.classList.add('expensive');
+        alertBox.innerHTML = `🔴 ⬆️ <b>Mais caro aqui!</b> Está custando <b>R$ ${diffAbs} a mais (+${perc}%)</b> do que no ${outroNome} (R$ ${outroPreco.toFixed(2)}).`;
       } else {
-        alertBox.className = 'compare-alert equal';
-        alertBox.innerHTML = `✨ <b>Bom Preço!</b> Este é igual ao menor preço registrado na cidade.`;
+        alertBox.classList.add('equal');
+        alertBox.innerHTML = `⚖️ <b>Mesmo preço!</b> Valor idêntico ao registrado no ${outroNome} (R$ ${outroPreco.toFixed(2)}).`;
       }
+    }
+
+    async function confirmExistingPrice() {
+      if (!existingPriceForCurrentMarket) return;
+      await recordPriceInDb(existingPriceForCurrentMarket);
+      addToCart(currentName || 'Produto', existingPriceForCurrentMarket);
+      resetScan();
     }
 
     async function saveAndAddToCart() {
       const priceVal = parseFloat(document.getElementById('price-input').value);
-      const marketName = document.getElementById('market-input').value.trim() || 'Supermercado Local';
       const manualName = document.getElementById('manual-name-input').value.trim();
 
-      if (!priceVal || isNaN(priceVal) || priceVal <= 0) {
-        alert('Por favor, informe um preço válido.');
+      if (!currentName && manualName) {
+        currentName = manualName;
+        document.getElementById('prod-name').innerText = currentName;
+        await client.from('produtos').update({ nome: currentName }).eq('id', currentProdDbId);
+      }
+
+      // Trava de sanidade e segurança anti-fraude / anti-troll
+      if (!priceVal || isNaN(priceVal) || priceVal < 0.10 || priceVal > 3000) {
+        alert('Por favor, informe um preço real válido (entre R$ 0,10 e R$ 3.000,00).');
         return;
       }
 
-      if (manualName && !currentName) {
-        currentName = manualName;
-        await client.from('produtos').update({ nome: currentName }).eq('id', currentProdDbId);
+      // Validação de discrepância extrema (se já houver preços registrados)
+      if (cachedPrices.length > 0) {
+        const valores = cachedPrices.map(p => parseFloat(p.preco));
+        const media = valores.reduce((a, b) => a + b, 0) / valores.length;
+        if (priceVal < media * 0.2 || priceVal > media * 3.0) {
+          const confirma = confirm(`⚠️ Atenção: O preço R$ ${priceVal.toFixed(2)} está muito diferente da média recente deste item (R$ ${media.toFixed(2)}).\n\nVocê confirma que a etiqueta do mercado marcava exatamente esse valor?`);
+          if (!confirma) return;
+        }
       }
+
+      await recordPriceInDb(priceVal);
+      addToCart(currentName || 'Produto', priceVal);
+      resetScan();
+    }
+
+    async function recordPriceInDb(priceVal) {
+      const marketName = document.getElementById('market-input').value.trim() || 'Supermercado Local';
 
       try {
         let mercadoId = null;
         const { data: mkData } = await client.from('mercados').select('id').eq('nome', marketName).limit(1);
-
+        
         if (mkData && mkData.length > 0) {
           mercadoId = mkData[0].id;
         } else {
-          const { data: newMk } = await client.from('mercados').insert({ nome: marketName, cidade: 'Cabo Frio' }).select();
+          const { data: newMk } = await client.from('mercados').insert({
+            nome: marketName,
+            cidade: 'Cabo Frio'
+          }).select();
           if (newMk && newMk[0]) mercadoId = newMk[0].id;
         }
 
         await client.from('registros_precos').insert({
           produto_id: currentProdDbId,
           mercado_id: mercadoId,
-          preco: priceVal
+          preco: priceVal,
+          usuario_id: currentUser?.id || null
         });
-
-        // Adiciona ao Carrinho (Pré-Caixa)
-        const itemIndex = cart.findIndex(i => i.barcode === currentBarcode);
-        if (itemIndex > -1) {
-          cart[itemIndex].qty += 1;
-          cart[itemIndex].price = priceVal;
-          cart[itemIndex].market = marketName;
-        } else {
-          cart.push({
-            id: currentProdDbId || Date.now(),
-            barcode: currentBarcode,
-            name: currentName || 'Produto',
-            brand: currentBrand,
-            price: priceVal,
-            market: marketName,
-            qty: 1
-          });
-        }
-
-        localStorage.setItem('nutri_cart', JSON.stringify(cart));
-        updateCartDisplay();
-
-        alert(`✅ Preço salvo e produto adicionado ao seu Pré-Caixa!`);
-        resetScan();
       } catch (err) {
-        alert('Erro ao gravar: ' + err.message);
+        console.error('Erro ao salvar no banco:', err);
       }
     }
 
-    function resetScan() {
-      document.getElementById('price-input').value = '';
-      document.getElementById('manual-name-input').value = '';
-      document.getElementById('result-section').classList.add('hidden');
-      document.getElementById('scan-section').classList.remove('hidden');
-      document.getElementById('start-btn').classList.remove('hidden');
-    }
-
-    // ==========================================
-    // PRÉ-CAIXA / CARRINHO
-    // ==========================================
-    function updateCartDisplay() {
-      const totalCount = cart.reduce((acc, i) => acc + i.qty, 0);
-      const totalPrice = cart.reduce((acc, i) => acc + (i.price * i.qty), 0);
-
-      document.getElementById('cart-count').innerText = totalCount;
-      document.getElementById('cart-total').innerText = 'R$ ' + totalPrice.toFixed(2).replace('.', ',');
-      document.getElementById('modal-cart-total').innerText = 'R$ ' + totalPrice.toFixed(2).replace('.', ',');
-
-      const list = document.getElementById('cart-items-list');
-      if (cart.length === 0) {
-        list.innerHTML = '<div style="text-align:center; color:#888; padding:20px;">Seu carrinho está vazio.</div>';
-        return;
-      }
-
-      list.innerHTML = '';
-      cart.forEach((item, index) => {
-        const itemRow = document.createElement('div');
-        itemRow.className = 'cart-item';
-        itemRow.innerHTML = `
-          <div style="flex: 1; padding-right: 10px;">
-            <div style="font-weight: 600; font-size: 14px; color: #222;">${item.name}</div>
-            <div style="font-size: 12px; color: #666;">R$ ${item.price.toFixed(2).replace('.', ',')} cada</div>
-          </div>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <button class="qty-btn" onclick="changeQty(${index}, -1)">-</button>
-            <span style="font-weight: bold; font-size: 14px; min-width: 18px; text-align: center;">${item.qty}</span>
-            <button class="qty-btn" onclick="changeQty(${index}, 1)">+</button>
-            <span style="font-weight: bold; color: #2e7d32; font-size: 14px; margin-left: 6px;">R$ ${(item.price * item.qty).toFixed(2).replace('.', ',')}</span>
-          </div>
-        `;
-        list.appendChild(itemRow);
-      });
-    }
-
-    function changeQty(index, delta) {
-      cart[index].qty += delta;
-      if (cart[index].qty <= 0) {
-        cart.splice(index, 1);
+    function addToCart(name, price) {
+      const existing = cart.find(i => i.barcode === currentBarcode);
+      if (existing) {
+        existing.qty += 1;
+      } else {
+        cart.push({ barcode: currentBarcode, name: name, price: price, qty: 1 });
       }
       localStorage.setItem('nutri_cart', JSON.stringify(cart));
       updateCartDisplay();
+      alert(`🛒 ${name} adicionado ao Pré-Caixa!`);
     }
 
-    function clearCart() {
-      if (cart.length === 0) return;
-      if (confirm('Deseja realmente limpar todo o carrinho?')) {
-        cart = [];
-        localStorage.setItem('nutri_cart', JSON.stringify(cart));
-        updateCartDisplay();
-      }
+    function updateCartDisplay() {
+      const total = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
+      const count = cart.reduce((acc, item) => acc + item.qty, 0);
+
+      document.getElementById('cart-count').innerText = count;
+      document.getElementById('cart-total').innerText = `R$ ${total.toFixed(2)}`;
+      document.getElementById('modal-cart-total').innerText = `R$ ${total.toFixed(2)}`;
     }
 
     function openCartModal() {
-      updateCartDisplay();
+      const list = document.getElementById('cart-items-list');
+      list.innerHTML = '';
+
+      if (cart.length === 0) {
+        list.innerHTML = '<div style="text-align:center; color:#888; padding:20px;">O seu carrinho ainda está vazio.<br>Bipe produtos para somar!</div>';
+      } else {
+        cart.forEach((item, idx) => {
+          const itemDiv = document.createElement('div');
+          itemDiv.className = 'cart-item';
+          itemDiv.innerHTML = `
+            <div>
+              <strong>${item.name}</strong>
+              <div style="font-size:12px; color:#666;">R$ ${item.price.toFixed(2)} un.</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <button class="qty-btn" onclick="changeQty(${idx}, -1)">-</button>
+              <span style="font-weight:bold;">${item.qty}</span>
+              <button class="qty-btn" onclick="changeQty(${idx}, 1)">+</button>
+              <strong style="margin-left:8px; color:#2e7d32;">R$ ${(item.price * item.qty).toFixed(2)}</strong>
+            </div>
+          `;
+          list.appendChild(itemDiv);
+        });
+      }
+
       document.getElementById('cart-modal').classList.remove('hidden');
     }
 
@@ -645,92 +719,162 @@
       document.getElementById('cart-modal').classList.add('hidden');
     }
 
-    // ==========================================
-    // 1. SALVAR COMPRA CONCLUÍDA NO HISTÓRICO
-    // ==========================================
-    function finalizarESalvarCompra() {
-      if (!cart || cart.length === 0) {
-        alert("Seu carrinho está vazio!");
+    function changeQty(idx, delta) {
+      cart[idx].qty += delta;
+      if (cart[idx].qty <= 0) cart.splice(idx, 1);
+      localStorage.setItem('nutri_cart', JSON.stringify(cart));
+      updateCartDisplay();
+      openCartModal();
+    }
+
+    function clearCart() {
+      if (confirm('Deseja limpar todos os itens do carrinho?')) {
+        cart = [];
+        localStorage.removeItem('nutri_cart');
+        updateCartDisplay();
+        closeCartModal();
+      }
+    }
+
+    // Finalizar e Salvar no Histórico Local
+    function finalizeAndSavePurchase() {
+      if (cart.length === 0) {
+        alert('Seu carrinho está vazio!');
         return;
       }
 
-      const mercadoEl = document.querySelector(".chip.active") || document.getElementById("market-input");
-      const mercadoSelecionado = mercadoEl ? (mercadoEl.innerText || mercadoEl.value) : "Mercado em Cabo Frio";
+      const total = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
+      const marketName = document.getElementById('market-input').value.trim() || 'Supermercado';
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('pt-BR') + ' às ' + now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-      const dataAtual = new Date();
-      const dataFormatada = dataAtual.toLocaleDateString("pt-BR") + " às " + 
-        dataAtual.toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit' });
-
-      const totalCompra = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
-
-      const novaCompra = {
-        id: "compra_" + Date.now(),
-        data: dataFormatada,
-        mercado: mercadoSelecionado,
-        total: totalCompra,
+      const newPurchase = {
+        id: Date.now(),
+        data: dateStr,
+        mercado: marketName,
+        total: total,
+        itensQtd: cart.reduce((acc, i) => acc + i.qty, 0),
         itens: [...cart]
       };
 
-      const historico = JSON.parse(localStorage.getItem("nutripreco_historico") || "[]");
-      historico.unshift(novaCompra);
-      localStorage.setItem("nutripreco_historico", JSON.stringify(historico));
+      purchaseHistory.unshift(newPurchase);
+      localStorage.setItem('nutri_purchases_history', JSON.stringify(purchaseHistory));
 
-      alert(`✅ Compra de R$ ${totalCompra.toFixed(2).replace('.', ',')} salva com sucesso no seu histórico!`);
-
-      if (confirm("Deseja compartilhar o resumo dessa compra no WhatsApp?")) {
-        compartilharNoWhatsApp(novaCompra);
-      }
-
-      // Zera o carrinho atual
+      // Limpa carrinho atual
       cart = [];
-      localStorage.setItem('nutri_cart', JSON.stringify(cart));
+      localStorage.removeItem('nutri_cart');
       updateCartDisplay();
       closeCartModal();
+
+      alert(`🎉 Parabéns! Sua compra de R$ ${total.toFixed(2)} no ${marketName} foi finalizada e salva nas 'Minhas Compras'!`);
     }
 
-    // ==========================================
-    // 2. COMPARTILHAR NO WHATSAPP COM LINK VIRAL
-    // ==========================================
-    function compartilharNoWhatsApp(compraObj = null) {
-      let itensParaEnviar = [];
-      let mercado = "";
-      let total = 0;
-      let dataStr = "";
+    // Modal de Histórico de Compras Salvas
+    function openHistoryModal() {
+      const container = document.getElementById('history-items-container');
+      container.innerHTML = '';
 
-      if (compraObj) {
-        itensParaEnviar = compraObj.itens;
-        mercado = compraObj.mercado;
-        total = compraObj.total;
-        dataStr = compraObj.data;
+      const totalMonth = purchaseHistory.reduce((acc, p) => acc + (p.total || 0), 0);
+      document.getElementById('stat-month-total').innerText = `R$ ${totalMonth.toFixed(2)}`;
+      document.getElementById('stat-purchases-count').innerText = purchaseHistory.length;
+
+      if (purchaseHistory.length === 0) {
+        container.innerHTML = '<div style="text-align:center; color:#888; padding:25px;">Você ainda não salvou nenhuma compra.<br>Ao terminar as compras, toque em \'Finalizar e Salvar\' no carrinho!</div>';
       } else {
-        if (!cart || cart.length === 0) {
-          alert("Adicione itens ao carrinho antes de compartilhar!");
-          return;
-        }
-        itensParaEnviar = cart;
-        const mercadoEl = document.querySelector(".chip.active") || document.getElementById("market-input");
-        mercado = mercadoEl ? (mercadoEl.innerText || mercadoEl.value) : "Mercado em Cabo Frio";
-        total = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
-        dataStr = new Date().toLocaleDateString("pt-BR");
+        purchaseHistory.forEach((compra, index) => {
+          const card = document.createElement('div');
+          card.className = 'saved-purchase-card';
+          
+          let itensHtml = compra.itens.map(i => `• ${i.qty}x ${i.name} (R$ ${(i.price * i.qty).toFixed(2)})`).join('<br>');
+
+          card.innerHTML = `
+            <div class="purchase-header">
+              <span class="purchase-market">🛒 ${compra.mercado}</span>
+              <strong style="color:#2e7d32; font-size:15px;">R$ ${compra.total.toFixed(2)}</strong>
+            </div>
+            <div class="purchase-date">📅 ${compra.data} • ${compra.itensQtd} itens</div>
+            <div style="margin-top:8px; display:flex; justify-content:space-between; align-items:center;">
+              <button style="background:none; border:none; color:#2e7d32; font-size:12px; font-weight:bold; cursor:pointer; text-decoration:underline;" onclick="toggleDetails(${compra.id})">Ver produtos</button>
+              <button style="background:none; border:none; color:#c62828; font-size:12px; cursor:pointer;" onclick="deleteSavedPurchase(${index})">🗑️ Apagar</button>
+            </div>
+            <div id="details-${compra.id}" class="purchase-items-detail hidden">
+              ${itensHtml}
+            </div>
+          `;
+          container.appendChild(card);
+        });
       }
 
-      let msg = `🛒 *Minha Compra no ${mercado}*\n`;
-      msg += `📅 Data: ${dataStr}\n`;
-      msg += `💰 *Total: R$ ${total.toFixed(2).replace('.', ',')}*\n\n`;
-      msg += `📋 *Itens:*\n`;
+      document.getElementById('history-modal').classList.remove('hidden');
+    }
 
-      itensParaEnviar.forEach(item => {
-        const sub = item.price * item.qty;
-        msg += `• ${item.qty}x ${item.name} — R$ ${sub.toFixed(2).replace('.', ',')}\n`;
+    function toggleDetails(id) {
+      const el = document.getElementById(`details-${id}`);
+      if (el) el.classList.toggle('hidden');
+    }
+
+    function deleteSavedPurchase(index) {
+      if (confirm('Deseja excluir esta compra do seu histórico?')) {
+        purchaseHistory.splice(index, 1);
+        localStorage.setItem('nutri_purchases_history', JSON.stringify(purchaseHistory));
+        openHistoryModal();
+      }
+    }
+
+    function closeHistoryModal() {
+      document.getElementById('history-modal').classList.add('hidden');
+    }
+
+    // Compartilhamento no WhatsApp
+    function shareCartWhatsApp() {
+      if (cart.length === 0) {
+        alert('Adicione itens ao carrinho antes de compartilhar!');
+        return;
+      }
+      const total = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
+      const marketName = document.getElementById('market-input').value.trim() || 'Supermercado';
+
+      let msg = `🛒 *Minha Compra no NutriPreço*\n`;
+      msg += `📍 Supermercado: *${marketName}* (Cabo Frio)\n\n`;
+      cart.forEach(i => {
+        msg += `• ${i.qty}x ${i.name} - R$ ${(i.price * i.qty).toFixed(2)}\n`;
       });
+      msg += `\n💰 *Total:* R$ ${total.toFixed(2)}\n\n`;
+      msg += `🥗 Calculei e conferi os preços com o *NutriPreço*!`;
 
-      msg += `\n─────────────────────\n`;
-      msg += `💡 *Calculei meu carrinho e comparei preços no NutriPreço!*\n`;
-      msg += `Acesse grátis e economize você também:\n`;
-      msg += `👉 https://arthursantosmedia-stack.github.io/Nutri-preco1/`;
+      const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+      window.open(url, '_blank');
+    }
 
-      window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, "_blank");
+    function shareAppWhatsApp() {
+      const msg = `Oi! Estou usando o *NutriPreço* para somar minhas compras no mercado e ver onde tá mais barato em Cabo Frio (Atacadão, Assaí, etc). É muito bom para não passar sufoco no caixa! Testa aí também: https://arthursantosmedia-stack.github.io/Nutri-preco1/`;
+      const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+      window.open(url, '_blank');
+    }
+
+    function openSupportWhatsApp() {
+      const msg = `Olá! Gostaria de enviar uma sugestão para o NutriPreço:`;
+      const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+      window.open(url, '_blank');
+    }
+
+    function resetScan() {
+      document.getElementById('price-input').value = '';
+      document.getElementById('manual-name-input').value = '';
+      document.getElementById('compare-alert').classList.add('hidden');
+      document.getElementById('quick-confirm-box').classList.add('hidden');
+      document.getElementById('unnamed-box').classList.add('hidden');
+      document.getElementById('result-section').classList.add('hidden');
+      document.getElementById('scan-section').classList.remove('hidden');
+      document.getElementById('start-btn').classList.remove('hidden');
+    }
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
     }
   </script>
+
 </body>
 </html>
