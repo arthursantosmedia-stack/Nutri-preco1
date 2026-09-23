@@ -44,11 +44,12 @@
     .sidebar-item-text { flex: 1; }
     .sidebar-item-text strong { display: block; font-size: 14px; color: #222; }
     .sidebar-item-text small { display: block; font-size: 11.5px; color: #777; margin-top: 1px; }
+    .badge-highlight { font-size: 10px; background: #2e7d32; color: #fff; font-weight: bold; padding: 2px 7px; border-radius: 6px; }
     .badge-step { font-size: 10px; background: #e8f5e9; color: #2e7d32; font-weight: bold; padding: 2px 6px; border-radius: 6px; border: 1px solid #c8e6c9; }
     .sidebar-footer { padding: 14px 16px; border-top: 1px solid #eee; background: #fafafa; }
     .sidebar-login-btn { width: 100%; background: #2e7d32; color: #fff; border: none; padding: 10px; border-radius: 8px; font-weight: bold; font-size: 13px; cursor: pointer; }
 
-    /* Conteúdo Principal (Sem a barra antiga de botões) */
+    /* Conteúdo Principal (Câmera e Leitor em Destaque) */
     .container { max-width: 480px; margin: 0 auto; padding: 14px 16px; }
 
     /* Scanner / Câmera */
@@ -102,10 +103,30 @@
 
     /* Modais */
     .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: flex-end; z-index: 200; }
-    .modal-content { background: #fff; width: 100%; max-width: 480px; max-height: 85vh; border-radius: 20px 20px 0 0; padding: 20px; overflow-y: auto; }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+    .modal-content { background: #fff; width: 100%; max-width: 480px; max-height: 88vh; border-radius: 20px 20px 0 0; padding: 20px; overflow-y: auto; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
     .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
     .qty-btn { background: #eee; border: none; width: 26px; height: 26px; border-radius: 50%; font-weight: bold; cursor: pointer; }
+
+    /* Radar de Preços & Cesta Básica */
+    .radar-tabs { display: flex; gap: 8px; border-bottom: 2px solid #e8f5e9; padding-bottom: 8px; margin-top: 4px; }
+    .radar-tab { flex: 1; background: #f1f8e9; border: 1px solid #c8e6c9; color: #2e7d32; padding: 9px 8px; border-radius: 8px; font-weight: bold; font-size: 13px; cursor: pointer; text-align: center; }
+    .radar-tab.active { background: #2e7d32; color: #fff; border-color: #2e7d32; }
+
+    .cesta-summary-box { background: #e8f5e9; border: 1.5px solid #a5d6a7; border-radius: 10px; padding: 12px; margin-bottom: 12px; }
+    .cesta-ranking-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px dashed #c8e6c9; font-size: 13px; }
+    .cesta-ranking-row:last-child { border-bottom: none; }
+
+    .radar-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 14px; margin-bottom: 11px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+    .radar-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+    .radar-prod-title { font-size: 15px; font-weight: bold; color: #222; margin-bottom: 2px; }
+    .radar-prod-meta { font-size: 11.5px; color: #666; }
+    .cesta-badge { background: #fff3e0; color: #e65100; font-size: 10.5px; font-weight: bold; padding: 2px 7px; border-radius: 12px; border: 1px solid #ffe0b2; white-space: nowrap; }
+
+    .radar-price-comparison { background: #fbfbfb; border-radius: 8px; padding: 8px 10px; margin-top: 8px; border: 1px solid #f0f0f0; }
+    .best-market-row { display: flex; justify-content: space-between; align-items: center; color: #1b5e20; font-size: 13.5px; font-weight: bold; margin-bottom: 4px; }
+    .other-market-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #555; padding-top: 4px; border-top: 1px dashed #eee; }
+    .diff-bad { color: #c62828; font-weight: bold; }
 
     /* Estatísticas do Histórico */
     .history-stat-box { display: flex; gap: 10px; margin-bottom: 16px; }
@@ -158,21 +179,22 @@
     <div class="sidebar-body">
       <div class="sidebar-section-title">Menu Principal</div>
       
+      <!-- Acesso ao Radar de Preços e Cesta Básica -->
+      <button class="sidebar-item" onclick="toggleSidebar(false); openRadarModal();">
+        <span class="sidebar-icon">📊</span>
+        <div class="sidebar-item-text">
+          <strong>Radar de Preços & Cesta Básica</strong>
+          <small>Planilha de cotações em Cabo Frio</small>
+        </div>
+        <span class="badge-highlight">Novo</span>
+      </button>
+
       <button class="sidebar-item" onclick="toggleSidebar(false); openHistoryModal();">
         <span class="sidebar-icon">📂</span>
         <div class="sidebar-item-text">
           <strong>Minhas Compras Salvas</strong>
           <small>Histórico e total acumulado do mês</small>
         </div>
-      </button>
-
-      <button class="sidebar-item" onclick="toggleSidebar(false); alert('Em breve no Passo 2: O Radar de Preços e Cesta Básica Oficial da Cidade!');">
-        <span class="sidebar-icon">📊</span>
-        <div class="sidebar-item-text">
-          <strong>Radar de Preços & Cesta Básica</strong>
-          <small>Cotações e comparativo da cidade</small>
-        </div>
-        <span class="badge-step">Passo 2</span>
       </button>
 
       <button class="sidebar-item" onclick="toggleSidebar(false); alert('Em breve no Passo 3: Montar Lista Prévia no sofá de casa!');">
@@ -229,7 +251,7 @@
     </div>
   </div>
 
-  <!-- Tela Principal com Câmera e Leitor (Agora 100% Limpa) -->
+  <!-- Tela Principal com Câmera e Leitor (100% Limpa) -->
   <div class="container">
     <!-- Seção Scanner -->
     <div id="scan-section">
@@ -330,6 +352,42 @@
     <button class="cart-btn" onclick="openCartModal()">Ver Carrinho</button>
   </div>
 
+  <!-- Modal do Radar de Preços & Cesta Básica -->
+  <div class="modal hidden" id="radar-modal">
+    <div class="modal-content" style="max-height: 88vh;">
+      <div class="modal-header">
+        <div>
+          <h3 style="color: #2e7d32; display:flex; align-items:center; gap:6px;">📊 Radar de Preços</h3>
+          <span style="font-size:12px; color:#666;">Cabo Frio • Cotações da Cidade</span>
+        </div>
+        <button style="border:none; background:none; font-size:24px; cursor:pointer;" onclick="closeRadarModal()">&times;</button>
+      </div>
+
+      <!-- Abas / Filtros Rápidos -->
+      <div class="radar-tabs">
+        <button class="radar-tab active" id="tab-all-products" onclick="setRadarFilter('all')">🌐 Todos os Produtos</button>
+        <button class="radar-tab" id="tab-cesta-basica" onclick="setRadarFilter('cesta')">🧺 Cesta Básica Oficial</button>
+      </div>
+
+      <!-- Campo de Busca em Tempo Real -->
+      <div style="margin: 11px 0;">
+        <input type="text" id="radar-search-input" placeholder="🔍 Buscar produto (ex: café, arroz, leite, carne)..." oninput="renderRadarProducts()" style="padding: 10px 14px; font-size: 14px;">
+      </div>
+
+      <!-- Placar da Cesta Básica -->
+      <div id="cesta-summary-box" class="cesta-summary-box hidden">
+        <div style="font-size:13px; font-weight:bold; color:#1b5e20; margin-bottom:6px;">🧺 Placar Cesta Básica em Cabo Frio:</div>
+        <div id="cesta-markets-ranking"></div>
+      </div>
+
+      <!-- Lista Comparativa Tipo Planilha -->
+      <div id="radar-loading" class="loading" style="padding: 20px;">🔍 Carregando cotações de Cabo Frio...</div>
+      <div id="radar-products-list" style="margin-bottom: 16px;"></div>
+
+      <button class="reset-btn" onclick="closeRadarModal()">Fechar Radar</button>
+    </div>
+  </div>
+
   <!-- Modal do Carrinho Atual -->
   <div class="modal hidden" id="cart-modal">
     <div class="modal-content">
@@ -418,6 +476,13 @@
     let purchaseHistory = JSON.parse(localStorage.getItem('nutri_purchases_history') || '[]');
     let currentUser = null;
 
+    // Estado do Radar de Preços & Cesta Básica
+    let radarData = [];
+    let currentRadarFilter = 'all';
+
+    // Termos que qualificam a Cesta Básica Oficial (DIEESE / Governo)
+    const CESTA_TERMS = ['arroz', 'feijão', 'feijao', 'café', 'cafe', 'leite', 'óleo', 'oleo', 'açúcar', 'acucar', 'farinha', 'carne', 'frango', 'pão', 'pao', 'manteiga', 'margarina', 'tomate', 'banana', 'batata'];
+
     window.addEventListener('DOMContentLoaded', () => {
       updateCartDisplay();
       checkAuthSession();
@@ -434,6 +499,187 @@
         drawer.classList.remove('open');
         setTimeout(() => overlay.classList.add('hidden'), 260);
       }
+    }
+
+    // Modal do Radar de Preços & Cesta Básica
+    function openRadarModal() {
+      document.getElementById('radar-modal').classList.remove('hidden');
+      fetchRadarData();
+    }
+
+    function closeRadarModal() {
+      document.getElementById('radar-modal').classList.add('hidden');
+    }
+
+    function setRadarFilter(filter) {
+      currentRadarFilter = filter;
+      document.getElementById('tab-all-products').classList.toggle('active', filter === 'all');
+      document.getElementById('tab-cesta-basica').classList.toggle('active', filter === 'cesta');
+      renderRadarProducts();
+    }
+
+    async function fetchRadarData() {
+      const loadingEl = document.getElementById('radar-loading');
+      loadingEl.classList.remove('hidden');
+      document.getElementById('radar-products-list').innerHTML = '';
+
+      try {
+        const { data, error } = await client
+          .from('registros_precos')
+          .select('preco, data_registro, mercados(nome), produtos(id, nome, marca, codigo_barras)')
+          .order('data_registro', { ascending: false })
+          .limit(150);
+
+        if (error) throw error;
+        radarData = data || [];
+        loadingEl.classList.add('hidden');
+        renderRadarProducts();
+      } catch (err) {
+        console.error('Erro ao carregar radar:', err);
+        loadingEl.innerHTML = '<div style="color:#c62828; font-size:13px; text-align:center;">Não foi possível carregar as cotações neste momento.</div>';
+      }
+    }
+
+    function renderRadarProducts() {
+      const listContainer = document.getElementById('radar-products-list');
+      const searchVal = (document.getElementById('radar-search-input').value || '').toLowerCase().trim();
+      const cestaBox = document.getElementById('cesta-summary-box');
+      listContainer.innerHTML = '';
+
+      if (radarData.length === 0) {
+        listContainer.innerHTML = '<div style="text-align:center; color:#888; font-size:13px; padding:25px;">Nenhum preço registrado ainda nesta região.<br>Bipe produtos na gôndola para alimentar o Radar da sua cidade!</div>';
+        cestaBox.classList.add('hidden');
+        return;
+      }
+
+      // Agrupa os registros por produto
+      const grouped = {};
+      radarData.forEach(item => {
+        const p = item.produtos;
+        if (!p || !p.nome) return;
+        if (!grouped[p.id]) {
+          grouped[p.id] = {
+            id: p.id,
+            nome: p.nome,
+            marca: p.marca || '',
+            codigo_barras: p.codigo_barras || '',
+            precos: []
+          };
+        }
+        grouped[p.id].precos.push({
+          preco: parseFloat(item.preco),
+          mercado: item.mercados?.nome || 'Supermercado',
+          data: new Date(item.data_registro)
+        });
+      });
+
+      let productsList = Object.values(grouped);
+
+      // Filtro de Busca
+      if (searchVal) {
+        productsList = productsList.filter(p => 
+          p.nome.toLowerCase().includes(searchVal) || 
+          p.marca.toLowerCase().includes(searchVal)
+        );
+      }
+
+      // Filtro da Cesta Básica Oficial
+      if (currentRadarFilter === 'cesta') {
+        productsList = productsList.filter(p => {
+          const nomeLower = p.nome.toLowerCase();
+          return CESTA_TERMS.some(t => nomeLower.includes(t));
+        });
+        renderCestaRanking(productsList);
+        cestaBox.classList.remove('hidden');
+      } else {
+        cestaBox.classList.add('hidden');
+      }
+
+      if (productsList.length === 0) {
+        listContainer.innerHTML = '<div style="text-align:center; color:#888; font-size:13px; padding:20px;">Nenhum produto encontrado com os filtros selecionados.</div>';
+        return;
+      }
+
+      productsList.forEach(p => {
+        // Encontra o menor preço e os outros
+        const sorted = [...p.precos].sort((a, b) => a.preco - b.preco);
+        const menor = sorted[0];
+        const maior = sorted[sorted.length - 1];
+        const isCesta = CESTA_TERMS.some(t => p.nome.toLowerCase().includes(t));
+
+        let diffHtml = '';
+        if (sorted.length > 1 && maior.preco > menor.preco) {
+          const diffAbs = (maior.preco - menor.preco).toFixed(2);
+          const perc = Math.round(((maior.preco - menor.preco) / menor.preco) * 100);
+          diffHtml = `
+            <div class="other-market-row">
+              <span>Mais caro no ${maior.mercado}: R$ ${maior.preco.toFixed(2)}</span>
+              <span class="diff-bad">+${perc}% (+R$ ${diffAbs})</span>
+            </div>
+          `;
+        }
+
+        const card = document.createElement('div');
+        card.className = 'radar-card';
+        card.innerHTML = `
+          <div class="radar-card-header">
+            <div>
+              <div class="radar-prod-title">${p.nome}</div>
+              <div class="radar-prod-meta">${p.marca ? p.marca + ' • ' : ''}EAN: ${p.codigo_barras}</div>
+            </div>
+            ${isCesta ? '<span class="cesta-badge">🧺 Cesta Básica</span>' : ''}
+          </div>
+
+          <div class="radar-price-comparison">
+            <div class="best-market-row">
+              <span>🟢 Menor Preço: ${menor.mercado}</span>
+              <span style="font-size:15px; color:#2e7d32;">R$ ${menor.preco.toFixed(2)}</span>
+            </div>
+            ${diffHtml}
+          </div>
+        `;
+        listContainer.appendChild(card);
+      });
+    }
+
+    function renderCestaRanking(cestaProducts) {
+      const box = document.getElementById('cesta-markets-ranking');
+      if (cestaProducts.length === 0) {
+        box.innerHTML = '<div style="color:#666;">Ainda não há dados suficientes de itens da Cesta Básica registrados.</div>';
+        return;
+      }
+
+      // Soma por mercado
+      const marketSums = {};
+      cestaProducts.forEach(p => {
+        p.precos.forEach(item => {
+          if (!marketSums[item.mercado]) marketSums[item.mercado] = { total: 0, count: 0 };
+          marketSums[item.mercado].total += item.preco;
+          marketSums[item.mercado].count += 1;
+        });
+      });
+
+      const ranking = Object.keys(marketSums)
+        .map(m => ({ mercado: m, total: marketSums[m].total, count: marketSums[m].count }))
+        .sort((a, b) => (a.total / a.count) - (b.total / b.count));
+
+      if (ranking.length === 0) {
+        box.innerHTML = '<div style="color:#666;">Bipe os itens da cesta básica para gerar o ranking da cidade.</div>';
+        return;
+      }
+
+      const campeao = ranking[0];
+      let html = `<div style="margin-bottom:6px; font-weight:bold; color:#2e7d32;">🏆 Mercado Mais Barato do Básico: <b>${campeao.mercado}</b></div>`;
+      ranking.forEach((r, idx) => {
+        const medal = idx === 0 ? '🟢 1º' : idx === 1 ? '🟡 2º' : '🔴 ' + (idx + 1) + 'º';
+        html += `
+          <div class="cesta-ranking-row">
+            <span>${medal} ${r.mercado} (${r.count} itens cotados)</span>
+            <strong>Média R$ ${(r.total / r.count).toFixed(2)} / item</strong>
+          </div>
+        `;
+      });
+      box.innerHTML = html;
     }
 
     // PWA Install Prompt Listener
@@ -748,7 +994,9 @@
         const valores = cachedPrices.map(p => parseFloat(p.preco));
         const media = valores.reduce((a, b) => a + b, 0) / valores.length;
         if (priceVal < media * 0.2 || priceVal > media * 3.0) {
-          const confirma = confirm(`⚠️ Atenção: O preço R$ ${priceVal.toFixed(2)} está muito diferente da média recente deste item (R$ ${media.toFixed(2)}).\n\nVocê confirma que a etiqueta do mercado marcava exatamente esse valor?`);
+          const confirma = confirm(`⚠️ Atenção: O preço R$ ${priceVal.toFixed(2)} está muito diferente da média recente deste item (R$ ${media.toFixed(2)}).
+
+Você confirma que a etiqueta do mercado marcava exatamente esse valor?`);
           if (!confirma) return;
         }
       }
@@ -900,11 +1148,9 @@
       document.getElementById('stat-purchases-count').innerText = purchaseHistory.length;
 
       if (purchaseHistory.length === 0) {
-        container.innerHTML = '<div style="text-align:center; color:#888; padding:25px;">Você ainda não salvou nenhuma compra.<br>Ao terminar as compras, toque em \'Finalizar e Salvar\' no carrinho!</div>';
+        container.innerHTML = '<div style="text-align:center; color:#888; padding:25px;">Você ainda não salvou nenhuma compra.<br>Ao terminar as compras, toque em "Finalizar e Salvar" no carrinho!</div>';
       } else {
         purchaseHistory.forEach((compra, index) => {
-          const card = document.createElement('div');
-          card.className = 'saved- index) => {
           const card = document.createElement('div');
           card.className = 'saved-purchase-card';
           
@@ -957,12 +1203,19 @@
       const total = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
       const marketName = document.getElementById('market-input').value.trim() || 'Supermercado';
 
-      let msg = `🛒 *Minha Compra no NutriPreço*\n`;
-      msg += `📍 Supermercado: *${marketName}* (Cabo Frio)\n\n`;
+      let msg = `🛒 *Minha Compra no NutriPreço*
+`;
+      msg += `📍 Supermercado: *${marketName}* (Cabo Frio)
+
+`;
       cart.forEach(i => {
-        msg += `• ${i.qty}x ${i.name} - R$ ${(i.price * i.qty).toFixed(2)}\n`;
+        msg += `• ${i.qty}x ${i.name} - R$ ${(i.price * i.qty).toFixed(2)}
+`;
       });
-      msg += `\n💰 *Total:* R$ ${total.toFixed(2)}\n\n`;
+      msg += `
+💰 *Total:* R$ ${total.toFixed(2)}
+
+`;
       msg += `🥗 Calculei e conferi os preços com o *NutriPreço*!`;
 
       const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
@@ -1001,3 +1254,4 @@
 
 </body>
 </html>
+
