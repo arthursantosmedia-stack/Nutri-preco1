@@ -1,12 +1,13 @@
 {
-  "name": "NutriPreço - Comparador & Pré-Caixa",
+  "name": "NutriPreço — Calculadora de Mercado & Preços",
   "short_name": "NutriPreço",
-  "description": "Compare preços nos supermercados de Cabo Frio e controle seu gasto antes do caixa.",
+  "description": "Some suas compras antes do caixa e compare preços nos supermercados de Cabo Frio.",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#f4f6f8",
   "theme_color": "#2e7d32",
+  "categories": ["shopping", "finance", "food"],
   "icons": [
     {
       "src": "https://cdn-icons-png.flaticon.com/512/2424/2424444.png",
