@@ -101,6 +101,52 @@
     .cart-info span { font-size: 12px; color: #666; }
     .cart-btn { background: #2e7d32; color: #fff; border: none; padding: 10px 16px; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; }
 
+    
+    /* Sistema de Feedback Profissional (Toasts & Confirm Dialog) */
+    #toast-container {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 99999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      pointer-events: none;
+      width: 90%;
+      max-width: 420px;
+    }
+    .toast-box {
+      pointer-events: auto;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 14px 18px;
+      border-radius: 14px;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 500;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.22);
+      animation: toastSlideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      line-height: 1.4;
+    }
+    .toast-box.hiding {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    .toast-success { background: #1b5e20; border-left: 5px solid #4caf50; }
+    .toast-error { background: #b71c1c; border-left: 5px solid #ef5350; }
+    .toast-warning { background: #e65100; border-left: 5px solid #ffa726; }
+    .toast-info { background: #1565c0; border-left: 5px solid #42a5f5; }
+
+    @keyframes toastSlideDown {
+      from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
     /* Modais */
     .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: flex-end; z-index: 200; }
     .modal-content { background: #fff; width: 100%; max-width: 480px; max-height: 88vh; border-radius: 20px 20px 0 0; padding: 20px; overflow-y: auto; }
@@ -151,6 +197,23 @@
 <body>
 
   <!-- Cabeçalho com Botão do Menu Hambúrguer -->
+  
+  <!-- Container de Toasts (Notificações Flutuantes) -->
+  <div id="toast-container"></div>
+
+  <!-- Modal de Confirmação Customizado (Substitui confirm nativo) -->
+  <div class="modal hidden" id="confirm-modal" style="z-index: 10000;">
+    <div class="modal-content" style="max-width: 400px; text-align: center; padding: 24px 20px; border-radius: 20px;">
+      <div id="confirm-modal-icon" style="font-size: 42px; margin-bottom: 12px;">⚠️</div>
+      <h3 id="confirm-modal-title" style="font-size: 18px; color: #1b5e20; margin-bottom: 8px; font-weight: bold;">Confirmação</h3>
+      <div id="confirm-modal-message" style="font-size: 14px; color: #555; line-height: 1.5; margin-bottom: 22px;"></div>
+      <div style="display: flex; gap: 10px;">
+        <button id="confirm-modal-cancel" class="reset-btn" style="flex: 1; margin: 0; background: #eceff1; color: #444; font-weight: 600;">Cancelar</button>
+        <button id="confirm-modal-ok" class="save-btn" style="flex: 1; margin: 0; background: #2e7d32;">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
   <header>
     <div class="header-left">
       <button class="menu-btn" onclick="toggleSidebar(true)" aria-label="Abrir Menu">☰</button>
@@ -197,7 +260,7 @@
         </div>
       </button>
 
-      <button class="sidebar-item" onclick="toggleSidebar(false); alert('Em breve no Passo 3: Montar Lista Prévia no sofá de casa!');">
+      <button class="sidebar-item" onclick="toggleSidebar(false); showToast('Em breve no Passo 3: Montar Lista Prévia no sofá de casa!', 'info');">
         <span class="sidebar-icon">📝</span>
         <div class="sidebar-item-text">
           <strong>Lista Prévia de Compras</strong>
@@ -458,10 +521,138 @@
     </div>
   </div>
 
+
+
+  <!-- Modal de Instalação PWA Profissional -->
+  <div class="modal hidden" id="install-modal">
+    <div class="modal-content" style="max-height: 90vh;">
+      <div class="modal-header">
+        <h3 style="color: #2e7d32; display: flex; align-items: center; gap: 8px; font-size: 18px;">
+          📲 Instalar Aplicativo
+        </h3>
+        <button style="border:none; background:none; font-size:24px; cursor:pointer; color:#777;" onclick="closeInstallModal()">&times;</button>
+      </div>
+
+      <div style="text-align: center; margin-bottom: 16px; padding: 6px 0;">
+        <img src="https://cdn-icons-png.flaticon.com/512/2424/2424444.png" alt="NutriPreço" style="width: 68px; height: 68px; border-radius: 16px; box-shadow: 0 4px 12px rgba(46,125,50,0.2); margin-bottom: 8px;">
+        <h4 style="font-size: 17px; color: #1b5e20; margin-bottom: 4px; font-weight: bold;">NutriPreço no seu Celular</h4>
+        <p style="font-size: 13px; color: #555; line-height: 1.4;">Adicione o app à sua tela inicial para calcular o carrinho na gôndola e consultar preços mais rápido, mesmo sem internet.</p>
+      </div>
+
+      <!-- Vantagens do App -->
+      <div style="display: flex; justify-content: space-around; background: #f1f8e9; border-radius: 12px; padding: 12px 6px; margin-bottom: 16px; border: 1px solid #c8e6c9;">
+        <div style="text-align: center; flex: 1;">
+          <div style="font-size: 18px;">⚡</div>
+          <div style="font-size: 11px; font-weight: bold; color: #2e7d32; margin-top: 2px;">Abre Rápido</div>
+        </div>
+        <div style="text-align: center; flex: 1; border-left: 1px solid #c8e6c9; border-right: 1px solid #c8e6c9;">
+          <div style="font-size: 18px;">📶</div>
+          <div style="font-size: 11px; font-weight: bold; color: #2e7d32; margin-top: 2px;">Uso Offline</div>
+        </div>
+        <div style="text-align: center; flex: 1;">
+          <div style="font-size: 18px;">💾</div>
+          <div style="font-size: 11px; font-weight: bold; color: #2e7d32; margin-top: 2px;">Leve (&lt;1MB)</div>
+        </div>
+      </div>
+
+      <!-- Botão Direto (se suportado pelo navegador) -->
+      <div id="install-native-box" class="hidden" style="margin-bottom: 14px;">
+        <button onclick="triggerNativeInstall()" style="width: 100%; background: #2e7d32; color: white; border: none; padding: 13px; border-radius: 10px; font-weight: bold; font-size: 15px; cursor: pointer; box-shadow: 0 4px 10px rgba(46,125,50,0.25); display: flex; justify-content: center; align-items: center; gap: 8px;">
+          ⬇️ Instalar Agora com 1 Toque
+        </button>
+      </div>
+
+      <!-- Passo a passo visual Android -->
+      <div style="background: #fafafa; border-radius: 12px; padding: 14px; border: 1px solid #e0e0e0; margin-bottom: 14px;">
+        <div style="font-size: 13px; font-weight: bold; color: #222; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+          🤖 No Android (Google Chrome):
+        </div>
+        <div style="display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; font-size: 13px; color: #444;">
+          <span style="background: #2e7d32; color: white; border-radius: 50%; min-width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold;">1</span>
+          <span>Toque no botão de menu do Chrome <strong>(⋮ três pontinhos)</strong> no canto superior direito da tela.</span>
+        </div>
+        <div style="display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; font-size: 13px; color: #444;">
+          <span style="background: #2e7d32; color: white; border-radius: 50%; min-width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold;">2</span>
+          <span>Procure e selecione a opção <strong>'Instalar aplicativo'</strong> ou <strong>'Adicionar à tela inicial'</strong>.</span>
+        </div>
+        <div style="display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: #444;">
+          <span style="background: #2e7d32; color: white; border-radius: 50%; min-width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold;">3</span>
+          <span>Confirme em <strong>'Instalar'</strong>. Pronto! O ícone ficará junto aos seus outros aplicativos.</span>
+        </div>
+      </div>
+
+      <!-- Guia rápido iOS/iPhone -->
+      <div style="background: #fafafa; border-radius: 12px; padding: 12px 14px; border: 1px solid #e0e0e0; margin-bottom: 16px; font-size: 12px; color: #666;">
+        <strong style="color: #222;">🍎 No iPhone (Safari):</strong> Toque no ícone de <strong>Compartilhar (quadrado com seta ⎋)</strong> e selecione <strong>'Adicionar à Tela de Início'</strong>.
+      </div>
+
+      <button class="save-btn" onclick="closeInstallModal()" style="margin-top: 0; background: #2e7d32;">
+        Entendi
+      </button>
+    </div>
+  </div>
+
   <script>
     const SUPABASE_URL = 'https://fzoyldcfyiigwyxxhosd.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_asGr3f2xfay96fUJAkIHBg_L5vfLYvv';
     const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // ==========================================
+    // SISTEMA DE FEEDBACK PROFISSIONAL (TOASTS & CONFIRM)
+    // ==========================================
+    function showToast(message, type = 'info', duration = 3800) {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+
+      const toast = document.createElement('div');
+      toast.className = `toast-box toast-${type}`;
+
+      let icon = 'ℹ️';
+      if (type === 'success') icon = '✅';
+      else if (type === 'error') icon = '❌';
+      else if (type === 'warning') icon = '⚠️';
+
+      toast.innerHTML = `<span style="font-size:18px; line-height:1;">${icon}</span><span style="flex:1;">${message}</span>`;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.classList.add('hiding');
+        setTimeout(() => {
+          if (toast.parentNode) toast.parentNode.removeChild(toast);
+        }, 300);
+      }, duration);
+    }
+
+    function showConfirmDialog({ title = 'Confirmação', message = '', icon = '⚠️', okText = 'Confirmar', cancelText = 'Cancelar', isDestructive = false }) {
+      return new Promise((resolve) => {
+        const modal = document.getElementById('confirm-modal');
+        document.getElementById('confirm-modal-title').innerText = title;
+        document.getElementById('confirm-modal-message').innerHTML = message;
+        document.getElementById('confirm-modal-icon').innerText = icon;
+        const okBtn = document.getElementById('confirm-modal-ok');
+        const cancelBtn = document.getElementById('confirm-modal-cancel');
+        okBtn.innerText = okText;
+        cancelBtn.innerText = cancelText;
+
+        if (isDestructive) {
+          okBtn.style.background = '#c62828';
+        } else {
+          okBtn.style.background = '#2e7d32';
+        }
+
+        modal.classList.remove('hidden');
+
+        const cleanup = () => {
+          modal.classList.add('hidden');
+          okBtn.onclick = null;
+          cancelBtn.onclick = null;
+        };
+
+        okBtn.onclick = () => { cleanup(); resolve(true); };
+        cancelBtn.onclick = () => { cleanup(); resolve(false); };
+      });
+    }
+
 
     let html5QrCode;
     let currentBarcode = '';
@@ -690,17 +881,41 @@
       if (installBtn) installBtn.classList.remove('hidden');
     });
 
-    function installPWA() {
+        function openInstallModal() {
+      const nativeBox = document.getElementById('install-native-box');
+      if (deferredPrompt) {
+        if (nativeBox) nativeBox.classList.remove('hidden');
+      } else {
+        if (nativeBox) nativeBox.classList.add('hidden');
+      }
+      document.getElementById('install-modal').classList.remove('hidden');
+    }
+
+    function closeInstallModal() {
+      document.getElementById('install-modal').classList.add('hidden');
+    }
+
+    function triggerNativeInstall() {
       if (deferredPrompt) {
         deferredPrompt.prompt();
         deferredPrompt.userChoice.then((choiceResult) => {
           if (choiceResult.outcome === 'accepted') {
-            document.getElementById('install-pwa-btn').classList.add('hidden');
+            const btn = document.getElementById('install-pwa-btn');
+            if (btn) btn.classList.add('hidden');
+            closeInstallModal();
           }
           deferredPrompt = null;
+          const nativeBox = document.getElementById('install-native-box');
+          if (nativeBox) nativeBox.classList.add('hidden');
         });
+      }
+    }
+
+    function installPWA() {
+      if (deferredPrompt) {
+        triggerNativeInstall();
       } else {
-        alert('Para instalar no Android:\n1. Toque nos 3 pontinhos do Chrome no topo.\n2. Selecione \'Adicionar à tela inicial\' ou \'Instalar aplicativo\'.');
+        openInstallModal();
       }
     }
 
@@ -738,12 +953,20 @@
       document.getElementById('sidebar-user-text').innerText = '👤 Modo Visitante';
       document.getElementById('sidebar-login-btn').innerText = 'Entrar ou Criar Conta';
       closeAuthModal();
-      alert('Você saiu da sua conta.');
+      showToast('Você saiu da sua conta.', 'info');
     }
 
     async function deleteUserAccount() {
-      if (confirm('Atenção: Deseja realmente excluir permanentemente sua conta e todos os dados associados, conforme previsto na LGPD? Esta ação não pode ser desfeita.')) {
-        alert('Sua solicitação de exclusão foi registrada. O logout foi realizado.');
+      const confirmed = await showConfirmDialog({
+        title: 'Excluir Conta & Dados (LGPD)',
+        message: 'Deseja realmente excluir permanentemente sua conta e histórico? Esta ação é irreversível.',
+        icon: '⚠️',
+        okText: 'Sim, Excluir',
+        cancelText: 'Cancelar',
+        isDestructive: true
+      });
+      if (confirmed) {
+        showToast('Sua solicitação de exclusão foi registrada. O logout foi realizado.', 'info');
         await logoutUser();
       }
     }
@@ -753,7 +976,7 @@
       const password = document.getElementById('auth-password').value;
 
       if (!email || password.length < 6) {
-        alert('Digite um e-mail válido e uma senha de no mínimo 6 caracteres.');
+        showToast('Digite um e-mail válido e uma senha de no mínimo 6 caracteres.', 'warning');
         return;
       }
 
@@ -762,12 +985,12 @@
           const { data, error } = await client.auth.signInWithPassword({ email, password });
           if (error) throw error;
           currentUser = data.user;
-          alert('Login realizado com sucesso!');
+          showToast('Login realizado com sucesso!', 'success');
         } else {
           const { data, error } = await client.auth.signUp({ email, password });
           if (error) throw error;
           currentUser = data.user;
-          alert('Conta criada com sucesso!');
+          showToast('Conta criada com sucesso!', 'success');
         }
         const shortName = currentUser.email.split('@')[0];
         document.getElementById('header-auth-btn').innerText = '👤 ' + shortName;
@@ -775,7 +998,7 @@
         document.getElementById('sidebar-login-btn').innerText = 'Gerenciar Conta';
         closeAuthModal();
       } catch (err) {
-        alert('Erro: ' + err.message);
+        showToast('Erro: ' + err.message, 'error');
       }
     }
 
@@ -802,7 +1025,7 @@
         (decodedText) => { onCodeScanned(decodedText); },
         () => {}
       ).catch(err => {
-        alert("Erro ao acessar a câmera: " + err);
+        showToast("Erro ao acessar a câmera: " + err, "error");
         document.getElementById('start-btn').classList.remove('hidden');
       });
     }
@@ -853,7 +1076,7 @@
         document.getElementById('loading').classList.add('hidden');
         document.getElementById('result-section').classList.remove('hidden');
       } catch (e) {
-        alert('Erro ao buscar dados: ' + e.message);
+        showToast('Erro ao buscar dados: ' + e.message, 'error');
         resetScan();
       }
     }
@@ -985,7 +1208,7 @@
 
       // Trava de sanidade e segurança anti-fraude / anti-troll
       if (!priceVal || isNaN(priceVal) || priceVal < 0.10 || priceVal > 3000) {
-        alert('Por favor, informe um preço real válido (entre R$ 0,10 e R$ 3.000,00).');
+        showToast('Por favor, informe um preço real válido (entre R$ 0,10 e R$ 3.000,00).', 'warning');
         return;
       }
 
@@ -994,9 +1217,13 @@
         const valores = cachedPrices.map(p => parseFloat(p.preco));
         const media = valores.reduce((a, b) => a + b, 0) / valores.length;
         if (priceVal < media * 0.2 || priceVal > media * 3.0) {
-          const confirma = confirm(`⚠️ Atenção: O preço R$ ${priceVal.toFixed(2)} está muito diferente da média recente deste item (R$ ${media.toFixed(2)}).
-
-Você confirma que a etiqueta do mercado marcava exatamente esse valor?`);
+          const confirma = await showConfirmDialog({
+            title: 'Preço Fora da Média',
+            message: `O preço <b>R$ ${priceVal.toFixed(2).replace('.', ',')}</b> está bem diferente da média recente (R$ ${media.toFixed(2).replace('.', ',')}).<br><br>Você confirma que a etiqueta da gôndola marcava exatamente esse valor?`,
+            icon: '🏷️',
+            okText: 'Sim, Confere',
+            cancelText: 'Vou Corrigir'
+          });
           if (!confirma) return;
         }
       }
@@ -1043,7 +1270,7 @@ Você confirma que a etiqueta do mercado marcava exatamente esse valor?`);
       }
       localStorage.setItem('nutri_cart', JSON.stringify(cart));
       updateCartDisplay();
-      alert(`🛒 ${name} adicionado ao Pré-Caixa!`);
+      showToast(`🛒 ${name} adicionado ao Pré-Caixa!`, "success");
     }
 
     function updateCartDisplay() {
@@ -1096,19 +1323,32 @@ Você confirma que a etiqueta do mercado marcava exatamente esse valor?`);
       openCartModal();
     }
 
-    function clearCart() {
-      if (confirm('Deseja limpar todos os itens do carrinho?')) {
+    async function clearCart() {
+      if (!cart || cart.length === 0) {
+        showToast('Seu carrinho já está vazio.', 'info');
+        return;
+      }
+      const confirmed = await showConfirmDialog({
+        title: 'Limpar Carrinho',
+        message: 'Deseja realmente remover todos os produtos do seu pré-caixa?',
+        icon: '🗑️',
+        okText: 'Limpar Tudo',
+        cancelText: 'Voltar',
+        isDestructive: true
+      });
+      if (confirmed) {
         cart = [];
         localStorage.removeItem('nutri_cart');
         updateCartDisplay();
         closeCartModal();
+        showToast('Carrinho limpo com sucesso.', 'info');
       }
     }
 
     // Finalizar e Salvar no Histórico Local
     function finalizeAndSavePurchase() {
       if (cart.length === 0) {
-        alert('Seu carrinho está vazio!');
+        showToast('Seu carrinho está vazio!', 'warning');
         return;
       }
 
@@ -1135,7 +1375,7 @@ Você confirma que a etiqueta do mercado marcava exatamente esse valor?`);
       updateCartDisplay();
       closeCartModal();
 
-      alert(`🎉 Parabéns! Sua compra de R$ ${total.toFixed(2)} no ${marketName} foi finalizada e salva nas 'Minhas Compras'!`);
+      showToast(`🎉 Compra de R$ ${total.toFixed(2).replace(".", ",")} salva com sucesso nas Minhas Compras!`, "success");
     }
 
     // Modal de Histórico de Compras Salvas
@@ -1182,11 +1422,20 @@ Você confirma que a etiqueta do mercado marcava exatamente esse valor?`);
       if (el) el.classList.toggle('hidden');
     }
 
-    function deleteSavedPurchase(index) {
-      if (confirm('Deseja excluir esta compra do seu histórico?')) {
+    async function deleteSavedPurchase(index) {
+      const confirmed = await showConfirmDialog({
+        title: 'Excluir Compra Salva',
+        message: 'Deseja realmente apagar esta compra do seu histórico salvo?',
+        icon: '🗑️',
+        okText: 'Excluir',
+        cancelText: 'Cancelar',
+        isDestructive: true
+      });
+      if (confirmed) {
         purchaseHistory.splice(index, 1);
         localStorage.setItem('nutri_purchases_history', JSON.stringify(purchaseHistory));
         openHistoryModal();
+        showToast('Compra removida do histórico.', 'info');
       }
     }
 
@@ -1197,7 +1446,7 @@ Você confirma que a etiqueta do mercado marcava exatamente esse valor?`);
     // Compartilhamento no WhatsApp
     function shareCartWhatsApp() {
       if (cart.length === 0) {
-        alert('Adicione itens ao carrinho antes de compartilhar!');
+        showToast('Adicione itens ao carrinho antes de compartilhar!', 'warning');
         return;
       }
       const total = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
