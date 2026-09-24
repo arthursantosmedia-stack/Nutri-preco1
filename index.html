@@ -117,7 +117,7 @@
 
       closeCitySelectorModal();
       showToast(`Região atualizada para: ${formatted}`, 'success');
-      loadActiveEncartes();
+      loadActiveEncartes(); loadActivePhotoEncartes();
     }
 
     // Altera editUserCity para abrir o modal do IBGE
@@ -343,7 +343,7 @@
         if (error) throw error;
         showToast('Encarte excluído com sucesso!', 'success');
         loadAdminEncartesModeration();
-        loadActiveEncartes();
+        loadActiveEncartes(); loadActivePhotoEncartes();
       } catch (err) {
         showToast('Erro ao excluir: ' + err.message, 'error');
       }
@@ -451,6 +451,315 @@
       } catch (err) {
         showToast('Erro ao excluir: ' + err.message, 'error');
       }
+    }
+
+      // ==========================================
+    // CONTROLES DE GÔNDOLA: LANTERNA & CÓDIGO MANUAL
+    // ==========================================
+    let isFlashOn = false;
+
+    async function toggleFlashlight() {
+      try {
+        const videoElem = document.querySelector('#reader video');
+        if (!videoElem || !videoElem.srcObject) {
+          showToast('Inicie a câmera primeiro para ligar a lanterna.', 'info');
+          return;
+        }
+        const stream = videoElem.srcObject;
+        const track = stream.getVideoTracks()[0];
+        const caps = track.getCapabilities ? track.getCapabilities() : {};
+
+        if (caps.torch) {
+          isFlashOn = !isFlashOn;
+          await track.applyConstraints({ advanced: [{ torch: isFlashOn }] });
+          document.getElementById('torch-btn').innerHTML = isFlashOn ? '🔦 Desligar Flash' : '🔦 Lanterna';
+          showToast(isFlashOn ? '🔦 Lanterna ligada!' : '🔦 Lanterna desligada', 'info');
+        } else {
+          showToast('A lanterna não é suportada por esta câmera.', 'warning');
+        }
+      } catch (err) {
+        showToast('Não foi possível acionar a lanterna: ' + err.message, 'warning');
+      }
+    }
+
+    function openManualBarcodePrompt() {
+      const code = prompt('Digite os números do código de barras (EAN):');
+      if (code && code.trim().length >= 6) {
+        onCodeScanned(code.trim());
+      } else if (code) {
+        showToast('Código de barras inválido (muito curto).', 'warning');
+      }
+    }
+
+    // ==========================================
+    // QUANTIDADE, PESO (UNIDADE vs KG) & CÁLCULOS
+    // ==========================================
+    let currentProductUnitType = 'un';
+
+    function setProductUnitType(type) {
+      currentProductUnitType = type;
+      const btnUn = document.getElementById('type-btn-un');
+      const btnKg = document.getElementById('type-btn-kg');
+      const chips = document.getElementById('quick-qty-chips');
+      const qtyInput = document.getElementById('product-qty-input');
+
+      if (type === 'un') {
+        btnUn.style.background = '#2e7d32';
+        btnUn.style.color = '#fff';
+        btnKg.style.background = '#eee';
+        btnKg.style.color = '#444';
+        qtyInput.value = '1';
+        chips.innerHTML = `
+          <button type="button" class="budget-chip" onclick="setQuickQty(1)">1 un</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(2)">2 un</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(3)">3 un</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(6)">6 un</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(12)">12 un</button>
+        `;
+      } else {
+        btnKg.style.background = '#2e7d32';
+        btnKg.style.color = '#fff';
+        btnUn.style.background = '#eee';
+        btnUn.style.color = '#444';
+        qtyInput.value = '1.0';
+        chips.innerHTML = `
+          <button type="button" class="budget-chip" onclick="setQuickQty(0.5)">0.5 kg</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(1.0)">1.0 kg</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(1.5)">1.5 kg</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(2.0)">2.0 kg</button>
+        `;
+      }
+      updateItemTotalCalc();
+    }
+
+    function adjustProductQty(delta) {
+      const qtyInput = document.getElementById('product-qty-input');
+      let val = parseFloat(qtyInput.value) || 1;
+      if (currentProductUnitType === 'un') {
+        val = Math.max(1, Math.round(val + delta));
+      } else {
+        val = Math.max(0.1, parseFloat((val + (delta * 0.5)).toFixed(2)));
+      }
+      qtyInput.value = val;
+      updateItemTotalCalc();
+    }
+
+    function setQuickQty(val) {
+      const qtyInput = document.getElementById('product-qty-input');
+      qtyInput.value = val;
+      updateItemTotalCalc();
+    }
+
+    function updateItemTotalCalc() {
+      const qtyInput = document.getElementById('product-qty-input');
+      const priceInput = document.getElementById('price-input');
+      const preview = document.getElementById('item-subtotal-preview');
+
+      const qty = parseFloat(qtyInput.value) || 1;
+      const price = parseFloat(priceInput.value) || 0;
+      const subtotal = qty * price;
+
+      const unitLabel = currentProductUnitType === 'un' ? 'un.' : 'kg';
+      preview.innerText = `Subtotal deste item: R$ ${subtotal.toFixed(2)} (${qty} ${unitLabel})`;
+    }
+
+    // ==========================================
+    // GESTÃO DE ENCARTES 100% FOTO (ZERO DIGITAÇÃO)
+    // ==========================================
+    let currentEncartePhotoBase64 = null;
+
+    function handleEncartePhotoSelect(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const previewBox = document.getElementById('encarte-photo-preview-box');
+      const previewImg = document.getElementById('encarte-photo-preview-img');
+      const info = document.getElementById('encarte-photo-info');
+
+      info.innerText = '⏳ Carregando imagem...';
+      previewBox.classList.remove('hidden');
+
+      // Otimiza imagem para não estourar memória do navegador
+      resizeImageForOCR(file, 1600).then(canvas => {
+        currentEncartePhotoBase64 = canvas.toDataURL('image/jpeg', 0.85);
+        previewImg.src = currentEncartePhotoBase64;
+        info.innerText = `✅ Foto carregada e pronta para publicação!`;
+      }).catch(err => {
+        showToast('Erro ao carregar foto: ' + err.message, 'error');
+      });
+    }
+
+    function publishPhotoEncarte() {
+      const market = document.getElementById('encarte-photo-market').value;
+      const start = document.getElementById('encarte-photo-start').value || new Date().toISOString().split('T')[0];
+      const end = document.getElementById('encarte-photo-end').value;
+      const userCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
+
+      if (!end) {
+        showToast('Informe a data de validade final do encarte.', 'warning');
+        return;
+      }
+      if (!currentEncartePhotoBase64) {
+        showToast('Tire uma foto ou selecione a imagem do encarte.', 'warning');
+        return;
+      }
+
+      showToast('Publicando encarte oficial...', 'info');
+
+      // Salva no banco local do app (infalível e resiliente)
+      const encartesLocais = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
+
+      // Remove encartes anteriores desse mesmo mercado (auto-substituição)
+      const filtered = encartesLocais.filter(e => e.mercado.toLowerCase() !== market.toLowerCase());
+
+      const newEncarte = {
+        id: 'ENC_' + Date.now(),
+        mercado: market,
+        cidade: userCity,
+        data_inicio: start,
+        validade: end,
+        imagem: currentEncartePhotoBase64,
+        criado_em: new Date().toISOString()
+      };
+
+      filtered.unshift(newEncarte);
+      localStorage.setItem('nutri_photo_encartes', JSON.stringify(filtered));
+
+      showToast(`Encarte do ${market} publicado com sucesso!`, 'success');
+
+      // Limpa formulário
+      currentEncartePhotoBase64 = null;
+      document.getElementById('encarte-photo-preview-box').classList.add('hidden');
+      document.getElementById('encarte-photo-file').value = '';
+
+      loadActivePhotoEncartes();
+      renderPublicEncartes();
+    }
+
+    function loadActivePhotoEncartes() {
+      const container = document.getElementById('active-photo-encartes-list');
+      if (!container) return;
+
+      const encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
+      const today = new Date().toISOString().split('T')[0];
+      const valid = encartes.filter(e => e.validade >= today);
+
+      if (valid.length === 0) {
+        container.innerHTML = '<p style="color:#888; font-style:italic;">Nenhum encarte cadastrado ativo no momento.</p>';
+        return;
+      }
+
+      let html = '<ul style="list-style:none; padding:0; margin:0;">';
+      valid.forEach(e => {
+        html += `
+          <li style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px dashed #eee;">
+            <div>
+              <strong>${e.mercado}</strong> (${e.cidade})<br>
+              <small style="color:#2e7d32; font-weight:bold;">Válido até ${formatDateBR(e.validade)}</small>
+            </div>
+            <button onclick="deletePhotoEncarte('${e.id}')" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:bold; cursor:pointer;">
+              🗑️ Excluir
+            </button>
+          </li>
+        `;
+      });
+      html += '</ul>';
+      container.innerHTML = html;
+    }
+
+    function deletePhotoEncarte(id) {
+      let encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
+      encartes = encartes.filter(e => e.id !== id);
+      localStorage.setItem('nutri_photo_encartes', JSON.stringify(encartes));
+      showToast('Encarte excluído!', 'info');
+      loadActivePhotoEncartes();
+      renderPublicEncartes();
+    }
+
+    // ==========================================
+    // RENDERIZAÇÃO DA VITRINE PÚBLICA DE ENCARTES (POR FOTO)
+    // ==========================================
+    function renderPublicEncartes() {
+      const container = document.getElementById('public-encartes-container');
+      if (!container) return;
+
+      const userCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
+      const today = new Date().toISOString().split('T')[0];
+      const encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
+      const valid = encartes.filter(e => e.validade >= today);
+
+      if (valid.length === 0) {
+        container.innerHTML = `
+          <div style="text-align:center; padding:30px 16px; background:#fafafa; border:1px dashed #ccc; border-radius:12px;">
+            <span style="font-size:36px; display:block; margin-bottom:8px;">📰</span>
+            <strong style="color:#333; font-size:14px;">Nenhum encarte cadastrado para ${userCity} no momento.</strong>
+            <p style="font-size:12px; color:#777; margin-top:6px;">Os administradores atualizam os folhetos semanalmente.</p>
+          </div>
+        `;
+        return;
+      }
+
+      let html = '';
+      valid.forEach(e => {
+        html += `
+          <div style="background:#fff; border:1px solid #c8e6c9; border-radius:14px; padding:14px; box-shadow:0 3px 8px rgba(0,0,0,0.06);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+              <div>
+                <h4 style="font-size:16px; color:#1b5e20; font-weight:bold; margin:0;">🏪 ${e.mercado}</h4>
+                <span style="font-size:11.5px; color:#666;">Cabo Frio e região</span>
+              </div>
+              <span style="background:#e8f5e9; color:#2e7d32; font-size:11px; font-weight:bold; padding:4px 8px; border-radius:12px; border:1px solid #c8e6c9;">
+                Válido até ${formatDateBR(e.validade)}
+              </span>
+            </div>
+
+            <!-- Miniatura da Imagem -->
+            <div style="text-align:center; margin-bottom:10px; cursor:pointer;" onclick="openEncarteViewer('${e.id}')">
+              <img src="${e.imagem}" style="max-width:100%; max-height:260px; border-radius:8px; border:1px solid #ddd; object-fit:contain; box-shadow:0 2px 6px rgba(0,0,0,0.1);">
+            </div>
+
+            <button onclick="openEncarteViewer('${e.id}')" class="save-btn" style="margin:0; background:#1b5e20; font-size:13.5px; padding:11px; display:flex; align-items:center; justify-content:center; gap:6px;">
+              🔍 Abrir Folheto em Tela Cheia (Com Zoom)
+            </button>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
+    // ==========================================
+    // VISUALIZADOR DE ENCARTE COM ZOOM
+    // ==========================================
+    let currentViewerZoom = 1.0;
+
+    function openEncarteViewer(encarteId) {
+      const encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
+      const item = encartes.find(e => e.id === encarteId);
+      if (!item) return;
+
+      currentViewerZoom = 1.0;
+      const modal = document.getElementById('encarte-viewer-modal');
+      const title = document.getElementById('viewer-market-title');
+      const val = document.getElementById('viewer-validity-text');
+      const img = document.getElementById('viewer-encarte-img');
+
+      title.innerText = item.mercado;
+      val.innerText = `Válido até ${formatDateBR(item.validade)}`;
+      img.src = item.imagem;
+      img.style.transform = `scale(1.0)`;
+
+      modal.classList.remove('hidden');
+    }
+
+    function closeEncarteViewer() {
+      document.getElementById('encarte-viewer-modal').classList.add('hidden');
+    }
+
+    function zoomEncarte(factor) {
+      const img = document.getElementById('viewer-encarte-img');
+      currentViewerZoom = Math.min(3.0, Math.max(0.6, currentViewerZoom * factor));
+      img.style.transform = `scale(${currentViewerZoom})`;
     }
 
   </script>
@@ -556,7 +865,7 @@
 
       closeCitySelectorModal();
       showToast(`Região atualizada para: ${formatted}`, 'success');
-      loadActiveEncartes();
+      loadActiveEncartes(); loadActivePhotoEncartes();
     }
 
     // Altera editUserCity para abrir o modal do IBGE
@@ -782,7 +1091,7 @@
         if (error) throw error;
         showToast('Encarte excluído com sucesso!', 'success');
         loadAdminEncartesModeration();
-        loadActiveEncartes();
+        loadActiveEncartes(); loadActivePhotoEncartes();
       } catch (err) {
         showToast('Erro ao excluir: ' + err.message, 'error');
       }
@@ -890,6 +1199,315 @@
       } catch (err) {
         showToast('Erro ao excluir: ' + err.message, 'error');
       }
+    }
+
+      // ==========================================
+    // CONTROLES DE GÔNDOLA: LANTERNA & CÓDIGO MANUAL
+    // ==========================================
+    let isFlashOn = false;
+
+    async function toggleFlashlight() {
+      try {
+        const videoElem = document.querySelector('#reader video');
+        if (!videoElem || !videoElem.srcObject) {
+          showToast('Inicie a câmera primeiro para ligar a lanterna.', 'info');
+          return;
+        }
+        const stream = videoElem.srcObject;
+        const track = stream.getVideoTracks()[0];
+        const caps = track.getCapabilities ? track.getCapabilities() : {};
+
+        if (caps.torch) {
+          isFlashOn = !isFlashOn;
+          await track.applyConstraints({ advanced: [{ torch: isFlashOn }] });
+          document.getElementById('torch-btn').innerHTML = isFlashOn ? '🔦 Desligar Flash' : '🔦 Lanterna';
+          showToast(isFlashOn ? '🔦 Lanterna ligada!' : '🔦 Lanterna desligada', 'info');
+        } else {
+          showToast('A lanterna não é suportada por esta câmera.', 'warning');
+        }
+      } catch (err) {
+        showToast('Não foi possível acionar a lanterna: ' + err.message, 'warning');
+      }
+    }
+
+    function openManualBarcodePrompt() {
+      const code = prompt('Digite os números do código de barras (EAN):');
+      if (code && code.trim().length >= 6) {
+        onCodeScanned(code.trim());
+      } else if (code) {
+        showToast('Código de barras inválido (muito curto).', 'warning');
+      }
+    }
+
+    // ==========================================
+    // QUANTIDADE, PESO (UNIDADE vs KG) & CÁLCULOS
+    // ==========================================
+    let currentProductUnitType = 'un';
+
+    function setProductUnitType(type) {
+      currentProductUnitType = type;
+      const btnUn = document.getElementById('type-btn-un');
+      const btnKg = document.getElementById('type-btn-kg');
+      const chips = document.getElementById('quick-qty-chips');
+      const qtyInput = document.getElementById('product-qty-input');
+
+      if (type === 'un') {
+        btnUn.style.background = '#2e7d32';
+        btnUn.style.color = '#fff';
+        btnKg.style.background = '#eee';
+        btnKg.style.color = '#444';
+        qtyInput.value = '1';
+        chips.innerHTML = `
+          <button type="button" class="budget-chip" onclick="setQuickQty(1)">1 un</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(2)">2 un</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(3)">3 un</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(6)">6 un</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(12)">12 un</button>
+        `;
+      } else {
+        btnKg.style.background = '#2e7d32';
+        btnKg.style.color = '#fff';
+        btnUn.style.background = '#eee';
+        btnUn.style.color = '#444';
+        qtyInput.value = '1.0';
+        chips.innerHTML = `
+          <button type="button" class="budget-chip" onclick="setQuickQty(0.5)">0.5 kg</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(1.0)">1.0 kg</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(1.5)">1.5 kg</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(2.0)">2.0 kg</button>
+        `;
+      }
+      updateItemTotalCalc();
+    }
+
+    function adjustProductQty(delta) {
+      const qtyInput = document.getElementById('product-qty-input');
+      let val = parseFloat(qtyInput.value) || 1;
+      if (currentProductUnitType === 'un') {
+        val = Math.max(1, Math.round(val + delta));
+      } else {
+        val = Math.max(0.1, parseFloat((val + (delta * 0.5)).toFixed(2)));
+      }
+      qtyInput.value = val;
+      updateItemTotalCalc();
+    }
+
+    function setQuickQty(val) {
+      const qtyInput = document.getElementById('product-qty-input');
+      qtyInput.value = val;
+      updateItemTotalCalc();
+    }
+
+    function updateItemTotalCalc() {
+      const qtyInput = document.getElementById('product-qty-input');
+      const priceInput = document.getElementById('price-input');
+      const preview = document.getElementById('item-subtotal-preview');
+
+      const qty = parseFloat(qtyInput.value) || 1;
+      const price = parseFloat(priceInput.value) || 0;
+      const subtotal = qty * price;
+
+      const unitLabel = currentProductUnitType === 'un' ? 'un.' : 'kg';
+      preview.innerText = `Subtotal deste item: R$ ${subtotal.toFixed(2)} (${qty} ${unitLabel})`;
+    }
+
+    // ==========================================
+    // GESTÃO DE ENCARTES 100% FOTO (ZERO DIGITAÇÃO)
+    // ==========================================
+    let currentEncartePhotoBase64 = null;
+
+    function handleEncartePhotoSelect(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const previewBox = document.getElementById('encarte-photo-preview-box');
+      const previewImg = document.getElementById('encarte-photo-preview-img');
+      const info = document.getElementById('encarte-photo-info');
+
+      info.innerText = '⏳ Carregando imagem...';
+      previewBox.classList.remove('hidden');
+
+      // Otimiza imagem para não estourar memória do navegador
+      resizeImageForOCR(file, 1600).then(canvas => {
+        currentEncartePhotoBase64 = canvas.toDataURL('image/jpeg', 0.85);
+        previewImg.src = currentEncartePhotoBase64;
+        info.innerText = `✅ Foto carregada e pronta para publicação!`;
+      }).catch(err => {
+        showToast('Erro ao carregar foto: ' + err.message, 'error');
+      });
+    }
+
+    function publishPhotoEncarte() {
+      const market = document.getElementById('encarte-photo-market').value;
+      const start = document.getElementById('encarte-photo-start').value || new Date().toISOString().split('T')[0];
+      const end = document.getElementById('encarte-photo-end').value;
+      const userCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
+
+      if (!end) {
+        showToast('Informe a data de validade final do encarte.', 'warning');
+        return;
+      }
+      if (!currentEncartePhotoBase64) {
+        showToast('Tire uma foto ou selecione a imagem do encarte.', 'warning');
+        return;
+      }
+
+      showToast('Publicando encarte oficial...', 'info');
+
+      // Salva no banco local do app (infalível e resiliente)
+      const encartesLocais = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
+
+      // Remove encartes anteriores desse mesmo mercado (auto-substituição)
+      const filtered = encartesLocais.filter(e => e.mercado.toLowerCase() !== market.toLowerCase());
+
+      const newEncarte = {
+        id: 'ENC_' + Date.now(),
+        mercado: market,
+        cidade: userCity,
+        data_inicio: start,
+        validade: end,
+        imagem: currentEncartePhotoBase64,
+        criado_em: new Date().toISOString()
+      };
+
+      filtered.unshift(newEncarte);
+      localStorage.setItem('nutri_photo_encartes', JSON.stringify(filtered));
+
+      showToast(`Encarte do ${market} publicado com sucesso!`, 'success');
+
+      // Limpa formulário
+      currentEncartePhotoBase64 = null;
+      document.getElementById('encarte-photo-preview-box').classList.add('hidden');
+      document.getElementById('encarte-photo-file').value = '';
+
+      loadActivePhotoEncartes();
+      renderPublicEncartes();
+    }
+
+    function loadActivePhotoEncartes() {
+      const container = document.getElementById('active-photo-encartes-list');
+      if (!container) return;
+
+      const encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
+      const today = new Date().toISOString().split('T')[0];
+      const valid = encartes.filter(e => e.validade >= today);
+
+      if (valid.length === 0) {
+        container.innerHTML = '<p style="color:#888; font-style:italic;">Nenhum encarte cadastrado ativo no momento.</p>';
+        return;
+      }
+
+      let html = '<ul style="list-style:none; padding:0; margin:0;">';
+      valid.forEach(e => {
+        html += `
+          <li style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px dashed #eee;">
+            <div>
+              <strong>${e.mercado}</strong> (${e.cidade})<br>
+              <small style="color:#2e7d32; font-weight:bold;">Válido até ${formatDateBR(e.validade)}</small>
+            </div>
+            <button onclick="deletePhotoEncarte('${e.id}')" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:bold; cursor:pointer;">
+              🗑️ Excluir
+            </button>
+          </li>
+        `;
+      });
+      html += '</ul>';
+      container.innerHTML = html;
+    }
+
+    function deletePhotoEncarte(id) {
+      let encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
+      encartes = encartes.filter(e => e.id !== id);
+      localStorage.setItem('nutri_photo_encartes', JSON.stringify(encartes));
+      showToast('Encarte excluído!', 'info');
+      loadActivePhotoEncartes();
+      renderPublicEncartes();
+    }
+
+    // ==========================================
+    // RENDERIZAÇÃO DA VITRINE PÚBLICA DE ENCARTES (POR FOTO)
+    // ==========================================
+    function renderPublicEncartes() {
+      const container = document.getElementById('public-encartes-container');
+      if (!container) return;
+
+      const userCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
+      const today = new Date().toISOString().split('T')[0];
+      const encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
+      const valid = encartes.filter(e => e.validade >= today);
+
+      if (valid.length === 0) {
+        container.innerHTML = `
+          <div style="text-align:center; padding:30px 16px; background:#fafafa; border:1px dashed #ccc; border-radius:12px;">
+            <span style="font-size:36px; display:block; margin-bottom:8px;">📰</span>
+            <strong style="color:#333; font-size:14px;">Nenhum encarte cadastrado para ${userCity} no momento.</strong>
+            <p style="font-size:12px; color:#777; margin-top:6px;">Os administradores atualizam os folhetos semanalmente.</p>
+          </div>
+        `;
+        return;
+      }
+
+      let html = '';
+      valid.forEach(e => {
+        html += `
+          <div style="background:#fff; border:1px solid #c8e6c9; border-radius:14px; padding:14px; box-shadow:0 3px 8px rgba(0,0,0,0.06);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+              <div>
+                <h4 style="font-size:16px; color:#1b5e20; font-weight:bold; margin:0;">🏪 ${e.mercado}</h4>
+                <span style="font-size:11.5px; color:#666;">Cabo Frio e região</span>
+              </div>
+              <span style="background:#e8f5e9; color:#2e7d32; font-size:11px; font-weight:bold; padding:4px 8px; border-radius:12px; border:1px solid #c8e6c9;">
+                Válido até ${formatDateBR(e.validade)}
+              </span>
+            </div>
+
+            <!-- Miniatura da Imagem -->
+            <div style="text-align:center; margin-bottom:10px; cursor:pointer;" onclick="openEncarteViewer('${e.id}')">
+              <img src="${e.imagem}" style="max-width:100%; max-height:260px; border-radius:8px; border:1px solid #ddd; object-fit:contain; box-shadow:0 2px 6px rgba(0,0,0,0.1);">
+            </div>
+
+            <button onclick="openEncarteViewer('${e.id}')" class="save-btn" style="margin:0; background:#1b5e20; font-size:13.5px; padding:11px; display:flex; align-items:center; justify-content:center; gap:6px;">
+              🔍 Abrir Folheto em Tela Cheia (Com Zoom)
+            </button>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
+    // ==========================================
+    // VISUALIZADOR DE ENCARTE COM ZOOM
+    // ==========================================
+    let currentViewerZoom = 1.0;
+
+    function openEncarteViewer(encarteId) {
+      const encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
+      const item = encartes.find(e => e.id === encarteId);
+      if (!item) return;
+
+      currentViewerZoom = 1.0;
+      const modal = document.getElementById('encarte-viewer-modal');
+      const title = document.getElementById('viewer-market-title');
+      const val = document.getElementById('viewer-validity-text');
+      const img = document.getElementById('viewer-encarte-img');
+
+      title.innerText = item.mercado;
+      val.innerText = `Válido até ${formatDateBR(item.validade)}`;
+      img.src = item.imagem;
+      img.style.transform = `scale(1.0)`;
+
+      modal.classList.remove('hidden');
+    }
+
+    function closeEncarteViewer() {
+      document.getElementById('encarte-viewer-modal').classList.add('hidden');
+    }
+
+    function zoomEncarte(factor) {
+      const img = document.getElementById('viewer-encarte-img');
+      currentViewerZoom = Math.min(3.0, Math.max(0.6, currentViewerZoom * factor));
+      img.style.transform = `scale(${currentViewerZoom})`;
     }
 
   </script>
@@ -995,7 +1613,7 @@
 
       closeCitySelectorModal();
       showToast(`Região atualizada para: ${formatted}`, 'success');
-      loadActiveEncartes();
+      loadActiveEncartes(); loadActivePhotoEncartes();
     }
 
     // Altera editUserCity para abrir o modal do IBGE
@@ -1221,7 +1839,7 @@
         if (error) throw error;
         showToast('Encarte excluído com sucesso!', 'success');
         loadAdminEncartesModeration();
-        loadActiveEncartes();
+        loadActiveEncartes(); loadActivePhotoEncartes();
       } catch (err) {
         showToast('Erro ao excluir: ' + err.message, 'error');
       }
@@ -1329,6 +1947,315 @@
       } catch (err) {
         showToast('Erro ao excluir: ' + err.message, 'error');
       }
+    }
+
+      // ==========================================
+    // CONTROLES DE GÔNDOLA: LANTERNA & CÓDIGO MANUAL
+    // ==========================================
+    let isFlashOn = false;
+
+    async function toggleFlashlight() {
+      try {
+        const videoElem = document.querySelector('#reader video');
+        if (!videoElem || !videoElem.srcObject) {
+          showToast('Inicie a câmera primeiro para ligar a lanterna.', 'info');
+          return;
+        }
+        const stream = videoElem.srcObject;
+        const track = stream.getVideoTracks()[0];
+        const caps = track.getCapabilities ? track.getCapabilities() : {};
+
+        if (caps.torch) {
+          isFlashOn = !isFlashOn;
+          await track.applyConstraints({ advanced: [{ torch: isFlashOn }] });
+          document.getElementById('torch-btn').innerHTML = isFlashOn ? '🔦 Desligar Flash' : '🔦 Lanterna';
+          showToast(isFlashOn ? '🔦 Lanterna ligada!' : '🔦 Lanterna desligada', 'info');
+        } else {
+          showToast('A lanterna não é suportada por esta câmera.', 'warning');
+        }
+      } catch (err) {
+        showToast('Não foi possível acionar a lanterna: ' + err.message, 'warning');
+      }
+    }
+
+    function openManualBarcodePrompt() {
+      const code = prompt('Digite os números do código de barras (EAN):');
+      if (code && code.trim().length >= 6) {
+        onCodeScanned(code.trim());
+      } else if (code) {
+        showToast('Código de barras inválido (muito curto).', 'warning');
+      }
+    }
+
+    // ==========================================
+    // QUANTIDADE, PESO (UNIDADE vs KG) & CÁLCULOS
+    // ==========================================
+    let currentProductUnitType = 'un';
+
+    function setProductUnitType(type) {
+      currentProductUnitType = type;
+      const btnUn = document.getElementById('type-btn-un');
+      const btnKg = document.getElementById('type-btn-kg');
+      const chips = document.getElementById('quick-qty-chips');
+      const qtyInput = document.getElementById('product-qty-input');
+
+      if (type === 'un') {
+        btnUn.style.background = '#2e7d32';
+        btnUn.style.color = '#fff';
+        btnKg.style.background = '#eee';
+        btnKg.style.color = '#444';
+        qtyInput.value = '1';
+        chips.innerHTML = `
+          <button type="button" class="budget-chip" onclick="setQuickQty(1)">1 un</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(2)">2 un</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(3)">3 un</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(6)">6 un</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(12)">12 un</button>
+        `;
+      } else {
+        btnKg.style.background = '#2e7d32';
+        btnKg.style.color = '#fff';
+        btnUn.style.background = '#eee';
+        btnUn.style.color = '#444';
+        qtyInput.value = '1.0';
+        chips.innerHTML = `
+          <button type="button" class="budget-chip" onclick="setQuickQty(0.5)">0.5 kg</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(1.0)">1.0 kg</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(1.5)">1.5 kg</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(2.0)">2.0 kg</button>
+        `;
+      }
+      updateItemTotalCalc();
+    }
+
+    function adjustProductQty(delta) {
+      const qtyInput = document.getElementById('product-qty-input');
+      let val = parseFloat(qtyInput.value) || 1;
+      if (currentProductUnitType === 'un') {
+        val = Math.max(1, Math.round(val + delta));
+      } else {
+        val = Math.max(0.1, parseFloat((val + (delta * 0.5)).toFixed(2)));
+      }
+      qtyInput.value = val;
+      updateItemTotalCalc();
+    }
+
+    function setQuickQty(val) {
+      const qtyInput = document.getElementById('product-qty-input');
+      qtyInput.value = val;
+      updateItemTotalCalc();
+    }
+
+    function updateItemTotalCalc() {
+      const qtyInput = document.getElementById('product-qty-input');
+      const priceInput = document.getElementById('price-input');
+      const preview = document.getElementById('item-subtotal-preview');
+
+      const qty = parseFloat(qtyInput.value) || 1;
+      const price = parseFloat(priceInput.value) || 0;
+      const subtotal = qty * price;
+
+      const unitLabel = currentProductUnitType === 'un' ? 'un.' : 'kg';
+      preview.innerText = `Subtotal deste item: R$ ${subtotal.toFixed(2)} (${qty} ${unitLabel})`;
+    }
+
+    // ==========================================
+    // GESTÃO DE ENCARTES 100% FOTO (ZERO DIGITAÇÃO)
+    // ==========================================
+    let currentEncartePhotoBase64 = null;
+
+    function handleEncartePhotoSelect(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const previewBox = document.getElementById('encarte-photo-preview-box');
+      const previewImg = document.getElementById('encarte-photo-preview-img');
+      const info = document.getElementById('encarte-photo-info');
+
+      info.innerText = '⏳ Carregando imagem...';
+      previewBox.classList.remove('hidden');
+
+      // Otimiza imagem para não estourar memória do navegador
+      resizeImageForOCR(file, 1600).then(canvas => {
+        currentEncartePhotoBase64 = canvas.toDataURL('image/jpeg', 0.85);
+        previewImg.src = currentEncartePhotoBase64;
+        info.innerText = `✅ Foto carregada e pronta para publicação!`;
+      }).catch(err => {
+        showToast('Erro ao carregar foto: ' + err.message, 'error');
+      });
+    }
+
+    function publishPhotoEncarte() {
+      const market = document.getElementById('encarte-photo-market').value;
+      const start = document.getElementById('encarte-photo-start').value || new Date().toISOString().split('T')[0];
+      const end = document.getElementById('encarte-photo-end').value;
+      const userCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
+
+      if (!end) {
+        showToast('Informe a data de validade final do encarte.', 'warning');
+        return;
+      }
+      if (!currentEncartePhotoBase64) {
+        showToast('Tire uma foto ou selecione a imagem do encarte.', 'warning');
+        return;
+      }
+
+      showToast('Publicando encarte oficial...', 'info');
+
+      // Salva no banco local do app (infalível e resiliente)
+      const encartesLocais = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
+
+      // Remove encartes anteriores desse mesmo mercado (auto-substituição)
+      const filtered = encartesLocais.filter(e => e.mercado.toLowerCase() !== market.toLowerCase());
+
+      const newEncarte = {
+        id: 'ENC_' + Date.now(),
+        mercado: market,
+        cidade: userCity,
+        data_inicio: start,
+        validade: end,
+        imagem: currentEncartePhotoBase64,
+        criado_em: new Date().toISOString()
+      };
+
+      filtered.unshift(newEncarte);
+      localStorage.setItem('nutri_photo_encartes', JSON.stringify(filtered));
+
+      showToast(`Encarte do ${market} publicado com sucesso!`, 'success');
+
+      // Limpa formulário
+      currentEncartePhotoBase64 = null;
+      document.getElementById('encarte-photo-preview-box').classList.add('hidden');
+      document.getElementById('encarte-photo-file').value = '';
+
+      loadActivePhotoEncartes();
+      renderPublicEncartes();
+    }
+
+    function loadActivePhotoEncartes() {
+      const container = document.getElementById('active-photo-encartes-list');
+      if (!container) return;
+
+      const encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
+      const today = new Date().toISOString().split('T')[0];
+      const valid = encartes.filter(e => e.validade >= today);
+
+      if (valid.length === 0) {
+        container.innerHTML = '<p style="color:#888; font-style:italic;">Nenhum encarte cadastrado ativo no momento.</p>';
+        return;
+      }
+
+      let html = '<ul style="list-style:none; padding:0; margin:0;">';
+      valid.forEach(e => {
+        html += `
+          <li style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px dashed #eee;">
+            <div>
+              <strong>${e.mercado}</strong> (${e.cidade})<br>
+              <small style="color:#2e7d32; font-weight:bold;">Válido até ${formatDateBR(e.validade)}</small>
+            </div>
+            <button onclick="deletePhotoEncarte('${e.id}')" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:bold; cursor:pointer;">
+              🗑️ Excluir
+            </button>
+          </li>
+        `;
+      });
+      html += '</ul>';
+      container.innerHTML = html;
+    }
+
+    function deletePhotoEncarte(id) {
+      let encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
+      encartes = encartes.filter(e => e.id !== id);
+      localStorage.setItem('nutri_photo_encartes', JSON.stringify(encartes));
+      showToast('Encarte excluído!', 'info');
+      loadActivePhotoEncartes();
+      renderPublicEncartes();
+    }
+
+    // ==========================================
+    // RENDERIZAÇÃO DA VITRINE PÚBLICA DE ENCARTES (POR FOTO)
+    // ==========================================
+    function renderPublicEncartes() {
+      const container = document.getElementById('public-encartes-container');
+      if (!container) return;
+
+      const userCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
+      const today = new Date().toISOString().split('T')[0];
+      const encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
+      const valid = encartes.filter(e => e.validade >= today);
+
+      if (valid.length === 0) {
+        container.innerHTML = `
+          <div style="text-align:center; padding:30px 16px; background:#fafafa; border:1px dashed #ccc; border-radius:12px;">
+            <span style="font-size:36px; display:block; margin-bottom:8px;">📰</span>
+            <strong style="color:#333; font-size:14px;">Nenhum encarte cadastrado para ${userCity} no momento.</strong>
+            <p style="font-size:12px; color:#777; margin-top:6px;">Os administradores atualizam os folhetos semanalmente.</p>
+          </div>
+        `;
+        return;
+      }
+
+      let html = '';
+      valid.forEach(e => {
+        html += `
+          <div style="background:#fff; border:1px solid #c8e6c9; border-radius:14px; padding:14px; box-shadow:0 3px 8px rgba(0,0,0,0.06);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+              <div>
+                <h4 style="font-size:16px; color:#1b5e20; font-weight:bold; margin:0;">🏪 ${e.mercado}</h4>
+                <span style="font-size:11.5px; color:#666;">Cabo Frio e região</span>
+              </div>
+              <span style="background:#e8f5e9; color:#2e7d32; font-size:11px; font-weight:bold; padding:4px 8px; border-radius:12px; border:1px solid #c8e6c9;">
+                Válido até ${formatDateBR(e.validade)}
+              </span>
+            </div>
+
+            <!-- Miniatura da Imagem -->
+            <div style="text-align:center; margin-bottom:10px; cursor:pointer;" onclick="openEncarteViewer('${e.id}')">
+              <img src="${e.imagem}" style="max-width:100%; max-height:260px; border-radius:8px; border:1px solid #ddd; object-fit:contain; box-shadow:0 2px 6px rgba(0,0,0,0.1);">
+            </div>
+
+            <button onclick="openEncarteViewer('${e.id}')" class="save-btn" style="margin:0; background:#1b5e20; font-size:13.5px; padding:11px; display:flex; align-items:center; justify-content:center; gap:6px;">
+              🔍 Abrir Folheto em Tela Cheia (Com Zoom)
+            </button>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
+    // ==========================================
+    // VISUALIZADOR DE ENCARTE COM ZOOM
+    // ==========================================
+    let currentViewerZoom = 1.0;
+
+    function openEncarteViewer(encarteId) {
+      const encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
+      const item = encartes.find(e => e.id === encarteId);
+      if (!item) return;
+
+      currentViewerZoom = 1.0;
+      const modal = document.getElementById('encarte-viewer-modal');
+      const title = document.getElementById('viewer-market-title');
+      const val = document.getElementById('viewer-validity-text');
+      const img = document.getElementById('viewer-encarte-img');
+
+      title.innerText = item.mercado;
+      val.innerText = `Válido até ${formatDateBR(item.validade)}`;
+      img.src = item.imagem;
+      img.style.transform = `scale(1.0)`;
+
+      modal.classList.remove('hidden');
+    }
+
+    function closeEncarteViewer() {
+      document.getElementById('encarte-viewer-modal').classList.add('hidden');
+    }
+
+    function zoomEncarte(factor) {
+      const img = document.getElementById('viewer-encarte-img');
+      currentViewerZoom = Math.min(3.0, Math.max(0.6, currentViewerZoom * factor));
+      img.style.transform = `scale(${currentViewerZoom})`;
     }
 
   </script>
@@ -2070,6 +2997,35 @@
     </div>
   </div>
 
+    <!-- ========================================== -->
+  <!-- MODAL: VISUALIZADOR DE ENCARTE EM TELA CHEIA (ZOOM) -->
+  <!-- ========================================== -->
+  <div class="modal hidden" id="encarte-viewer-modal" style="z-index: 250; background: rgba(0,0,0,0.92); padding: 0;">
+    <div style="width: 100%; height: 100%; display: flex; flex-direction: column;">
+      <!-- Header do Visualizador -->
+      <div style="padding: 14px 16px; background: rgba(0,0,0,0.7); display: flex; justify-content: space-between; align-items: center; color: #fff;">
+        <div>
+          <h4 id="viewer-market-title" style="font-size: 16px; font-weight: bold; margin: 0;">Encarte Oficial</h4>
+          <span id="viewer-validity-text" style="font-size: 11.5px; color: #a5d6a7;">Válido até --/--</span>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <button onclick="zoomEncarte(1.2)" style="background: rgba(255,255,255,0.2); border: none; color: #fff; width: 34px; height: 34px; border-radius: 50%; font-size: 18px; font-weight: bold; cursor: pointer;">🔍+</button>
+          <button onclick="zoomEncarte(0.8)" style="background: rgba(255,255,255,0.2); border: none; color: #fff; width: 34px; height: 34px; border-radius: 50%; font-size: 18px; font-weight: bold; cursor: pointer;">🔍-</button>
+          <button onclick="closeEncarteViewer()" style="background: #e53935; border: none; color: #fff; width: 34px; height: 34px; border-radius: 50%; font-size: 20px; font-weight: bold; cursor: pointer;">&times;</button>
+        </div>
+      </div>
+
+      <!-- Área da Imagem com Rolagem e Zoom -->
+      <div style="flex: 1; overflow: auto; display: flex; justify-content: center; align-items: center; padding: 10px; -webkit-overflow-scrolling: touch;">
+        <img id="viewer-encarte-img" src="" style="max-width: 100%; height: auto; transition: transform 0.2s ease; transform-origin: center center; border-radius: 6px;">
+      </div>
+
+      <div style="padding: 10px; background: rgba(0,0,0,0.7); text-align: center; color: #ccc; font-size: 11.5px;">
+        💡 Use a pinça de dois dedos ou os botões de lupa no topo para dar zoom nas ofertas.
+      </div>
+    </div>
+  </div>
+
   <div id="toast-container"></div>
 
 
@@ -2107,6 +3063,21 @@
       <span>📍</span> <span id="banner-user-city">Cabo Frio - RJ</span> ▾
     </div>
   </div>
+
+  <!-- HUD CALCULADORA DE GÔNDOLA NO TOPO (VISOR DE GASTOS) -->
+  <div id="top-calculator-hud" style="background: #ffffff; border-bottom: 2px solid #2e7d32; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 6px rgba(0,0,0,0.06); position: sticky; top: 52px; z-index: 95;">
+    <div>
+      <span style="font-size: 11px; color: #666; display: block; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Meu Pré-Caixa:</span>
+      <div style="display: flex; align-items: baseline; gap: 6px;">
+        <strong id="top-hud-total" style="font-size: 22px; color: #1b5e20; font-weight: 800;">R$ 0,00</strong>
+        <span id="top-hud-count" style="font-size: 12px; color: #666;">(0 itens)</span>
+      </div>
+    </div>
+    <button onclick="openCartModal()" style="background: #2e7d32; color: white; border: none; padding: 9px 15px; border-radius: 20px; font-size: 13px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(46,125,50,0.25);">
+      🛒 Ver Carrinho
+    </button>
+  </div>
+
 
 
 
@@ -2222,6 +3193,22 @@
       NutriPreço • 🌿 Idealizado por <b>Arthur L. Santos</b> 🌿<br>
       <span style="font-size: 10.5px; color: #888;">Cabo Frio • Rio de Janeiro</span>
     </div>
+          <div class="sidebar-section-title">⚖️ Legal & Institucional</div>
+      <div style="padding: 12px 14px; background: #f9fbf9; border-radius: 10px; margin: 4px 10px 12px 10px; border: 1px solid #e0e0e0; font-size: 11.5px; color: #555; line-height: 1.45;">
+        <p style="margin-bottom: 6px;"><b>NutriPreço</b> • Inteligência de Preços de Gôndola & Calculadora Pré-Caixa.</p>
+        <p style="margin-bottom: 8px;">Os preços são colaborativos e informados pelos próprios consumidores no momento da compra (Art. 31 do Código de Defesa do Consumidor). As imagens da câmera são decodificadas localmente apenas para leitura do código de barras.</p>
+        <p style="margin-bottom: 6px;">
+          <a href="privacidade.html" style="color: #2e7d32; font-weight: bold; text-decoration: none;">📄 Política de Privacidade (LGPD)</a> | 
+          <a href="#" onclick="toggleSidebar(false); openAuthModal(); return false;" style="color: #2e7d32; font-weight: bold; text-decoration: none;">Gerenciar Conta</a>
+        </p>
+        <div style="border-top: 1px dashed #ccc; padding-top: 8px; margin-top: 6px; text-align: center; color: #444;">
+          Projeto idealizado e desenvolvido por<br>
+          <strong style="color: #1b5e20; font-size: 12px;">🌿 Arthur L. Santos 🌿</strong><br>
+          <span style="color: #777;">Cabo Frio • Rio de Janeiro</span><br>
+          Contato: <a href="mailto:contato.nutripreco@gmail.com" style="color: #2e7d32; font-weight: bold; text-decoration: none;">contato.nutripreco@gmail.com</a>
+        </div>
+      </div>
+
     <div class="sidebar-footer">
       <div id="sidebar-user-info" style="font-size:12px; color:#555; margin-bottom:8px;">
         <span id="sidebar-user-text">👤 Modo Visitante</span>
@@ -2239,6 +3226,15 @@
         <div id="reader"></div>
       </div>
       <button class="scan-btn" id="start-btn" onclick="startScanner()">📷 Iniciar Câmera</button>
+      <!-- Botões de Apoio na Gôndola (Lanterna & Digitação Manual) -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
+        <button type="button" onclick="toggleFlashlight()" id="torch-btn" style="background: #fff; border: 1px solid #ccc; border-radius: 8px; padding: 10px 8px; font-size: 13px; font-weight: bold; color: #333; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+          🔦 Lanterna
+        </button>
+        <button type="button" onclick="openManualBarcodePrompt()" style="background: #fff; border: 1px solid #ccc; border-radius: 8px; padding: 10px 8px; font-size: 13px; font-weight: bold; color: #333; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+          ⌨️ Digitar Código
+        </button>
+      </div>
     </div>
 
 
@@ -2303,8 +3299,38 @@
         <input type="text" id="market-input" value="Atacadão" oninput="checkPriceComparison()">
 
 
-        <label>Preço deste Produto na Gôndola (R$):</label>
-        <input type="number" step="0.01" id="price-input" class="price-input" placeholder="0,00" oninput="checkPriceComparison()">
+        <!-- Seletor de Tipo: Unidade vs Quilo (Kg) -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; margin-bottom:4px;">
+          <label style="margin:0; font-weight:bold;">Tipo & Quantidade:</label>
+          <div style="display:flex; gap:4px;">
+            <button type="button" id="type-btn-un" onclick="setProductUnitType('un')" style="background:#2e7d32; color:#fff; border:none; padding:4px 10px; border-radius:6px; font-size:11.5px; font-weight:bold; cursor:pointer;">unidade</button>
+            <button type="button" id="type-btn-kg" onclick="setProductUnitType('kg')" style="background:#eee; color:#444; border:none; padding:4px 10px; border-radius:6px; font-size:11.5px; font-weight:bold; cursor:pointer;">por quilo (kg)</button>
+          </div>
+        </div>
+
+        <!-- Stepper de Quantidade / Peso -->
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+          <button type="button" onclick="adjustProductQty(-1)" style="width:40px; height:40px; background:#f0f0f0; border:1px solid #ccc; border-radius:8px; font-size:20px; font-weight:bold; cursor:pointer;">-</button>
+          <input type="number" id="product-qty-input" value="1" step="any" min="0.1" oninput="updateItemTotalCalc()" style="text-align:center; font-size:18px; font-weight:bold; flex:1; padding:8px;">
+          <button type="button" onclick="adjustProductQty(1)" style="width:40px; height:40px; background:#f0f0f0; border:1px solid #ccc; border-radius:8px; font-size:20px; font-weight:bold; cursor:pointer;">+</button>
+        </div>
+
+        <!-- Atalhos rápidos de peso/quantidade -->
+        <div id="quick-qty-chips" style="display:flex; gap:6px; margin-bottom:12px; overflow-x:auto;">
+          <button type="button" class="budget-chip" onclick="setQuickQty(1)">1 un</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(2)">2 un</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(3)">3 un</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(6)">6 un</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(12)">12 un</button>
+        </div>
+
+        <label>Preço Unitário na Gôndola (R$):</label>
+        <input type="number" step="0.01" id="price-input" class="price-input" placeholder="0,00" oninput="checkPriceComparison(); updateItemTotalCalc();">
+
+        <!-- Subtotal do Item -->
+        <div id="item-subtotal-preview" style="text-align:right; font-size:13px; color:#1b5e20; font-weight:bold; margin-top:4px;">
+          Subtotal deste item: R$ 0,00
+        </div>
 
 
         <div id="compare-alert" class="compare-alert hidden"></div>
@@ -2337,149 +3363,11 @@
 
 
     <!-- Rodapé Legal e LGPD -->
-    <footer>
-      <p><b>NutriPreço</b> • Inteligência de Preços & Calculadora de Supermercado em Cabo Frio</p>
-      <p style="margin-top: 6px;">Os preços são colaborativos e informados pelos próprios consumidores no momento da compra (Art. 31 do Código de Defesa do Consumidor). As imagens da câmera são decodificadas localmente apenas para leitura do código de barras.</p>
-      <p style="margin-top: 10px;">
-        <a href="privacidade.html">📄 Política de Privacidade (LGPD)</a> | 
-        <a href="#" onclick="openAuthModal(); return false;">Gerenciar / Excluir Conta</a>
-      </p>
-      <div style="margin-top: 14px; padding-top: 10px; border-top: 1px dashed #ccc; font-size: 11.5px; color: #555;">
-        <p>Projeto idealizado e desenvolvido por 🌿 <b>Arthur L. Santos</b> 🌿</p>
-        <p>Cabo Frio • Rio de Janeiro | Contato: <a id="footer-contact-email" href="mailto:contato.nutripreco@gmail.com" style="color:#2e7d32; text-decoration:none; font-weight:bold;">contato.nutripreco@gmail.com</a></p>
-      </div>
-    </footer>
+    
   </div>
 
 
-  <!-- Barra Fixa do Pré-Caixa -->
-  <div class="cart-bar" id="cart-bar">
-    <div class="cart-bar-budget-line">
-      <div id="cart-bar-budget-fill" class="cart-bar-budget-fill"></div>
-    </div>
-    <div class="cart-info">
-      <span>Meu Pré-Caixa (<span id="cart-count">0</span> itens):</span>
-      <strong id="cart-total">R$ 0,00</strong>
-    </div>
-    <button class="cart-btn" onclick="openCartModal()">Ver Carrinho</button>
-  </div>
-
-
-  <!-- Modal do Radar de Preços & Cesta Básica -->
-  <div class="modal hidden" id="radar-modal">
-    <div class="modal-content" style="max-height: 88vh;">
-      <div class="modal-header">
-        <div>
-          <h3 style="color: #2e7d32; display:flex; align-items:center; gap:6px;">📊 Radar de Preços</h3>
-          <span style="font-size:12px; color:#666;">Cabo Frio • Cotações da Cidade</span>
-        </div>
-        <button style="border:none; background:none; font-size:24px; cursor:pointer;" onclick="closeRadarModal()">&times;</button>
-      </div>
-
-
-      <!-- Abas / Filtros Rápidos -->
-      <div class="radar-tabs">
-        <button class="radar-tab active" id="tab-all-products" onclick="setRadarFilter('all')">🌐 Todos os Produtos</button>
-        <button class="radar-tab" id="tab-cesta-basica" onclick="setRadarFilter('cesta')">🧺 Cesta Básica Oficial</button>
-      </div>
-
-
-      <!-- Campo de Busca em Tempo Real -->
-      <div style="margin: 11px 0;">
-        <input type="text" id="radar-search-input" placeholder="🔍 Buscar produto (ex: café, arroz, leite, carne)..." oninput="renderRadarProducts()" style="padding: 10px 14px; font-size: 14px;">
-      </div>
-
-
-      <!-- Placar da Cesta Básica -->
-      <div id="cesta-summary-box" class="cesta-summary-box hidden">
-        <div style="font-size:13px; font-weight:bold; color:#1b5e20; margin-bottom:6px;">🧺 Placar Cesta Básica em Cabo Frio:</div>
-        <div id="cesta-markets-ranking"></div>
-      </div>
-
-
-      <!-- Lista Comparativa Tipo Planilha -->
-      <div id="radar-loading" class="loading" style="padding: 20px;">🔍 Carregando cotações de Cabo Frio...</div>
-      <div id="radar-products-list" style="margin-bottom: 16px;"></div>
-
-
-      <button class="reset-btn" onclick="closeRadarModal()">Fechar Radar</button>
-    </div>
-  </div>
-
-
-  <!-- Modal do Carrinho Atual -->
-  <div class="modal hidden" id="cart-modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 style="color: #2e7d32;">🛒 Meu Pré-Caixa (Carrinho)</h3>
-        <button style="border:none; background:none; font-size:22px; cursor:pointer;" onclick="closeCartModal()">&times;</button>
-      </div>
-      <div id="cart-items-list" style="margin-bottom: 16px;"></div>
-      
-      <div style="display:flex; justify-content:space-between; font-size:18px; font-weight:bold; margin-bottom:15px; padding:10px 0; border-top:1px solid #eee;">
-        <span>Total da Compra:</span>
-        <span id="modal-cart-total" style="color: #2e7d32;">R$ 0,00</span>
-      </div>
-
-
-      <!-- Ações do Carrinho -->
-      <button class="save-btn" style="margin-top:0; margin-bottom:8px; background:#1b5e20;" onclick="finalizeAndSavePurchase()">💾 Finalizar e Salvar no Histórico</button>
-      <button class="whatsapp-btn" onclick="shareCartWhatsApp()">📲 Enviar Lista no WhatsApp</button>
-      <button class="reset-btn" style="background:#ffebee; color:#c62828; margin-top:8px;" onclick="clearCart()">🗑️ Limpar Carrinho</button>
-    </div>
-  </div>
-
-
-  <!-- Modal Minhas Compras Salvas -->
-  <div class="modal hidden" id="history-modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 style="color: #2e7d32;">📂 Minhas Compras Salvas</h3>
-        <button style="border:none; background:none; font-size:22px; cursor:pointer;" onclick="closeHistoryModal()">&times;</button>
-      </div>
-
-
-      <!-- Estatísticas do Histórico -->
-      <div class="history-stat-box">
-        <div class="stat-card">
-          <span>Total Acumulado</span>
-          <strong id="stat-month-total">R$ 0,00</strong>
-        </div>
-        <div class="stat-card">
-          <span>Compras Salvas</span>
-          <strong id="stat-purchases-count">0</strong>
-        </div>
-      </div>
-
-
-      <div id="history-items-container" style="margin-bottom: 16px;"></div>
-      <button class="reset-btn" onclick="closeHistoryModal()">Fechar Histórico</button>
-    </div>
-  </div>
-
-
-  <!-- Modal de Login & Conta -->
-  <div class="modal hidden" id="auth-modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 style="color: #2e7d32;">👤 Conta & Identificação</h3>
-        <button style="border:none; background:none; font-size:22px; cursor:pointer;" onclick="closeAuthModal()">&times;</button>
-      </div>
-      <div class="auth-box">
-        <div id="auth-logged-in-view" class="hidden">
-          <p style="font-size:14px; margin-bottom:12px;">Conectado como: <strong id="user-email-display"></strong></p>
-          <button class="reset-btn" style="background:#ffebee; color:#c62828; margin-bottom:8px;" onclick="logoutUser()">🚪 Sair da Conta</button>
-          <button class="reset-btn" style="background:#ffebee; color:#b71c1c; font-size:12px;" onclick="deleteUserAccount()">⚠️ Excluir Minha Conta e Meus Dados (LGPD)</button>
-        </div>
-        <div id="auth-form-view">
-          <p style="font-size:13px; color:#666; margin-bottom:12px;">Identifique-se para cadastrar preços confiáveis e sincronizar suas compras.</p>
-          <input type="email" id="auth-email" placeholder="Seu e-mail">
-          <input type="password" id="auth-password" placeholder="Sua senha (mínimo 6 dígitos)">
-          <button class="save-btn" onclick="handleAuth('login')">Entrar na Conta</button>
-          <button class="reset-btn" onclick="handleAuth('signup')">Criar Nova Conta Grátis</button>
-        </div>
-      </div>
-    </div>
+  
   </div>
 
 
@@ -3367,7 +4255,7 @@
         statusDiv.classList.add('hidden');
         document.getElementById('encarte-raw-text').value = '';
         showToast(`Encarte do ${marketName} publicado! ${countSaved} ofertas ativas até ${endDate}.`, 'success');
-        loadActiveEncartes();
+        loadActiveEncartes(); loadActivePhotoEncartes();
       } catch (err) {
         statusDiv.classList.add('hidden');
         showToast('Erro ao publicar encarte: ' + err.message, 'error');
@@ -3433,7 +4321,7 @@
         document.getElementById('admin-count-prods').innerText = prodCount ?? '--';
         document.getElementById('admin-count-precos').innerText = precoCount ?? '--';
         document.getElementById('admin-count-markets').innerText = marketCount ?? '--';
-        loadActiveEncartes();
+        loadActiveEncartes(); loadActivePhotoEncartes();
       } catch (e) {
         showToast('Erro ao carregar métricas de administrador.', 'error');
       }
@@ -4710,7 +5598,7 @@
 
       closeCitySelectorModal();
       showToast(`Região atualizada para: ${formatted}`, 'success');
-      loadActiveEncartes();
+      loadActiveEncartes(); loadActivePhotoEncartes();
     }
 
     // Altera editUserCity para abrir o modal do IBGE
@@ -4936,7 +5824,7 @@
         if (error) throw error;
         showToast('Encarte excluído com sucesso!', 'success');
         loadAdminEncartesModeration();
-        loadActiveEncartes();
+        loadActiveEncartes(); loadActivePhotoEncartes();
       } catch (err) {
         showToast('Erro ao excluir: ' + err.message, 'error');
       }
@@ -5044,6 +5932,315 @@
       } catch (err) {
         showToast('Erro ao excluir: ' + err.message, 'error');
       }
+    }
+
+      // ==========================================
+    // CONTROLES DE GÔNDOLA: LANTERNA & CÓDIGO MANUAL
+    // ==========================================
+    let isFlashOn = false;
+
+    async function toggleFlashlight() {
+      try {
+        const videoElem = document.querySelector('#reader video');
+        if (!videoElem || !videoElem.srcObject) {
+          showToast('Inicie a câmera primeiro para ligar a lanterna.', 'info');
+          return;
+        }
+        const stream = videoElem.srcObject;
+        const track = stream.getVideoTracks()[0];
+        const caps = track.getCapabilities ? track.getCapabilities() : {};
+
+        if (caps.torch) {
+          isFlashOn = !isFlashOn;
+          await track.applyConstraints({ advanced: [{ torch: isFlashOn }] });
+          document.getElementById('torch-btn').innerHTML = isFlashOn ? '🔦 Desligar Flash' : '🔦 Lanterna';
+          showToast(isFlashOn ? '🔦 Lanterna ligada!' : '🔦 Lanterna desligada', 'info');
+        } else {
+          showToast('A lanterna não é suportada por esta câmera.', 'warning');
+        }
+      } catch (err) {
+        showToast('Não foi possível acionar a lanterna: ' + err.message, 'warning');
+      }
+    }
+
+    function openManualBarcodePrompt() {
+      const code = prompt('Digite os números do código de barras (EAN):');
+      if (code && code.trim().length >= 6) {
+        onCodeScanned(code.trim());
+      } else if (code) {
+        showToast('Código de barras inválido (muito curto).', 'warning');
+      }
+    }
+
+    // ==========================================
+    // QUANTIDADE, PESO (UNIDADE vs KG) & CÁLCULOS
+    // ==========================================
+    let currentProductUnitType = 'un';
+
+    function setProductUnitType(type) {
+      currentProductUnitType = type;
+      const btnUn = document.getElementById('type-btn-un');
+      const btnKg = document.getElementById('type-btn-kg');
+      const chips = document.getElementById('quick-qty-chips');
+      const qtyInput = document.getElementById('product-qty-input');
+
+      if (type === 'un') {
+        btnUn.style.background = '#2e7d32';
+        btnUn.style.color = '#fff';
+        btnKg.style.background = '#eee';
+        btnKg.style.color = '#444';
+        qtyInput.value = '1';
+        chips.innerHTML = `
+          <button type="button" class="budget-chip" onclick="setQuickQty(1)">1 un</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(2)">2 un</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(3)">3 un</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(6)">6 un</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(12)">12 un</button>
+        `;
+      } else {
+        btnKg.style.background = '#2e7d32';
+        btnKg.style.color = '#fff';
+        btnUn.style.background = '#eee';
+        btnUn.style.color = '#444';
+        qtyInput.value = '1.0';
+        chips.innerHTML = `
+          <button type="button" class="budget-chip" onclick="setQuickQty(0.5)">0.5 kg</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(1.0)">1.0 kg</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(1.5)">1.5 kg</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(2.0)">2.0 kg</button>
+        `;
+      }
+      updateItemTotalCalc();
+    }
+
+    function adjustProductQty(delta) {
+      const qtyInput = document.getElementById('product-qty-input');
+      let val = parseFloat(qtyInput.value) || 1;
+      if (currentProductUnitType === 'un') {
+        val = Math.max(1, Math.round(val + delta));
+      } else {
+        val = Math.max(0.1, parseFloat((val + (delta * 0.5)).toFixed(2)));
+      }
+      qtyInput.value = val;
+      updateItemTotalCalc();
+    }
+
+    function setQuickQty(val) {
+      const qtyInput = document.getElementById('product-qty-input');
+      qtyInput.value = val;
+      updateItemTotalCalc();
+    }
+
+    function updateItemTotalCalc() {
+      const qtyInput = document.getElementById('product-qty-input');
+      const priceInput = document.getElementById('price-input');
+      const preview = document.getElementById('item-subtotal-preview');
+
+      const qty = parseFloat(qtyInput.value) || 1;
+      const price = parseFloat(priceInput.value) || 0;
+      const subtotal = qty * price;
+
+      const unitLabel = currentProductUnitType === 'un' ? 'un.' : 'kg';
+      preview.innerText = `Subtotal deste item: R$ ${subtotal.toFixed(2)} (${qty} ${unitLabel})`;
+    }
+
+    // ==========================================
+    // GESTÃO DE ENCARTES 100% FOTO (ZERO DIGITAÇÃO)
+    // ==========================================
+    let currentEncartePhotoBase64 = null;
+
+    function handleEncartePhotoSelect(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const previewBox = document.getElementById('encarte-photo-preview-box');
+      const previewImg = document.getElementById('encarte-photo-preview-img');
+      const info = document.getElementById('encarte-photo-info');
+
+      info.innerText = '⏳ Carregando imagem...';
+      previewBox.classList.remove('hidden');
+
+      // Otimiza imagem para não estourar memória do navegador
+      resizeImageForOCR(file, 1600).then(canvas => {
+        currentEncartePhotoBase64 = canvas.toDataURL('image/jpeg', 0.85);
+        previewImg.src = currentEncartePhotoBase64;
+        info.innerText = `✅ Foto carregada e pronta para publicação!`;
+      }).catch(err => {
+        showToast('Erro ao carregar foto: ' + err.message, 'error');
+      });
+    }
+
+    function publishPhotoEncarte() {
+      const market = document.getElementById('encarte-photo-market').value;
+      const start = document.getElementById('encarte-photo-start').value || new Date().toISOString().split('T')[0];
+      const end = document.getElementById('encarte-photo-end').value;
+      const userCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
+
+      if (!end) {
+        showToast('Informe a data de validade final do encarte.', 'warning');
+        return;
+      }
+      if (!currentEncartePhotoBase64) {
+        showToast('Tire uma foto ou selecione a imagem do encarte.', 'warning');
+        return;
+      }
+
+      showToast('Publicando encarte oficial...', 'info');
+
+      // Salva no banco local do app (infalível e resiliente)
+      const encartesLocais = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
+
+      // Remove encartes anteriores desse mesmo mercado (auto-substituição)
+      const filtered = encartesLocais.filter(e => e.mercado.toLowerCase() !== market.toLowerCase());
+
+      const newEncarte = {
+        id: 'ENC_' + Date.now(),
+        mercado: market,
+        cidade: userCity,
+        data_inicio: start,
+        validade: end,
+        imagem: currentEncartePhotoBase64,
+        criado_em: new Date().toISOString()
+      };
+
+      filtered.unshift(newEncarte);
+      localStorage.setItem('nutri_photo_encartes', JSON.stringify(filtered));
+
+      showToast(`Encarte do ${market} publicado com sucesso!`, 'success');
+
+      // Limpa formulário
+      currentEncartePhotoBase64 = null;
+      document.getElementById('encarte-photo-preview-box').classList.add('hidden');
+      document.getElementById('encarte-photo-file').value = '';
+
+      loadActivePhotoEncartes();
+      renderPublicEncartes();
+    }
+
+    function loadActivePhotoEncartes() {
+      const container = document.getElementById('active-photo-encartes-list');
+      if (!container) return;
+
+      const encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
+      const today = new Date().toISOString().split('T')[0];
+      const valid = encartes.filter(e => e.validade >= today);
+
+      if (valid.length === 0) {
+        container.innerHTML = '<p style="color:#888; font-style:italic;">Nenhum encarte cadastrado ativo no momento.</p>';
+        return;
+      }
+
+      let html = '<ul style="list-style:none; padding:0; margin:0;">';
+      valid.forEach(e => {
+        html += `
+          <li style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px dashed #eee;">
+            <div>
+              <strong>${e.mercado}</strong> (${e.cidade})<br>
+              <small style="color:#2e7d32; font-weight:bold;">Válido até ${formatDateBR(e.validade)}</small>
+            </div>
+            <button onclick="deletePhotoEncarte('${e.id}')" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:bold; cursor:pointer;">
+              🗑️ Excluir
+            </button>
+          </li>
+        `;
+      });
+      html += '</ul>';
+      container.innerHTML = html;
+    }
+
+    function deletePhotoEncarte(id) {
+      let encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
+      encartes = encartes.filter(e => e.id !== id);
+      localStorage.setItem('nutri_photo_encartes', JSON.stringify(encartes));
+      showToast('Encarte excluído!', 'info');
+      loadActivePhotoEncartes();
+      renderPublicEncartes();
+    }
+
+    // ==========================================
+    // RENDERIZAÇÃO DA VITRINE PÚBLICA DE ENCARTES (POR FOTO)
+    // ==========================================
+    function renderPublicEncartes() {
+      const container = document.getElementById('public-encartes-container');
+      if (!container) return;
+
+      const userCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
+      const today = new Date().toISOString().split('T')[0];
+      const encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
+      const valid = encartes.filter(e => e.validade >= today);
+
+      if (valid.length === 0) {
+        container.innerHTML = `
+          <div style="text-align:center; padding:30px 16px; background:#fafafa; border:1px dashed #ccc; border-radius:12px;">
+            <span style="font-size:36px; display:block; margin-bottom:8px;">📰</span>
+            <strong style="color:#333; font-size:14px;">Nenhum encarte cadastrado para ${userCity} no momento.</strong>
+            <p style="font-size:12px; color:#777; margin-top:6px;">Os administradores atualizam os folhetos semanalmente.</p>
+          </div>
+        `;
+        return;
+      }
+
+      let html = '';
+      valid.forEach(e => {
+        html += `
+          <div style="background:#fff; border:1px solid #c8e6c9; border-radius:14px; padding:14px; box-shadow:0 3px 8px rgba(0,0,0,0.06);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+              <div>
+                <h4 style="font-size:16px; color:#1b5e20; font-weight:bold; margin:0;">🏪 ${e.mercado}</h4>
+                <span style="font-size:11.5px; color:#666;">Cabo Frio e região</span>
+              </div>
+              <span style="background:#e8f5e9; color:#2e7d32; font-size:11px; font-weight:bold; padding:4px 8px; border-radius:12px; border:1px solid #c8e6c9;">
+                Válido até ${formatDateBR(e.validade)}
+              </span>
+            </div>
+
+            <!-- Miniatura da Imagem -->
+            <div style="text-align:center; margin-bottom:10px; cursor:pointer;" onclick="openEncarteViewer('${e.id}')">
+              <img src="${e.imagem}" style="max-width:100%; max-height:260px; border-radius:8px; border:1px solid #ddd; object-fit:contain; box-shadow:0 2px 6px rgba(0,0,0,0.1);">
+            </div>
+
+            <button onclick="openEncarteViewer('${e.id}')" class="save-btn" style="margin:0; background:#1b5e20; font-size:13.5px; padding:11px; display:flex; align-items:center; justify-content:center; gap:6px;">
+              🔍 Abrir Folheto em Tela Cheia (Com Zoom)
+            </button>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
+    // ==========================================
+    // VISUALIZADOR DE ENCARTE COM ZOOM
+    // ==========================================
+    let currentViewerZoom = 1.0;
+
+    function openEncarteViewer(encarteId) {
+      const encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
+      const item = encartes.find(e => e.id === encarteId);
+      if (!item) return;
+
+      currentViewerZoom = 1.0;
+      const modal = document.getElementById('encarte-viewer-modal');
+      const title = document.getElementById('viewer-market-title');
+      const val = document.getElementById('viewer-validity-text');
+      const img = document.getElementById('viewer-encarte-img');
+
+      title.innerText = item.mercado;
+      val.innerText = `Válido até ${formatDateBR(item.validade)}`;
+      img.src = item.imagem;
+      img.style.transform = `scale(1.0)`;
+
+      modal.classList.remove('hidden');
+    }
+
+    function closeEncarteViewer() {
+      document.getElementById('encarte-viewer-modal').classList.add('hidden');
+    }
+
+    function zoomEncarte(factor) {
+      const img = document.getElementById('viewer-encarte-img');
+      currentViewerZoom = Math.min(3.0, Math.max(0.6, currentViewerZoom * factor));
+      img.style.transform = `scale(${currentViewerZoom})`;
     }
 
   </script>
