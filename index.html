@@ -1,8 +1,4 @@
-
-index.html
-
-100%
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -19,8 +15,1323 @@ index.html
 
 
   <!-- Bibliotecas externas -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">    // ==========================================
+    // SISTEMA DE CIDADES (IBGE + CACHE OFFLINE LOCAL-FIRST)
+    // ==========================================
+    const OFFLINE_CITIES_BACKUP = {
+      'RJ': ['Cabo Frio', 'Arraial do Cabo', 'Armação dos Búzios', 'São Pedro da Aldeia', 'Araruama', 'Saquarema', 'Macaé', 'Rio das Ostras', 'Niterói', 'Rio de Janeiro', 'Campos dos Goytacazes', 'Petrópolis', 'Volta Redonda', 'Nova Friburgo'],
+      'SP': ['São Paulo', 'Campinas', 'Santos', 'São José dos Campos', 'Ribeirão Preto', 'Sorocaba', 'Santo André', 'São Bernardo do Campo'],
+      'MG': ['Belo Horizonte', 'Juiz de Fora', 'Uberlândia', 'Contagem', 'Betim', 'Montes Claros'],
+      'ES': ['Vitória', 'Vila Velha', 'Serra', 'Cariacica', 'Guarapari', 'Linhares']
+    };
+
+    function openCitySelectorModal() {
+      const modal = document.getElementById('city-selector-modal');
+      const savedCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
+      const savedUf = localStorage.getItem('nutri_user_state') || 'RJ';
+
+      document.getElementById('select-uf').value = savedUf;
+      onUfChanged(savedCity);
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeCitySelectorModal() {
+      const modal = document.getElementById('city-selector-modal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function onUfChanged(preselectedCity = null) {
+      const uf = document.getElementById('select-uf').value;
+      const citySelect = document.getElementById('select-city');
+      const loader = document.getElementById('city-loading-indicator');
+
+      citySelect.innerHTML = '';
+
+      // 1. Tenta carregar do Cache Local do celular
+      const cacheKey = 'nutri_cities_' + uf;
+      const cached = localStorage.getItem(cacheKey);
+
+      if (cached) {
+        try {
+          const list = JSON.parse(cached);
+          populateCityDropdown(list, preselectedCity);
+          return;
+        } catch(e){}
+      }
+
+      // 2. Se offline, usa backup pré-embarcado
+      if (!navigator.onLine && OFFLINE_CITIES_BACKUP[uf]) {
+        populateCityDropdown(OFFLINE_CITIES_BACKUP[uf], preselectedCity);
+        return;
+      }
+
+      // 3. Se online, busca na API oficial do IBGE
+      if (loader) loader.classList.remove('hidden');
+      try {
+        const res = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios?orderBy=nome`);
+        const data = await res.json();
+        const cityNames = data.map(c => c.nome);
+
+        // Salva no cache local do celular para sempre funcionar offline
+        localStorage.setItem(cacheKey, JSON.stringify(cityNames));
+
+        populateCityDropdown(cityNames, preselectedCity);
+      } catch (err) {
+        // Fallback emergencial offline
+        const backup = OFFLINE_CITIES_BACKUP[uf] || ['Capital', 'Interior'];
+        populateCityDropdown(backup, preselectedCity);
+      } finally {
+        if (loader) loader.classList.add('hidden');
+      }
+    }
+
+    function populateCityDropdown(cityList, preselectedCity) {
+      const citySelect = document.getElementById('select-city');
+      citySelect.innerHTML = '';
+      cityList.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c;
+        opt.innerText = c;
+        if (preselectedCity && c.toLowerCase() === preselectedCity.toLowerCase()) {
+          opt.selected = true;
+        }
+        citySelect.appendChild(opt);
+      });
+    }
+
+    function saveSelectedCity() {
+      const uf = document.getElementById('select-uf').value;
+      const city = document.getElementById('select-city').value;
+
+      if (!city) {
+        showToast('Selecione uma cidade.', 'warning');
+        return;
+      }
+
+      const formatted = `${city} - ${uf}`;
+      localStorage.setItem('nutri_user_city', city);
+      localStorage.setItem('nutri_user_state', uf);
+
+      const bannerCity = document.getElementById('banner-user-city');
+      if (bannerCity) bannerCity.innerText = formatted;
+
+      closeCitySelectorModal();
+      showToast(`Região atualizada para: ${formatted}`, 'success');
+      loadActiveEncartes();
+    }
+
+    // Altera editUserCity para abrir o modal do IBGE
+    function editUserCity() {
+      openCitySelectorModal();
+    }
+
+    // ==========================================
+    // VITRINE PÚBLICA DE ENCARTES (POR REGIÃO)
+    // ==========================================
+    async function openPublicEncartesModal() {
+      const modal = document.getElementById('public-encartes-modal');
+      const cityLabel = document.getElementById('public-encartes-city-label');
+      const userCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
+      const userState = localStorage.getItem('nutri_user_state') || 'RJ';
+
+      if (cityLabel) cityLabel.innerHTML = `📍 Região: <b>${userCity} - ${userState}</b>`;
+      if (modal) modal.classList.remove('hidden');
+
+      renderPublicEncartes();
+    }
+
+    function closePublicEncartesModal() {
+      const modal = document.getElementById('public-encartes-modal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function renderPublicEncartes() {
+      const container = document.getElementById('public-encartes-container');
+      const userCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
+      const today = new Date().toISOString().split('T')[0];
+
+      container.innerHTML = '<div style="text-align:center; padding:25px; color:#888;">⏳ Buscando encartes vigentes da sua região...</div>';
+
+      try {
+        const { data, error } = await client
+          .from('registros_precos')
+          .select('id, preco, validade, data_registro, mercados(id, nome, cidade), produtos(id, nome, marca, codigo_barras)')
+          .eq('is_encarte', true)
+          .gte('validade', today)
+          .order('validade', { ascending: true })
+          .limit(100);
+
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+          container.innerHTML = `
+            <div style="text-align:center; padding:30px 16px; background:#fafafa; border:1px dashed #ccc; border-radius:12px;">
+              <span style="font-size:32px; display:block; margin-bottom:8px;">📰</span>
+              <strong style="color:#444;">Nenhum encarte cadastrado para ${userCity} no momento.</strong>
+              <p style="font-size:12px; color:#777; margin-top:6px;">Os administradores e mercados parceiros atualizam os folhetos semanalmente.</p>
+            </div>
+          `;
+          return;
+        }
+
+        // Agrupa por mercado
+        const grouped = {};
+        data.forEach(item => {
+          const mkName = item.mercados?.nome || 'Supermercado';
+          if (!grouped[mkName]) {
+            grouped[mkName] = {
+              validade: item.validade,
+              produtos: []
+            };
+          }
+          grouped[mkName].produtos.push({
+            id: item.id,
+            nome: item.produtos?.nome || 'Produto',
+            preco: parseFloat(item.preco).toFixed(2),
+            marca: item.produtos?.marca || ''
+          });
+        });
+
+        let html = '';
+        for (const [marketName, info] of Object.entries(grouped)) {
+          html += `
+            <div style="background:#fff; border:1px solid #c8e6c9; border-radius:14px; padding:14px; box-shadow:0 2px 6px rgba(0,0,0,0.05);">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; border-bottom:1px solid #f0f0f0; padding-bottom:8px;">
+                <div>
+                  <h4 style="font-size:16px; color:#1b5e20; font-weight:bold; margin-bottom:2px;">🏪 ${marketName}</h4>
+                  <span style="font-size:11.5px; color:#666;">${info.produtos.length} ofertas vigentes</span>
+                </div>
+                <span style="background:#e8f5e9; color:#2e7d32; font-size:11px; font-weight:bold; padding:3px 8px; border-radius:12px; border:1px solid #c8e6c9;">
+                  Válido até ${formatDateBR(info.validade)}
+                </span>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+          `;
+
+          info.produtos.forEach(p => {
+            const safeName = p.nome.replace(/'/g, "\\'");
+            html += `
+              <div style="display:flex; justify-content:space-between; align-items:center; background:#fafafa; border-radius:8px; padding:8px 10px; border:1px solid #eee;">
+                <div>
+                  <strong style="font-size:13px; color:#222; display:block;">${p.nome}</strong>
+                  <span style="font-size:14px; color:#1b5e20; font-weight:bold;">R$ ${p.preco}</span>
+                </div>
+                <button onclick="addEncarteItemToPrelist('${safeName}')" style="background:#e8f5e9; border:1px solid #a5d6a7; color:#1b5e20; padding:6px 10px; border-radius:8px; font-size:11.5px; font-weight:bold; cursor:pointer;">
+                  + Na Lista
+                </button>
+              </div>
+            `;
+          });
+
+          html += `
+              </div>
+            </div>
+          `;
+        }
+
+        container.innerHTML = html;
+      } catch (err) {
+        container.innerHTML = '<div style="color:#c62828; text-align:center; padding:20px;">Erro ao carregar encartes da nuvem.</div>';
+      }
+    }
+
+    function addEncarteItemToPrelist(prodName) {
+      preShoppingList.push({ id: Date.now(), name: prodName, done: false });
+      savePrelist();
+      showToast(`"${prodName}" adicionado à sua Lista Prévia!`, 'success');
+    }
+
+    function formatDateBR(dateStr) {
+      if (!dateStr) return '';
+      const parts = dateStr.split('-');
+      if (parts.length === 3) return `${parts[2]}/${parts[1]}`;
+      return dateStr;
+    }
+
+    // ==========================================
+    // MODERAÇÃO DO ADMINISTRADOR (EXCLUIR DADOS)
+    // ==========================================
+    function switchAdminModTab(tab) {
+      document.getElementById('admin-tab-encartes').style.background = tab === 'encartes' ? '#b71c1c' : '#fff';
+      document.getElementById('admin-tab-encartes').style.color = tab === 'encartes' ? '#fff' : '#555';
+      document.getElementById('admin-tab-precos').style.background = tab === 'precos' ? '#b71c1c' : '#fff';
+      document.getElementById('admin-tab-precos').style.color = tab === 'precos' ? '#fff' : '#555';
+      document.getElementById('admin-tab-mercados').style.background = tab === 'mercados' ? '#b71c1c' : '#fff';
+      document.getElementById('admin-tab-mercados').style.color = tab === 'mercados' ? '#fff' : '#555';
+
+      document.getElementById('admin-mod-encartes-view').classList.toggle('hidden', tab !== 'encartes');
+      document.getElementById('admin-mod-precos-view').classList.toggle('hidden', tab !== 'precos');
+      document.getElementById('admin-mod-mercados-view').classList.toggle('hidden', tab !== 'mercados');
+
+      if (tab === 'encartes') loadAdminEncartesModeration();
+      if (tab === 'precos') loadAdminPricesModeration();
+      if (tab === 'mercados') loadAdminMarketsModeration();
+    }
+
+    async function loadAdminEncartesModeration() {
+      const container = document.getElementById('admin-manage-encartes-list');
+      container.innerHTML = '<div style="padding:10px; color:#888;">Carregando encartes para moderação...</div>';
+
+      try {
+        const { data, error } = await client
+          .from('registros_precos')
+          .select('id, mercado_id, validade, data_registro, mercados(id, nome)')
+          .eq('is_encarte', true)
+          .order('validade', { ascending: false })
+          .limit(100);
+
+        if (error) throw error;
+        if (!data || data.length === 0) {
+          container.innerHTML = '<div style="padding:10px; color:#888;">Nenhum encarte cadastrado no momento.</div>';
+          return;
+        }
+
+        // Agrupa por mercado + validade
+        const groups = {};
+        data.forEach(r => {
+          const key = (r.mercados?.nome || 'Mercado') + '_' + (r.validade || '');
+          if (!groups[key]) {
+            groups[key] = {
+              marketId: r.mercado_id,
+              marketName: r.mercados?.nome || 'Mercado',
+              validade: r.validade,
+              ids: []
+            };
+          }
+          groups[key].ids.push(r.id);
+        });
+
+        let html = '';
+        for (const [k, item] of Object.entries(groups)) {
+          html += `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border-bottom:1px dashed #eee; background:#fff; margin-bottom:4px; border-radius:6px;">
+              <div>
+                <strong>${item.marketName}</strong> (${item.ids.length} itens)<br>
+                <small style="color:#666;">Validade: ${item.validade || 'N/A'}</small>
+              </div>
+              <button onclick="adminDeleteEncarteBatch('${item.marketId}', '${item.validade}')" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:5px 8px; font-weight:bold; font-size:11px; cursor:pointer;">
+                🗑️ Excluir Encarte
+              </button>
+            </div>
+          `;
+        }
+        container.innerHTML = html;
+      } catch (e) {
+        container.innerHTML = '<div style="color:#c62828;">Erro ao carregar moderação de encartes.</div>';
+      }
+    }
+
+    async function adminDeleteEncarteBatch(marketId, validade) {
+      const conf = await showConfirmDialog({
+        title: 'Excluir Encarte',
+        message: 'Deseja realmente apagar todas as ofertas deste encarte?',
+        icon: '🗑️',
+        okText: 'Excluir',
+        isDestructive: true
+      });
+      if (!conf) return;
+
+      try {
+        showToast('Excluindo encarte...', 'info');
+        const { error } = await client
+          .from('registros_precos')
+          .delete()
+          .eq('mercado_id', marketId)
+          .eq('validade', validade)
+          .eq('is_encarte', true);
+
+        if (error) throw error;
+        showToast('Encarte excluído com sucesso!', 'success');
+        loadAdminEncartesModeration();
+        loadActiveEncartes();
+      } catch (err) {
+        showToast('Erro ao excluir: ' + err.message, 'error');
+      }
+    }
+
+    async function loadAdminPricesModeration() {
+      const container = document.getElementById('admin-manage-prices-list');
+      container.innerHTML = '<div style="padding:10px; color:#888;">Carregando últimas cotações...</div>';
+
+      try {
+        const { data, error } = await client
+          .from('registros_precos')
+          .select('id, preco, data_registro, mercados(nome), produtos(nome)')
+          .order('data_registro', { ascending: false })
+          .limit(30);
+
+        if (error) throw error;
+        if (!data || data.length === 0) {
+          container.innerHTML = '<div style="padding:10px; color:#888;">Nenhuma cotação recente.</div>';
+          return;
+        }
+
+        let html = '';
+        data.forEach(r => {
+          const prod = r.produtos?.nome || 'Produto';
+          const mk = r.mercados?.nome || 'Mercado';
+          const p = parseFloat(r.preco).toFixed(2);
+
+          html += `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:7px; border-bottom:1px dashed #eee; background:#fff; margin-bottom:4px; border-radius:6px;">
+              <div>
+                <strong>${prod}</strong> - R$ ${p}<br>
+                <small style="color:#666;">${mk}</small>
+              </div>
+              <button onclick="adminDeletePrice('${r.id}')" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:4px 7px; font-weight:bold; font-size:11px; cursor:pointer;">
+                🗑️ Excluir
+              </button>
+            </div>
+          `;
+        });
+        container.innerHTML = html;
+      } catch (e) {
+        container.innerHTML = '<div style="color:#c62828;">Erro ao carregar cotações.</div>';
+      }
+    }
+
+    async function adminDeletePrice(id) {
+      try {
+        const { error } = await client.from('registros_precos').delete().eq('id', id);
+        if (error) throw error;
+        showToast('Cotação excluída!', 'success');
+        loadAdminPricesModeration();
+      } catch (err) {
+        showToast('Erro: ' + err.message, 'error');
+      }
+    }
+
+    async function loadAdminMarketsModeration() {
+      const container = document.getElementById('admin-manage-markets-list');
+      container.innerHTML = '<div style="padding:10px; color:#888;">Carregando mercados...</div>';
+
+      try {
+        const { data, error } = await client.from('mercados').select('id, nome, cidade').order('nome');
+        if (error) throw error;
+        if (!data || data.length === 0) {
+          container.innerHTML = '<div style="padding:10px; color:#888;">Nenhum mercado cadastrado.</div>';
+          return;
+        }
+
+        let html = '';
+        data.forEach(m => {
+          html += `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:7px; border-bottom:1px dashed #eee; background:#fff; margin-bottom:4px; border-radius:6px;">
+              <div>
+                <strong>${m.nome}</strong><br>
+                <small style="color:#666;">${m.cidade || 'Cabo Frio'}</small>
+              </div>
+              <button onclick="adminDeleteMarket('${m.id}')" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:4px 7px; font-weight:bold; font-size:11px; cursor:pointer;">
+                🗑️ Excluir
+              </button>
+            </div>
+          `;
+        });
+        container.innerHTML = html;
+      } catch (e) {
+        container.innerHTML = '<div style="color:#c62828;">Erro ao carregar mercados.</div>';
+      }
+    }
+
+    async function adminDeleteMarket(id) {
+      const conf = await showConfirmDialog({
+        title: 'Excluir Mercado',
+        message: 'Deseja excluir este estabelecimento do cadastro?',
+        icon: '🗑️',
+        okText: 'Excluir',
+        isDestructive: true
+      });
+      if (!conf) return;
+
+      try {
+        const { error } = await client.from('mercados').delete().eq('id', id);
+        if (error) throw error;
+        showToast('Mercado excluído!', 'success');
+        loadAdminMarketsModeration();
+      } catch (err) {
+        showToast('Erro ao excluir: ' + err.message, 'error');
+      }
+    }
+
+  </script>
+  <script src="https://unpkg.com/html5-qrcode">    // ==========================================
+    // SISTEMA DE CIDADES (IBGE + CACHE OFFLINE LOCAL-FIRST)
+    // ==========================================
+    const OFFLINE_CITIES_BACKUP = {
+      'RJ': ['Cabo Frio', 'Arraial do Cabo', 'Armação dos Búzios', 'São Pedro da Aldeia', 'Araruama', 'Saquarema', 'Macaé', 'Rio das Ostras', 'Niterói', 'Rio de Janeiro', 'Campos dos Goytacazes', 'Petrópolis', 'Volta Redonda', 'Nova Friburgo'],
+      'SP': ['São Paulo', 'Campinas', 'Santos', 'São José dos Campos', 'Ribeirão Preto', 'Sorocaba', 'Santo André', 'São Bernardo do Campo'],
+      'MG': ['Belo Horizonte', 'Juiz de Fora', 'Uberlândia', 'Contagem', 'Betim', 'Montes Claros'],
+      'ES': ['Vitória', 'Vila Velha', 'Serra', 'Cariacica', 'Guarapari', 'Linhares']
+    };
+
+    function openCitySelectorModal() {
+      const modal = document.getElementById('city-selector-modal');
+      const savedCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
+      const savedUf = localStorage.getItem('nutri_user_state') || 'RJ';
+
+      document.getElementById('select-uf').value = savedUf;
+      onUfChanged(savedCity);
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeCitySelectorModal() {
+      const modal = document.getElementById('city-selector-modal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function onUfChanged(preselectedCity = null) {
+      const uf = document.getElementById('select-uf').value;
+      const citySelect = document.getElementById('select-city');
+      const loader = document.getElementById('city-loading-indicator');
+
+      citySelect.innerHTML = '';
+
+      // 1. Tenta carregar do Cache Local do celular
+      const cacheKey = 'nutri_cities_' + uf;
+      const cached = localStorage.getItem(cacheKey);
+
+      if (cached) {
+        try {
+          const list = JSON.parse(cached);
+          populateCityDropdown(list, preselectedCity);
+          return;
+        } catch(e){}
+      }
+
+      // 2. Se offline, usa backup pré-embarcado
+      if (!navigator.onLine && OFFLINE_CITIES_BACKUP[uf]) {
+        populateCityDropdown(OFFLINE_CITIES_BACKUP[uf], preselectedCity);
+        return;
+      }
+
+      // 3. Se online, busca na API oficial do IBGE
+      if (loader) loader.classList.remove('hidden');
+      try {
+        const res = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios?orderBy=nome`);
+        const data = await res.json();
+        const cityNames = data.map(c => c.nome);
+
+        // Salva no cache local do celular para sempre funcionar offline
+        localStorage.setItem(cacheKey, JSON.stringify(cityNames));
+
+        populateCityDropdown(cityNames, preselectedCity);
+      } catch (err) {
+        // Fallback emergencial offline
+        const backup = OFFLINE_CITIES_BACKUP[uf] || ['Capital', 'Interior'];
+        populateCityDropdown(backup, preselectedCity);
+      } finally {
+        if (loader) loader.classList.add('hidden');
+      }
+    }
+
+    function populateCityDropdown(cityList, preselectedCity) {
+      const citySelect = document.getElementById('select-city');
+      citySelect.innerHTML = '';
+      cityList.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c;
+        opt.innerText = c;
+        if (preselectedCity && c.toLowerCase() === preselectedCity.toLowerCase()) {
+          opt.selected = true;
+        }
+        citySelect.appendChild(opt);
+      });
+    }
+
+    function saveSelectedCity() {
+      const uf = document.getElementById('select-uf').value;
+      const city = document.getElementById('select-city').value;
+
+      if (!city) {
+        showToast('Selecione uma cidade.', 'warning');
+        return;
+      }
+
+      const formatted = `${city} - ${uf}`;
+      localStorage.setItem('nutri_user_city', city);
+      localStorage.setItem('nutri_user_state', uf);
+
+      const bannerCity = document.getElementById('banner-user-city');
+      if (bannerCity) bannerCity.innerText = formatted;
+
+      closeCitySelectorModal();
+      showToast(`Região atualizada para: ${formatted}`, 'success');
+      loadActiveEncartes();
+    }
+
+    // Altera editUserCity para abrir o modal do IBGE
+    function editUserCity() {
+      openCitySelectorModal();
+    }
+
+    // ==========================================
+    // VITRINE PÚBLICA DE ENCARTES (POR REGIÃO)
+    // ==========================================
+    async function openPublicEncartesModal() {
+      const modal = document.getElementById('public-encartes-modal');
+      const cityLabel = document.getElementById('public-encartes-city-label');
+      const userCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
+      const userState = localStorage.getItem('nutri_user_state') || 'RJ';
+
+      if (cityLabel) cityLabel.innerHTML = `📍 Região: <b>${userCity} - ${userState}</b>`;
+      if (modal) modal.classList.remove('hidden');
+
+      renderPublicEncartes();
+    }
+
+    function closePublicEncartesModal() {
+      const modal = document.getElementById('public-encartes-modal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function renderPublicEncartes() {
+      const container = document.getElementById('public-encartes-container');
+      const userCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
+      const today = new Date().toISOString().split('T')[0];
+
+      container.innerHTML = '<div style="text-align:center; padding:25px; color:#888;">⏳ Buscando encartes vigentes da sua região...</div>';
+
+      try {
+        const { data, error } = await client
+          .from('registros_precos')
+          .select('id, preco, validade, data_registro, mercados(id, nome, cidade), produtos(id, nome, marca, codigo_barras)')
+          .eq('is_encarte', true)
+          .gte('validade', today)
+          .order('validade', { ascending: true })
+          .limit(100);
+
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+          container.innerHTML = `
+            <div style="text-align:center; padding:30px 16px; background:#fafafa; border:1px dashed #ccc; border-radius:12px;">
+              <span style="font-size:32px; display:block; margin-bottom:8px;">📰</span>
+              <strong style="color:#444;">Nenhum encarte cadastrado para ${userCity} no momento.</strong>
+              <p style="font-size:12px; color:#777; margin-top:6px;">Os administradores e mercados parceiros atualizam os folhetos semanalmente.</p>
+            </div>
+          `;
+          return;
+        }
+
+        // Agrupa por mercado
+        const grouped = {};
+        data.forEach(item => {
+          const mkName = item.mercados?.nome || 'Supermercado';
+          if (!grouped[mkName]) {
+            grouped[mkName] = {
+              validade: item.validade,
+              produtos: []
+            };
+          }
+          grouped[mkName].produtos.push({
+            id: item.id,
+            nome: item.produtos?.nome || 'Produto',
+            preco: parseFloat(item.preco).toFixed(2),
+            marca: item.produtos?.marca || ''
+          });
+        });
+
+        let html = '';
+        for (const [marketName, info] of Object.entries(grouped)) {
+          html += `
+            <div style="background:#fff; border:1px solid #c8e6c9; border-radius:14px; padding:14px; box-shadow:0 2px 6px rgba(0,0,0,0.05);">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; border-bottom:1px solid #f0f0f0; padding-bottom:8px;">
+                <div>
+                  <h4 style="font-size:16px; color:#1b5e20; font-weight:bold; margin-bottom:2px;">🏪 ${marketName}</h4>
+                  <span style="font-size:11.5px; color:#666;">${info.produtos.length} ofertas vigentes</span>
+                </div>
+                <span style="background:#e8f5e9; color:#2e7d32; font-size:11px; font-weight:bold; padding:3px 8px; border-radius:12px; border:1px solid #c8e6c9;">
+                  Válido até ${formatDateBR(info.validade)}
+                </span>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+          `;
+
+          info.produtos.forEach(p => {
+            const safeName = p.nome.replace(/'/g, "\\'");
+            html += `
+              <div style="display:flex; justify-content:space-between; align-items:center; background:#fafafa; border-radius:8px; padding:8px 10px; border:1px solid #eee;">
+                <div>
+                  <strong style="font-size:13px; color:#222; display:block;">${p.nome}</strong>
+                  <span style="font-size:14px; color:#1b5e20; font-weight:bold;">R$ ${p.preco}</span>
+                </div>
+                <button onclick="addEncarteItemToPrelist('${safeName}')" style="background:#e8f5e9; border:1px solid #a5d6a7; color:#1b5e20; padding:6px 10px; border-radius:8px; font-size:11.5px; font-weight:bold; cursor:pointer;">
+                  + Na Lista
+                </button>
+              </div>
+            `;
+          });
+
+          html += `
+              </div>
+            </div>
+          `;
+        }
+
+        container.innerHTML = html;
+      } catch (err) {
+        container.innerHTML = '<div style="color:#c62828; text-align:center; padding:20px;">Erro ao carregar encartes da nuvem.</div>';
+      }
+    }
+
+    function addEncarteItemToPrelist(prodName) {
+      preShoppingList.push({ id: Date.now(), name: prodName, done: false });
+      savePrelist();
+      showToast(`"${prodName}" adicionado à sua Lista Prévia!`, 'success');
+    }
+
+    function formatDateBR(dateStr) {
+      if (!dateStr) return '';
+      const parts = dateStr.split('-');
+      if (parts.length === 3) return `${parts[2]}/${parts[1]}`;
+      return dateStr;
+    }
+
+    // ==========================================
+    // MODERAÇÃO DO ADMINISTRADOR (EXCLUIR DADOS)
+    // ==========================================
+    function switchAdminModTab(tab) {
+      document.getElementById('admin-tab-encartes').style.background = tab === 'encartes' ? '#b71c1c' : '#fff';
+      document.getElementById('admin-tab-encartes').style.color = tab === 'encartes' ? '#fff' : '#555';
+      document.getElementById('admin-tab-precos').style.background = tab === 'precos' ? '#b71c1c' : '#fff';
+      document.getElementById('admin-tab-precos').style.color = tab === 'precos' ? '#fff' : '#555';
+      document.getElementById('admin-tab-mercados').style.background = tab === 'mercados' ? '#b71c1c' : '#fff';
+      document.getElementById('admin-tab-mercados').style.color = tab === 'mercados' ? '#fff' : '#555';
+
+      document.getElementById('admin-mod-encartes-view').classList.toggle('hidden', tab !== 'encartes');
+      document.getElementById('admin-mod-precos-view').classList.toggle('hidden', tab !== 'precos');
+      document.getElementById('admin-mod-mercados-view').classList.toggle('hidden', tab !== 'mercados');
+
+      if (tab === 'encartes') loadAdminEncartesModeration();
+      if (tab === 'precos') loadAdminPricesModeration();
+      if (tab === 'mercados') loadAdminMarketsModeration();
+    }
+
+    async function loadAdminEncartesModeration() {
+      const container = document.getElementById('admin-manage-encartes-list');
+      container.innerHTML = '<div style="padding:10px; color:#888;">Carregando encartes para moderação...</div>';
+
+      try {
+        const { data, error } = await client
+          .from('registros_precos')
+          .select('id, mercado_id, validade, data_registro, mercados(id, nome)')
+          .eq('is_encarte', true)
+          .order('validade', { ascending: false })
+          .limit(100);
+
+        if (error) throw error;
+        if (!data || data.length === 0) {
+          container.innerHTML = '<div style="padding:10px; color:#888;">Nenhum encarte cadastrado no momento.</div>';
+          return;
+        }
+
+        // Agrupa por mercado + validade
+        const groups = {};
+        data.forEach(r => {
+          const key = (r.mercados?.nome || 'Mercado') + '_' + (r.validade || '');
+          if (!groups[key]) {
+            groups[key] = {
+              marketId: r.mercado_id,
+              marketName: r.mercados?.nome || 'Mercado',
+              validade: r.validade,
+              ids: []
+            };
+          }
+          groups[key].ids.push(r.id);
+        });
+
+        let html = '';
+        for (const [k, item] of Object.entries(groups)) {
+          html += `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border-bottom:1px dashed #eee; background:#fff; margin-bottom:4px; border-radius:6px;">
+              <div>
+                <strong>${item.marketName}</strong> (${item.ids.length} itens)<br>
+                <small style="color:#666;">Validade: ${item.validade || 'N/A'}</small>
+              </div>
+              <button onclick="adminDeleteEncarteBatch('${item.marketId}', '${item.validade}')" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:5px 8px; font-weight:bold; font-size:11px; cursor:pointer;">
+                🗑️ Excluir Encarte
+              </button>
+            </div>
+          `;
+        }
+        container.innerHTML = html;
+      } catch (e) {
+        container.innerHTML = '<div style="color:#c62828;">Erro ao carregar moderação de encartes.</div>';
+      }
+    }
+
+    async function adminDeleteEncarteBatch(marketId, validade) {
+      const conf = await showConfirmDialog({
+        title: 'Excluir Encarte',
+        message: 'Deseja realmente apagar todas as ofertas deste encarte?',
+        icon: '🗑️',
+        okText: 'Excluir',
+        isDestructive: true
+      });
+      if (!conf) return;
+
+      try {
+        showToast('Excluindo encarte...', 'info');
+        const { error } = await client
+          .from('registros_precos')
+          .delete()
+          .eq('mercado_id', marketId)
+          .eq('validade', validade)
+          .eq('is_encarte', true);
+
+        if (error) throw error;
+        showToast('Encarte excluído com sucesso!', 'success');
+        loadAdminEncartesModeration();
+        loadActiveEncartes();
+      } catch (err) {
+        showToast('Erro ao excluir: ' + err.message, 'error');
+      }
+    }
+
+    async function loadAdminPricesModeration() {
+      const container = document.getElementById('admin-manage-prices-list');
+      container.innerHTML = '<div style="padding:10px; color:#888;">Carregando últimas cotações...</div>';
+
+      try {
+        const { data, error } = await client
+          .from('registros_precos')
+          .select('id, preco, data_registro, mercados(nome), produtos(nome)')
+          .order('data_registro', { ascending: false })
+          .limit(30);
+
+        if (error) throw error;
+        if (!data || data.length === 0) {
+          container.innerHTML = '<div style="padding:10px; color:#888;">Nenhuma cotação recente.</div>';
+          return;
+        }
+
+        let html = '';
+        data.forEach(r => {
+          const prod = r.produtos?.nome || 'Produto';
+          const mk = r.mercados?.nome || 'Mercado';
+          const p = parseFloat(r.preco).toFixed(2);
+
+          html += `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:7px; border-bottom:1px dashed #eee; background:#fff; margin-bottom:4px; border-radius:6px;">
+              <div>
+                <strong>${prod}</strong> - R$ ${p}<br>
+                <small style="color:#666;">${mk}</small>
+              </div>
+              <button onclick="adminDeletePrice('${r.id}')" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:4px 7px; font-weight:bold; font-size:11px; cursor:pointer;">
+                🗑️ Excluir
+              </button>
+            </div>
+          `;
+        });
+        container.innerHTML = html;
+      } catch (e) {
+        container.innerHTML = '<div style="color:#c62828;">Erro ao carregar cotações.</div>';
+      }
+    }
+
+    async function adminDeletePrice(id) {
+      try {
+        const { error } = await client.from('registros_precos').delete().eq('id', id);
+        if (error) throw error;
+        showToast('Cotação excluída!', 'success');
+        loadAdminPricesModeration();
+      } catch (err) {
+        showToast('Erro: ' + err.message, 'error');
+      }
+    }
+
+    async function loadAdminMarketsModeration() {
+      const container = document.getElementById('admin-manage-markets-list');
+      container.innerHTML = '<div style="padding:10px; color:#888;">Carregando mercados...</div>';
+
+      try {
+        const { data, error } = await client.from('mercados').select('id, nome, cidade').order('nome');
+        if (error) throw error;
+        if (!data || data.length === 0) {
+          container.innerHTML = '<div style="padding:10px; color:#888;">Nenhum mercado cadastrado.</div>';
+          return;
+        }
+
+        let html = '';
+        data.forEach(m => {
+          html += `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:7px; border-bottom:1px dashed #eee; background:#fff; margin-bottom:4px; border-radius:6px;">
+              <div>
+                <strong>${m.nome}</strong><br>
+                <small style="color:#666;">${m.cidade || 'Cabo Frio'}</small>
+              </div>
+              <button onclick="adminDeleteMarket('${m.id}')" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:4px 7px; font-weight:bold; font-size:11px; cursor:pointer;">
+                🗑️ Excluir
+              </button>
+            </div>
+          `;
+        });
+        container.innerHTML = html;
+      } catch (e) {
+        container.innerHTML = '<div style="color:#c62828;">Erro ao carregar mercados.</div>';
+      }
+    }
+
+    async function adminDeleteMarket(id) {
+      const conf = await showConfirmDialog({
+        title: 'Excluir Mercado',
+        message: 'Deseja excluir este estabelecimento do cadastro?',
+        icon: '🗑️',
+        okText: 'Excluir',
+        isDestructive: true
+      });
+      if (!conf) return;
+
+      try {
+        const { error } = await client.from('mercados').delete().eq('id', id);
+        if (error) throw error;
+        showToast('Mercado excluído!', 'success');
+        loadAdminMarketsModeration();
+      } catch (err) {
+        showToast('Erro ao excluir: ' + err.message, 'error');
+      }
+    }
+
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js">    // ==========================================
+    // SISTEMA DE CIDADES (IBGE + CACHE OFFLINE LOCAL-FIRST)
+    // ==========================================
+    const OFFLINE_CITIES_BACKUP = {
+      'RJ': ['Cabo Frio', 'Arraial do Cabo', 'Armação dos Búzios', 'São Pedro da Aldeia', 'Araruama', 'Saquarema', 'Macaé', 'Rio das Ostras', 'Niterói', 'Rio de Janeiro', 'Campos dos Goytacazes', 'Petrópolis', 'Volta Redonda', 'Nova Friburgo'],
+      'SP': ['São Paulo', 'Campinas', 'Santos', 'São José dos Campos', 'Ribeirão Preto', 'Sorocaba', 'Santo André', 'São Bernardo do Campo'],
+      'MG': ['Belo Horizonte', 'Juiz de Fora', 'Uberlândia', 'Contagem', 'Betim', 'Montes Claros'],
+      'ES': ['Vitória', 'Vila Velha', 'Serra', 'Cariacica', 'Guarapari', 'Linhares']
+    };
+
+    function openCitySelectorModal() {
+      const modal = document.getElementById('city-selector-modal');
+      const savedCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
+      const savedUf = localStorage.getItem('nutri_user_state') || 'RJ';
+
+      document.getElementById('select-uf').value = savedUf;
+      onUfChanged(savedCity);
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeCitySelectorModal() {
+      const modal = document.getElementById('city-selector-modal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function onUfChanged(preselectedCity = null) {
+      const uf = document.getElementById('select-uf').value;
+      const citySelect = document.getElementById('select-city');
+      const loader = document.getElementById('city-loading-indicator');
+
+      citySelect.innerHTML = '';
+
+      // 1. Tenta carregar do Cache Local do celular
+      const cacheKey = 'nutri_cities_' + uf;
+      const cached = localStorage.getItem(cacheKey);
+
+      if (cached) {
+        try {
+          const list = JSON.parse(cached);
+          populateCityDropdown(list, preselectedCity);
+          return;
+        } catch(e){}
+      }
+
+      // 2. Se offline, usa backup pré-embarcado
+      if (!navigator.onLine && OFFLINE_CITIES_BACKUP[uf]) {
+        populateCityDropdown(OFFLINE_CITIES_BACKUP[uf], preselectedCity);
+        return;
+      }
+
+      // 3. Se online, busca na API oficial do IBGE
+      if (loader) loader.classList.remove('hidden');
+      try {
+        const res = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios?orderBy=nome`);
+        const data = await res.json();
+        const cityNames = data.map(c => c.nome);
+
+        // Salva no cache local do celular para sempre funcionar offline
+        localStorage.setItem(cacheKey, JSON.stringify(cityNames));
+
+        populateCityDropdown(cityNames, preselectedCity);
+      } catch (err) {
+        // Fallback emergencial offline
+        const backup = OFFLINE_CITIES_BACKUP[uf] || ['Capital', 'Interior'];
+        populateCityDropdown(backup, preselectedCity);
+      } finally {
+        if (loader) loader.classList.add('hidden');
+      }
+    }
+
+    function populateCityDropdown(cityList, preselectedCity) {
+      const citySelect = document.getElementById('select-city');
+      citySelect.innerHTML = '';
+      cityList.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c;
+        opt.innerText = c;
+        if (preselectedCity && c.toLowerCase() === preselectedCity.toLowerCase()) {
+          opt.selected = true;
+        }
+        citySelect.appendChild(opt);
+      });
+    }
+
+    function saveSelectedCity() {
+      const uf = document.getElementById('select-uf').value;
+      const city = document.getElementById('select-city').value;
+
+      if (!city) {
+        showToast('Selecione uma cidade.', 'warning');
+        return;
+      }
+
+      const formatted = `${city} - ${uf}`;
+      localStorage.setItem('nutri_user_city', city);
+      localStorage.setItem('nutri_user_state', uf);
+
+      const bannerCity = document.getElementById('banner-user-city');
+      if (bannerCity) bannerCity.innerText = formatted;
+
+      closeCitySelectorModal();
+      showToast(`Região atualizada para: ${formatted}`, 'success');
+      loadActiveEncartes();
+    }
+
+    // Altera editUserCity para abrir o modal do IBGE
+    function editUserCity() {
+      openCitySelectorModal();
+    }
+
+    // ==========================================
+    // VITRINE PÚBLICA DE ENCARTES (POR REGIÃO)
+    // ==========================================
+    async function openPublicEncartesModal() {
+      const modal = document.getElementById('public-encartes-modal');
+      const cityLabel = document.getElementById('public-encartes-city-label');
+      const userCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
+      const userState = localStorage.getItem('nutri_user_state') || 'RJ';
+
+      if (cityLabel) cityLabel.innerHTML = `📍 Região: <b>${userCity} - ${userState}</b>`;
+      if (modal) modal.classList.remove('hidden');
+
+      renderPublicEncartes();
+    }
+
+    function closePublicEncartesModal() {
+      const modal = document.getElementById('public-encartes-modal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function renderPublicEncartes() {
+      const container = document.getElementById('public-encartes-container');
+      const userCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
+      const today = new Date().toISOString().split('T')[0];
+
+      container.innerHTML = '<div style="text-align:center; padding:25px; color:#888;">⏳ Buscando encartes vigentes da sua região...</div>';
+
+      try {
+        const { data, error } = await client
+          .from('registros_precos')
+          .select('id, preco, validade, data_registro, mercados(id, nome, cidade), produtos(id, nome, marca, codigo_barras)')
+          .eq('is_encarte', true)
+          .gte('validade', today)
+          .order('validade', { ascending: true })
+          .limit(100);
+
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+          container.innerHTML = `
+            <div style="text-align:center; padding:30px 16px; background:#fafafa; border:1px dashed #ccc; border-radius:12px;">
+              <span style="font-size:32px; display:block; margin-bottom:8px;">📰</span>
+              <strong style="color:#444;">Nenhum encarte cadastrado para ${userCity} no momento.</strong>
+              <p style="font-size:12px; color:#777; margin-top:6px;">Os administradores e mercados parceiros atualizam os folhetos semanalmente.</p>
+            </div>
+          `;
+          return;
+        }
+
+        // Agrupa por mercado
+        const grouped = {};
+        data.forEach(item => {
+          const mkName = item.mercados?.nome || 'Supermercado';
+          if (!grouped[mkName]) {
+            grouped[mkName] = {
+              validade: item.validade,
+              produtos: []
+            };
+          }
+          grouped[mkName].produtos.push({
+            id: item.id,
+            nome: item.produtos?.nome || 'Produto',
+            preco: parseFloat(item.preco).toFixed(2),
+            marca: item.produtos?.marca || ''
+          });
+        });
+
+        let html = '';
+        for (const [marketName, info] of Object.entries(grouped)) {
+          html += `
+            <div style="background:#fff; border:1px solid #c8e6c9; border-radius:14px; padding:14px; box-shadow:0 2px 6px rgba(0,0,0,0.05);">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; border-bottom:1px solid #f0f0f0; padding-bottom:8px;">
+                <div>
+                  <h4 style="font-size:16px; color:#1b5e20; font-weight:bold; margin-bottom:2px;">🏪 ${marketName}</h4>
+                  <span style="font-size:11.5px; color:#666;">${info.produtos.length} ofertas vigentes</span>
+                </div>
+                <span style="background:#e8f5e9; color:#2e7d32; font-size:11px; font-weight:bold; padding:3px 8px; border-radius:12px; border:1px solid #c8e6c9;">
+                  Válido até ${formatDateBR(info.validade)}
+                </span>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+          `;
+
+          info.produtos.forEach(p => {
+            const safeName = p.nome.replace(/'/g, "\\'");
+            html += `
+              <div style="display:flex; justify-content:space-between; align-items:center; background:#fafafa; border-radius:8px; padding:8px 10px; border:1px solid #eee;">
+                <div>
+                  <strong style="font-size:13px; color:#222; display:block;">${p.nome}</strong>
+                  <span style="font-size:14px; color:#1b5e20; font-weight:bold;">R$ ${p.preco}</span>
+                </div>
+                <button onclick="addEncarteItemToPrelist('${safeName}')" style="background:#e8f5e9; border:1px solid #a5d6a7; color:#1b5e20; padding:6px 10px; border-radius:8px; font-size:11.5px; font-weight:bold; cursor:pointer;">
+                  + Na Lista
+                </button>
+              </div>
+            `;
+          });
+
+          html += `
+              </div>
+            </div>
+          `;
+        }
+
+        container.innerHTML = html;
+      } catch (err) {
+        container.innerHTML = '<div style="color:#c62828; text-align:center; padding:20px;">Erro ao carregar encartes da nuvem.</div>';
+      }
+    }
+
+    function addEncarteItemToPrelist(prodName) {
+      preShoppingList.push({ id: Date.now(), name: prodName, done: false });
+      savePrelist();
+      showToast(`"${prodName}" adicionado à sua Lista Prévia!`, 'success');
+    }
+
+    function formatDateBR(dateStr) {
+      if (!dateStr) return '';
+      const parts = dateStr.split('-');
+      if (parts.length === 3) return `${parts[2]}/${parts[1]}`;
+      return dateStr;
+    }
+
+    // ==========================================
+    // MODERAÇÃO DO ADMINISTRADOR (EXCLUIR DADOS)
+    // ==========================================
+    function switchAdminModTab(tab) {
+      document.getElementById('admin-tab-encartes').style.background = tab === 'encartes' ? '#b71c1c' : '#fff';
+      document.getElementById('admin-tab-encartes').style.color = tab === 'encartes' ? '#fff' : '#555';
+      document.getElementById('admin-tab-precos').style.background = tab === 'precos' ? '#b71c1c' : '#fff';
+      document.getElementById('admin-tab-precos').style.color = tab === 'precos' ? '#fff' : '#555';
+      document.getElementById('admin-tab-mercados').style.background = tab === 'mercados' ? '#b71c1c' : '#fff';
+      document.getElementById('admin-tab-mercados').style.color = tab === 'mercados' ? '#fff' : '#555';
+
+      document.getElementById('admin-mod-encartes-view').classList.toggle('hidden', tab !== 'encartes');
+      document.getElementById('admin-mod-precos-view').classList.toggle('hidden', tab !== 'precos');
+      document.getElementById('admin-mod-mercados-view').classList.toggle('hidden', tab !== 'mercados');
+
+      if (tab === 'encartes') loadAdminEncartesModeration();
+      if (tab === 'precos') loadAdminPricesModeration();
+      if (tab === 'mercados') loadAdminMarketsModeration();
+    }
+
+    async function loadAdminEncartesModeration() {
+      const container = document.getElementById('admin-manage-encartes-list');
+      container.innerHTML = '<div style="padding:10px; color:#888;">Carregando encartes para moderação...</div>';
+
+      try {
+        const { data, error } = await client
+          .from('registros_precos')
+          .select('id, mercado_id, validade, data_registro, mercados(id, nome)')
+          .eq('is_encarte', true)
+          .order('validade', { ascending: false })
+          .limit(100);
+
+        if (error) throw error;
+        if (!data || data.length === 0) {
+          container.innerHTML = '<div style="padding:10px; color:#888;">Nenhum encarte cadastrado no momento.</div>';
+          return;
+        }
+
+        // Agrupa por mercado + validade
+        const groups = {};
+        data.forEach(r => {
+          const key = (r.mercados?.nome || 'Mercado') + '_' + (r.validade || '');
+          if (!groups[key]) {
+            groups[key] = {
+              marketId: r.mercado_id,
+              marketName: r.mercados?.nome || 'Mercado',
+              validade: r.validade,
+              ids: []
+            };
+          }
+          groups[key].ids.push(r.id);
+        });
+
+        let html = '';
+        for (const [k, item] of Object.entries(groups)) {
+          html += `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border-bottom:1px dashed #eee; background:#fff; margin-bottom:4px; border-radius:6px;">
+              <div>
+                <strong>${item.marketName}</strong> (${item.ids.length} itens)<br>
+                <small style="color:#666;">Validade: ${item.validade || 'N/A'}</small>
+              </div>
+              <button onclick="adminDeleteEncarteBatch('${item.marketId}', '${item.validade}')" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:5px 8px; font-weight:bold; font-size:11px; cursor:pointer;">
+                🗑️ Excluir Encarte
+              </button>
+            </div>
+          `;
+        }
+        container.innerHTML = html;
+      } catch (e) {
+        container.innerHTML = '<div style="color:#c62828;">Erro ao carregar moderação de encartes.</div>';
+      }
+    }
+
+    async function adminDeleteEncarteBatch(marketId, validade) {
+      const conf = await showConfirmDialog({
+        title: 'Excluir Encarte',
+        message: 'Deseja realmente apagar todas as ofertas deste encarte?',
+        icon: '🗑️',
+        okText: 'Excluir',
+        isDestructive: true
+      });
+      if (!conf) return;
+
+      try {
+        showToast('Excluindo encarte...', 'info');
+        const { error } = await client
+          .from('registros_precos')
+          .delete()
+          .eq('mercado_id', marketId)
+          .eq('validade', validade)
+          .eq('is_encarte', true);
+
+        if (error) throw error;
+        showToast('Encarte excluído com sucesso!', 'success');
+        loadAdminEncartesModeration();
+        loadActiveEncartes();
+      } catch (err) {
+        showToast('Erro ao excluir: ' + err.message, 'error');
+      }
+    }
+
+    async function loadAdminPricesModeration() {
+      const container = document.getElementById('admin-manage-prices-list');
+      container.innerHTML = '<div style="padding:10px; color:#888;">Carregando últimas cotações...</div>';
+
+      try {
+        const { data, error } = await client
+          .from('registros_precos')
+          .select('id, preco, data_registro, mercados(nome), produtos(nome)')
+          .order('data_registro', { ascending: false })
+          .limit(30);
+
+        if (error) throw error;
+        if (!data || data.length === 0) {
+          container.innerHTML = '<div style="padding:10px; color:#888;">Nenhuma cotação recente.</div>';
+          return;
+        }
+
+        let html = '';
+        data.forEach(r => {
+          const prod = r.produtos?.nome || 'Produto';
+          const mk = r.mercados?.nome || 'Mercado';
+          const p = parseFloat(r.preco).toFixed(2);
+
+          html += `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:7px; border-bottom:1px dashed #eee; background:#fff; margin-bottom:4px; border-radius:6px;">
+              <div>
+                <strong>${prod}</strong> - R$ ${p}<br>
+                <small style="color:#666;">${mk}</small>
+              </div>
+              <button onclick="adminDeletePrice('${r.id}')" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:4px 7px; font-weight:bold; font-size:11px; cursor:pointer;">
+                🗑️ Excluir
+              </button>
+            </div>
+          `;
+        });
+        container.innerHTML = html;
+      } catch (e) {
+        container.innerHTML = '<div style="color:#c62828;">Erro ao carregar cotações.</div>';
+      }
+    }
+
+    async function adminDeletePrice(id) {
+      try {
+        const { error } = await client.from('registros_precos').delete().eq('id', id);
+        if (error) throw error;
+        showToast('Cotação excluída!', 'success');
+        loadAdminPricesModeration();
+      } catch (err) {
+        showToast('Erro: ' + err.message, 'error');
+      }
+    }
+
+    async function loadAdminMarketsModeration() {
+      const container = document.getElementById('admin-manage-markets-list');
+      container.innerHTML = '<div style="padding:10px; color:#888;">Carregando mercados...</div>';
+
+      try {
+        const { data, error } = await client.from('mercados').select('id, nome, cidade').order('nome');
+        if (error) throw error;
+        if (!data || data.length === 0) {
+          container.innerHTML = '<div style="padding:10px; color:#888;">Nenhum mercado cadastrado.</div>';
+          return;
+        }
+
+        let html = '';
+        data.forEach(m => {
+          html += `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:7px; border-bottom:1px dashed #eee; background:#fff; margin-bottom:4px; border-radius:6px;">
+              <div>
+                <strong>${m.nome}</strong><br>
+                <small style="color:#666;">${m.cidade || 'Cabo Frio'}</small>
+              </div>
+              <button onclick="adminDeleteMarket('${m.id}')" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:4px 7px; font-weight:bold; font-size:11px; cursor:pointer;">
+                🗑️ Excluir
+              </button>
+            </div>
+          `;
+        });
+        container.innerHTML = html;
+      } catch (e) {
+        container.innerHTML = '<div style="color:#c62828;">Erro ao carregar mercados.</div>';
+      }
+    }
+
+    async function adminDeleteMarket(id) {
+      const conf = await showConfirmDialog({
+        title: 'Excluir Mercado',
+        message: 'Deseja excluir este estabelecimento do cadastro?',
+        icon: '🗑️',
+        okText: 'Excluir',
+        isDestructive: true
+      });
+      if (!conf) return;
+
+      try {
+        const { error } = await client.from('mercados').delete().eq('id', id);
+        if (error) throw error;
+        showToast('Mercado excluído!', 'success');
+        loadAdminMarketsModeration();
+      } catch (err) {
+        showToast('Erro ao excluir: ' + err.message, 'error');
+      }
+    }
+
+  </script>
 
 
   <style>
@@ -486,7 +1797,32 @@ index.html
           </div>
         </div>
 
-        <label style="font-size:12px; font-weight:bold; color:#333;">2. Digite ou Cole as Ofertas (1 produto por linha):</label>
+                <!-- Opção de Carregar Foto/Imagem do Encarte (Leitura Automática OCR) -->
+        <div style="background: #e8f5e9; border: 1.5px dashed #2e7d32; border-radius: 12px; padding: 14px; margin-bottom: 14px; text-align: center;">
+          <label style="font-size: 13.5px; font-weight: bold; color: #1b5e20; display: block; margin-bottom: 6px;">
+            📸 Carregar Imagem ou Foto do Encarte (Leitura Automática)
+          </label>
+          <p style="font-size: 12px; color: #555; margin-bottom: 10px; line-height: 1.4;">
+            Selecione uma foto ou print do folheto. O app fará o reconhecimento óptico dos produtos e preços automaticamente!
+          </p>
+          <input type="file" id="encarte-file-input" accept="image/*" onchange="processEncarteImage(event)" style="display: none;">
+          <button type="button" onclick="document.getElementById('encarte-file-input').click()" style="background: #1b5e20; color: #fff; border: none; padding: 11px 20px; border-radius: 8px; font-weight: bold; font-size: 13.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.15);">
+            📁 Escolher Foto / Folheto
+          </button>
+
+          <div id="ocr-status-box" class="hidden" style="margin-top: 12px; font-size: 12px; color: #1b5e20; font-weight: bold;">
+            <span id="ocr-status-text">🔍 Analisando textos e valores na imagem...</span>
+            <div style="width: 100%; height: 6px; background: #c8e6c9; border-radius: 4px; overflow: hidden; margin-top: 6px;">
+              <div id="ocr-progress-bar" style="width: 0%; height: 100%; background: #2e7d32; transition: width 0.25s;"></div>
+            </div>
+          </div>
+
+          <div id="ocr-preview-container" class="hidden" style="margin-top: 12px;">
+            <img id="ocr-preview-img" style="max-width: 100%; max-height: 180px; border-radius: 8px; border: 1px solid #ccc; object-fit: contain;">
+          </div>
+        </div>
+
+        <label style="font-size:12px; font-weight:bold; color:#333;">2. Produtos e Preços Detectados (Você pode ajustar ou digitar aqui):</label>
         <textarea id="encarte-raw-text" placeholder="Formato: Nome do Produto - Preço&#10;Exemplo:&#10;Arroz Camil 5kg - 24,90&#10;Feijão Preto Comum 1kg - 6,89&#10;Café Pilão 500g - 16,98&#10;Óleo de Soja Soya 900ml - 5,49" rows="6" style="width:100%; border:1px solid #ccc; border-radius:8px; padding:10px; font-size:12.5px; margin-bottom:10px; font-family:inherit;"></textarea>
 
         <button onclick="publishEncarte()" class="save-btn" style="margin:0; background:#2e7d32; font-size:13.5px; padding:11px; display:flex; align-items:center; justify-content:center; gap:6px;">
@@ -501,6 +1837,53 @@ index.html
           <h5 style="font-size:13px; color:#1b5e20; margin-bottom:6px; font-weight:bold;">Encartes Vigentes Cadastrados:</h5>
           <div id="active-encartes-list" style="font-size:12px; color:#666; background:#fff; border:1px solid #e0e0e0; border-radius:8px; padding:8px;">
             Carregando encartes ativos...
+          </div>
+        </div>
+      </div>
+
+            <!-- SEÇÃO ADMIN: MODERAÇÃO & EXCLUSÃO DE DADOS (CONTROLE DO ADM) -->
+      <div style="background:#fff7f7; border:2px solid #ffcdd2; border-radius:12px; padding:14px; margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <h4 style="font-size:15px; color:#b71c1c; font-weight:bold; display:flex; align-items:center; gap:6px;">
+            🛡️ Moderação & Auditoria de Dados
+          </h4>
+          <span style="font-size:11px; background:#ffebee; color:#c62828; padding:3px 8px; border-radius:12px; font-weight:bold;">Apenas ADM</span>
+        </div>
+        <p style="font-size:12px; color:#555; line-height:1.4; margin-bottom:12px;">
+          Exclua encartes desatualizados, remova preços errados/troll informados por usuários ou apague mercados duplicados.
+        </p>
+
+        <!-- Abas de Moderação -->
+        <div style="display:flex; gap:6px; margin-bottom:10px;">
+          <button type="button" onclick="switchAdminModTab('encartes')" id="admin-tab-encartes" style="flex:1; padding:7px; border:1px solid #c62828; background:#b71c1c; color:#fff; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">
+            📰 Encartes
+          </button>
+          <button type="button" onclick="switchAdminModTab('precos')" id="admin-tab-precos" style="flex:1; padding:7px; border:1px solid #ccc; background:#fff; color:#555; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">
+            💰 Preços Recentes
+          </button>
+          <button type="button" onclick="switchAdminModTab('mercados')" id="admin-tab-mercados" style="flex:1; padding:7px; border:1px solid #ccc; background:#fff; color:#555; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">
+            🏪 Mercados
+          </button>
+        </div>
+
+        <!-- Conteúdo 1: Gerenciar Encartes com Exclusão -->
+        <div id="admin-mod-encartes-view">
+          <div id="admin-manage-encartes-list" style="max-height:220px; overflow-y:auto; font-size:12px;">
+            Carregando encartes para moderação...
+          </div>
+        </div>
+
+        <!-- Conteúdo 2: Gerenciar Preços com Exclusão -->
+        <div id="admin-mod-precos-view" class="hidden">
+          <div id="admin-manage-prices-list" style="max-height:220px; overflow-y:auto; font-size:12px;">
+            Carregando cotações recentes...
+          </div>
+        </div>
+
+        <!-- Conteúdo 3: Gerenciar Mercados com Exclusão -->
+        <div id="admin-mod-mercados-view" class="hidden">
+          <div id="admin-manage-markets-list" style="max-height:220px; overflow-y:auto; font-size:12px;">
+            Carregando lista de mercados...
           </div>
         </div>
       </div>
@@ -584,6 +1967,109 @@ index.html
     </div>
   </div>
 
+    <!-- ========================================== -->
+  <!-- MODAL: ENCARTES & OFERTAS DA SEMANA (VITRINE PÚBLICA) -->
+  <!-- ========================================== -->
+  <div class="modal hidden" id="public-encartes-modal" style="z-index: 180;">
+    <div class="modal-content" style="max-height: 90vh;">
+      <div class="modal-header">
+        <div>
+          <h3 style="color: #1b5e20; display:flex; align-items:center; gap:8px;">
+            📰 Encartes & Ofertas da Semana
+          </h3>
+          <span style="font-size:12px; color:#555;" id="public-encartes-city-label">
+            📍 Região: <b>Cabo Frio - RJ</b>
+          </span>
+        </div>
+        <button style="border:none; background:none; font-size:24px; cursor:pointer; color:#777;" onclick="closePublicEncartesModal()">&times;</button>
+      </div>
+
+      <p style="font-size:12.5px; color:#666; margin-bottom:12px;">
+        Confira as ofertas dos folhetos vigentes na sua cidade e adicione os produtos diretamente à sua Lista Prévia com 1 toque:
+      </p>
+
+      <!-- Lista de Encartes Disponíveis por Mercado -->
+      <div id="public-encartes-container" style="display:flex; flex-direction:column; gap:12px; margin-bottom:16px;">
+        <div style="text-align:center; padding:25px; color:#888; font-size:13px;">
+          ⏳ Carregando encartes da sua região...
+        </div>
+      </div>
+
+      <button class="reset-btn" onclick="closePublicEncartesModal()">Fechar Encartes</button>
+    </div>
+  </div>
+
+    <!-- ========================================== -->
+  <!-- MODAL: SELETOR DE CIDADE & ESTADO (IBGE + OFFLINE) -->
+  <!-- ========================================== -->
+  <div class="modal hidden" id="city-selector-modal" style="z-index: 190;">
+    <div class="modal-content" style="max-height: 85vh;">
+      <div class="modal-header">
+        <h3 style="color: #1b5e20; display:flex; align-items:center; gap:8px;">
+          📍 Selecionar Sua Cidade
+        </h3>
+        <button style="border:none; background:none; font-size:24px; cursor:pointer; color:#777;" onclick="closeCitySelectorModal()">&times;</button>
+      </div>
+
+      <p style="font-size:12.5px; color:#555; margin-bottom:12px;">
+        Escolha o seu Estado e Município para ver os preços e encartes da sua região:
+      </p>
+
+      <label style="font-size:12px; font-weight:bold;">1. Estado (UF):</label>
+      <select id="select-uf" onchange="onUfChanged()" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc; font-size:13.5px; margin-bottom:12px; background:#fff;">
+        <option value="RJ">Rio de Janeiro (RJ)</option>
+        <option value="SP">São Paulo (SP)</option>
+        <option value="MG">Minas Gerais (MG)</option>
+        <option value="ES">Espírito Santo (ES)</option>
+        <option value="BA">Bahia (BA)</option>
+        <option value="PR">Paraná (PR)</option>
+        <option value="SC">Santa Catarina (SC)</option>
+        <option value="RS">Rio Grande do Sul (RS)</option>
+        <option value="GO">Goiás (GO)</option>
+        <option value="DF">Distrito Federal (DF)</option>
+        <option value="PE">Pernambuco (PE)</option>
+        <option value="CE">Ceará (CE)</option>
+        <option value="PA">Pará (PA)</option>
+        <option value="AM">Amazonas (AM)</option>
+        <option value="MA">Maranhão (MA)</option>
+        <option value="MT">Mato Grosso (MT)</option>
+        <option value="MS">Mato Grosso do Sul (MS)</option>
+        <option value="PB">Paraíba (PB)</option>
+        <option value="RN">Rio Grande do Norte (RN)</option>
+        <option value="AL">Alagoas (AL)</option>
+        <option value="PI">Piauí (PI)</option>
+        <option value="SE">Sergipe (SE)</option>
+        <option value="RO">Rondônia (RO)</option>
+        <option value="TO">Tocantins (TO)</option>
+        <option value="AC">Acre (AC)</option>
+        <option value="AP">Amapá (AP)</option>
+        <option value="RR">Roraima (RR)</option>
+      </select>
+
+      <label style="font-size:12px; font-weight:bold;">2. Município:</label>
+      <div id="city-loading-indicator" class="hidden" style="font-size:11.5px; color:#2e7d32; margin-bottom:4px;">
+        ⏳ Carregando municípios do IBGE...
+      </div>
+      <select id="select-city" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc; font-size:13.5px; margin-bottom:16px; background:#fff;">
+        <option value="Cabo Frio">Cabo Frio</option>
+        <option value="Arraial do Cabo">Arraial do Cabo</option>
+        <option value="Armação dos Búzios">Armação dos Búzios</option>
+        <option value="São Pedro da Aldeia">São Pedro da Aldeia</option>
+        <option value="Araruama">Araruama</option>
+        <option value="Saquarema">Saquarema</option>
+        <option value="Macaé">Macaé</option>
+        <option value="Rio das Ostras">Rio das Ostras</option>
+        <option value="Niterói">Niterói</option>
+        <option value="Rio de Janeiro">Rio de Janeiro</option>
+      </select>
+
+      <button class="save-btn" onclick="saveSelectedCity()" style="margin:0 0 8px 0; background:#2e7d32;">
+        Confirmar Minha Cidade 📍
+      </button>
+      <button class="reset-btn" onclick="closeCitySelectorModal()" style="margin:0;">Cancelar</button>
+    </div>
+  </div>
+
   <div id="toast-container"></div>
 
 
@@ -652,6 +2138,15 @@ index.html
         <span class="badge-highlight">Novo</span>
       </button>
 
+      <button class="sidebar-item" onclick="toggleSidebar(false); openPublicEncartesModal();">
+        <span class="sidebar-icon">📰</span>
+        <div class="sidebar-item-text">
+          <strong>Encartes & Ofertas da Semana</strong>
+          <small>Folhetos e promoções da sua cidade</small>
+        </div>
+        <span class="badge-highlight">Ofertas</span>
+      </button>
+
 
       <button class="sidebar-item" onclick="toggleSidebar(false); openHistoryModal();">
         <span class="sidebar-icon">📂</span>
@@ -662,13 +2157,13 @@ index.html
       </button>
 
 
-      <button class="sidebar-item" onclick="toggleSidebar(false); showToast('Em breve no Passo 3: Montar Lista Prévia no sofá de casa!', 'info');">
+      <button class="sidebar-item" onclick="toggleSidebar(false); openPreListModal();">
         <span class="sidebar-icon">📝</span>
         <div class="sidebar-item-text">
           <strong>Lista Prévia de Compras</strong>
           <small>Planeje os gastos antes de ir ao mercado</small>
         </div>
-        <span class="badge-step">Passo 3</span>
+        <span class="badge-highlight">Disponível</span>
       </button>
 
 
@@ -724,7 +2219,7 @@ index.html
 
 
     <div style="padding: 10px 14px; font-size: 11.5px; color: #666; border-top: 1px solid #f0f0f0; text-align: center; background: #fafafa;">
-      NutriPreço • Idealizado por <b>Arthur L. Santos</b><br>
+      NutriPreço • 🌿 Idealizado por <b>Arthur L. Santos</b> 🌿<br>
       <span style="font-size: 10.5px; color: #888;">Cabo Frio • Rio de Janeiro</span>
     </div>
     <div class="sidebar-footer">
@@ -850,7 +2345,7 @@ index.html
         <a href="#" onclick="openAuthModal(); return false;">Gerenciar / Excluir Conta</a>
       </p>
       <div style="margin-top: 14px; padding-top: 10px; border-top: 1px dashed #ccc; font-size: 11.5px; color: #555;">
-        <p>Projeto idealizado e desenvolvido por <b>Arthur L. Santos</b></p>
+        <p>Projeto idealizado e desenvolvido por 🌿 <b>Arthur L. Santos</b> 🌿</p>
         <p>Cabo Frio • Rio de Janeiro | Contato: <a id="footer-contact-email" href="mailto:contato.nutripreco@gmail.com" style="color:#2e7d32; text-decoration:none; font-weight:bold;">contato.nutripreco@gmail.com</a></p>
       </div>
     </footer>
@@ -1641,6 +3136,81 @@ index.html
     // ==========================================
     // GESTÃO DE ENCARTES & SUBSTITUIÇÃO AUTOMÁTICA
     // ==========================================
+        // ==========================================
+    // LEITURA ÓPTICA DE ENCARTE POR IMAGEM (OCR TESSERACT)
+    // ==========================================
+    async function processEncarteImage(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const statusBox = document.getElementById('ocr-status-box');
+      const statusText = document.getElementById('ocr-status-text');
+      const progressBar = document.getElementById('ocr-progress-bar');
+      const previewBox = document.getElementById('ocr-preview-container');
+      const previewImg = document.getElementById('ocr-preview-img');
+      const rawText = document.getElementById('encarte-raw-text');
+
+      // Exibe preview da foto selecionada
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        previewImg.src = e.target.result;
+        previewBox.classList.remove('hidden');
+      };
+      reader.readAsDataURL(file);
+
+      statusBox.classList.remove('hidden');
+      statusText.innerText = '🔍 Iniciando inteligência óptica (OCR)...';
+      progressBar.style.width = '15%';
+
+      try {
+        if (typeof Tesseract === 'undefined') {
+          throw new Error('Aguarde alguns segundos para carregar a biblioteca de visão e tente novamente.');
+        }
+
+        statusText.innerText = '📖 Reconhecendo produtos e valores na foto...';
+        progressBar.style.width = '35%';
+
+        const worker = await Tesseract.createWorker('por');
+        progressBar.style.width = '65%';
+
+        const ret = await worker.recognize(file);
+        await worker.terminate();
+
+        progressBar.style.width = '100%';
+        statusText.innerText = '✅ Leitura concluída com sucesso!';
+
+        const extractedText = ret.data.text || '';
+        const lines = extractedText.split('\n')
+          .map(l => l.trim())
+          .filter(l => l.length > 2);
+
+        let formattedList = [];
+        lines.forEach(l => {
+          // Se tiver preço (ex: 24,90 ou 6.89)
+          if (/\d+[,.]\d{2}/.test(l)) {
+            let clean = l.replace(/[|*_{}]/g, '').trim();
+            formattedList.push(clean);
+          }
+        });
+
+        if (formattedList.length > 0) {
+          rawText.value = formattedList.join('\n');
+          showToast(`Leitura concluída! ${formattedList.length} itens detectados na foto.`, 'success');
+        } else {
+          rawText.value = lines.join('\n');
+          showToast('Texto extraído. Confira os preços na caixa antes de publicar.', 'info');
+        }
+
+        setTimeout(() => {
+          statusBox.classList.add('hidden');
+        }, 4000);
+
+      } catch (err) {
+        statusBox.classList.add('hidden');
+        showToast('Erro ao processar foto: ' + err.message, 'error');
+      }
+    }
+
     async function publishEncarte() {
       const marketName = document.getElementById('encarte-market-select').value;
       const startDate = document.getElementById('encarte-start-date').value || new Date().toISOString().split('T')[0];
@@ -2988,9 +4558,446 @@ index.html
         navigator.serviceWorker.register('./sw.js').catch(() => {});
       });
     }
+      // ==========================================
+    // SISTEMA DE CIDADES (IBGE + CACHE OFFLINE LOCAL-FIRST)
+    // ==========================================
+    const OFFLINE_CITIES_BACKUP = {
+      'RJ': ['Cabo Frio', 'Arraial do Cabo', 'Armação dos Búzios', 'São Pedro da Aldeia', 'Araruama', 'Saquarema', 'Macaé', 'Rio das Ostras', 'Niterói', 'Rio de Janeiro', 'Campos dos Goytacazes', 'Petrópolis', 'Volta Redonda', 'Nova Friburgo'],
+      'SP': ['São Paulo', 'Campinas', 'Santos', 'São José dos Campos', 'Ribeirão Preto', 'Sorocaba', 'Santo André', 'São Bernardo do Campo'],
+      'MG': ['Belo Horizonte', 'Juiz de Fora', 'Uberlândia', 'Contagem', 'Betim', 'Montes Claros'],
+      'ES': ['Vitória', 'Vila Velha', 'Serra', 'Cariacica', 'Guarapari', 'Linhares']
+    };
+
+    function openCitySelectorModal() {
+      const modal = document.getElementById('city-selector-modal');
+      const savedCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
+      const savedUf = localStorage.getItem('nutri_user_state') || 'RJ';
+
+      document.getElementById('select-uf').value = savedUf;
+      onUfChanged(savedCity);
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeCitySelectorModal() {
+      const modal = document.getElementById('city-selector-modal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function onUfChanged(preselectedCity = null) {
+      const uf = document.getElementById('select-uf').value;
+      const citySelect = document.getElementById('select-city');
+      const loader = document.getElementById('city-loading-indicator');
+
+      citySelect.innerHTML = '';
+
+      // 1. Tenta carregar do Cache Local do celular
+      const cacheKey = 'nutri_cities_' + uf;
+      const cached = localStorage.getItem(cacheKey);
+
+      if (cached) {
+        try {
+          const list = JSON.parse(cached);
+          populateCityDropdown(list, preselectedCity);
+          return;
+        } catch(e){}
+      }
+
+      // 2. Se offline, usa backup pré-embarcado
+      if (!navigator.onLine && OFFLINE_CITIES_BACKUP[uf]) {
+        populateCityDropdown(OFFLINE_CITIES_BACKUP[uf], preselectedCity);
+        return;
+      }
+
+      // 3. Se online, busca na API oficial do IBGE
+      if (loader) loader.classList.remove('hidden');
+      try {
+        const res = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios?orderBy=nome`);
+        const data = await res.json();
+        const cityNames = data.map(c => c.nome);
+
+        // Salva no cache local do celular para sempre funcionar offline
+        localStorage.setItem(cacheKey, JSON.stringify(cityNames));
+
+        populateCityDropdown(cityNames, preselectedCity);
+      } catch (err) {
+        // Fallback emergencial offline
+        const backup = OFFLINE_CITIES_BACKUP[uf] || ['Capital', 'Interior'];
+        populateCityDropdown(backup, preselectedCity);
+      } finally {
+        if (loader) loader.classList.add('hidden');
+      }
+    }
+
+    function populateCityDropdown(cityList, preselectedCity) {
+      const citySelect = document.getElementById('select-city');
+      citySelect.innerHTML = '';
+      cityList.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c;
+        opt.innerText = c;
+        if (preselectedCity && c.toLowerCase() === preselectedCity.toLowerCase()) {
+          opt.selected = true;
+        }
+        citySelect.appendChild(opt);
+      });
+    }
+
+    function saveSelectedCity() {
+      const uf = document.getElementById('select-uf').value;
+      const city = document.getElementById('select-city').value;
+
+      if (!city) {
+        showToast('Selecione uma cidade.', 'warning');
+        return;
+      }
+
+      const formatted = `${city} - ${uf}`;
+      localStorage.setItem('nutri_user_city', city);
+      localStorage.setItem('nutri_user_state', uf);
+
+      const bannerCity = document.getElementById('banner-user-city');
+      if (bannerCity) bannerCity.innerText = formatted;
+
+      closeCitySelectorModal();
+      showToast(`Região atualizada para: ${formatted}`, 'success');
+      loadActiveEncartes();
+    }
+
+    // Altera editUserCity para abrir o modal do IBGE
+    function editUserCity() {
+      openCitySelectorModal();
+    }
+
+    // ==========================================
+    // VITRINE PÚBLICA DE ENCARTES (POR REGIÃO)
+    // ==========================================
+    async function openPublicEncartesModal() {
+      const modal = document.getElementById('public-encartes-modal');
+      const cityLabel = document.getElementById('public-encartes-city-label');
+      const userCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
+      const userState = localStorage.getItem('nutri_user_state') || 'RJ';
+
+      if (cityLabel) cityLabel.innerHTML = `📍 Região: <b>${userCity} - ${userState}</b>`;
+      if (modal) modal.classList.remove('hidden');
+
+      renderPublicEncartes();
+    }
+
+    function closePublicEncartesModal() {
+      const modal = document.getElementById('public-encartes-modal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function renderPublicEncartes() {
+      const container = document.getElementById('public-encartes-container');
+      const userCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
+      const today = new Date().toISOString().split('T')[0];
+
+      container.innerHTML = '<div style="text-align:center; padding:25px; color:#888;">⏳ Buscando encartes vigentes da sua região...</div>';
+
+      try {
+        const { data, error } = await client
+          .from('registros_precos')
+          .select('id, preco, validade, data_registro, mercados(id, nome, cidade), produtos(id, nome, marca, codigo_barras)')
+          .eq('is_encarte', true)
+          .gte('validade', today)
+          .order('validade', { ascending: true })
+          .limit(100);
+
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+          container.innerHTML = `
+            <div style="text-align:center; padding:30px 16px; background:#fafafa; border:1px dashed #ccc; border-radius:12px;">
+              <span style="font-size:32px; display:block; margin-bottom:8px;">📰</span>
+              <strong style="color:#444;">Nenhum encarte cadastrado para ${userCity} no momento.</strong>
+              <p style="font-size:12px; color:#777; margin-top:6px;">Os administradores e mercados parceiros atualizam os folhetos semanalmente.</p>
+            </div>
+          `;
+          return;
+        }
+
+        // Agrupa por mercado
+        const grouped = {};
+        data.forEach(item => {
+          const mkName = item.mercados?.nome || 'Supermercado';
+          if (!grouped[mkName]) {
+            grouped[mkName] = {
+              validade: item.validade,
+              produtos: []
+            };
+          }
+          grouped[mkName].produtos.push({
+            id: item.id,
+            nome: item.produtos?.nome || 'Produto',
+            preco: parseFloat(item.preco).toFixed(2),
+            marca: item.produtos?.marca || ''
+          });
+        });
+
+        let html = '';
+        for (const [marketName, info] of Object.entries(grouped)) {
+          html += `
+            <div style="background:#fff; border:1px solid #c8e6c9; border-radius:14px; padding:14px; box-shadow:0 2px 6px rgba(0,0,0,0.05);">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; border-bottom:1px solid #f0f0f0; padding-bottom:8px;">
+                <div>
+                  <h4 style="font-size:16px; color:#1b5e20; font-weight:bold; margin-bottom:2px;">🏪 ${marketName}</h4>
+                  <span style="font-size:11.5px; color:#666;">${info.produtos.length} ofertas vigentes</span>
+                </div>
+                <span style="background:#e8f5e9; color:#2e7d32; font-size:11px; font-weight:bold; padding:3px 8px; border-radius:12px; border:1px solid #c8e6c9;">
+                  Válido até ${formatDateBR(info.validade)}
+                </span>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+          `;
+
+          info.produtos.forEach(p => {
+            const safeName = p.nome.replace(/'/g, "\\'");
+            html += `
+              <div style="display:flex; justify-content:space-between; align-items:center; background:#fafafa; border-radius:8px; padding:8px 10px; border:1px solid #eee;">
+                <div>
+                  <strong style="font-size:13px; color:#222; display:block;">${p.nome}</strong>
+                  <span style="font-size:14px; color:#1b5e20; font-weight:bold;">R$ ${p.preco}</span>
+                </div>
+                <button onclick="addEncarteItemToPrelist('${safeName}')" style="background:#e8f5e9; border:1px solid #a5d6a7; color:#1b5e20; padding:6px 10px; border-radius:8px; font-size:11.5px; font-weight:bold; cursor:pointer;">
+                  + Na Lista
+                </button>
+              </div>
+            `;
+          });
+
+          html += `
+              </div>
+            </div>
+          `;
+        }
+
+        container.innerHTML = html;
+      } catch (err) {
+        container.innerHTML = '<div style="color:#c62828; text-align:center; padding:20px;">Erro ao carregar encartes da nuvem.</div>';
+      }
+    }
+
+    function addEncarteItemToPrelist(prodName) {
+      preShoppingList.push({ id: Date.now(), name: prodName, done: false });
+      savePrelist();
+      showToast(`"${prodName}" adicionado à sua Lista Prévia!`, 'success');
+    }
+
+    function formatDateBR(dateStr) {
+      if (!dateStr) return '';
+      const parts = dateStr.split('-');
+      if (parts.length === 3) return `${parts[2]}/${parts[1]}`;
+      return dateStr;
+    }
+
+    // ==========================================
+    // MODERAÇÃO DO ADMINISTRADOR (EXCLUIR DADOS)
+    // ==========================================
+    function switchAdminModTab(tab) {
+      document.getElementById('admin-tab-encartes').style.background = tab === 'encartes' ? '#b71c1c' : '#fff';
+      document.getElementById('admin-tab-encartes').style.color = tab === 'encartes' ? '#fff' : '#555';
+      document.getElementById('admin-tab-precos').style.background = tab === 'precos' ? '#b71c1c' : '#fff';
+      document.getElementById('admin-tab-precos').style.color = tab === 'precos' ? '#fff' : '#555';
+      document.getElementById('admin-tab-mercados').style.background = tab === 'mercados' ? '#b71c1c' : '#fff';
+      document.getElementById('admin-tab-mercados').style.color = tab === 'mercados' ? '#fff' : '#555';
+
+      document.getElementById('admin-mod-encartes-view').classList.toggle('hidden', tab !== 'encartes');
+      document.getElementById('admin-mod-precos-view').classList.toggle('hidden', tab !== 'precos');
+      document.getElementById('admin-mod-mercados-view').classList.toggle('hidden', tab !== 'mercados');
+
+      if (tab === 'encartes') loadAdminEncartesModeration();
+      if (tab === 'precos') loadAdminPricesModeration();
+      if (tab === 'mercados') loadAdminMarketsModeration();
+    }
+
+    async function loadAdminEncartesModeration() {
+      const container = document.getElementById('admin-manage-encartes-list');
+      container.innerHTML = '<div style="padding:10px; color:#888;">Carregando encartes para moderação...</div>';
+
+      try {
+        const { data, error } = await client
+          .from('registros_precos')
+          .select('id, mercado_id, validade, data_registro, mercados(id, nome)')
+          .eq('is_encarte', true)
+          .order('validade', { ascending: false })
+          .limit(100);
+
+        if (error) throw error;
+        if (!data || data.length === 0) {
+          container.innerHTML = '<div style="padding:10px; color:#888;">Nenhum encarte cadastrado no momento.</div>';
+          return;
+        }
+
+        // Agrupa por mercado + validade
+        const groups = {};
+        data.forEach(r => {
+          const key = (r.mercados?.nome || 'Mercado') + '_' + (r.validade || '');
+          if (!groups[key]) {
+            groups[key] = {
+              marketId: r.mercado_id,
+              marketName: r.mercados?.nome || 'Mercado',
+              validade: r.validade,
+              ids: []
+            };
+          }
+          groups[key].ids.push(r.id);
+        });
+
+        let html = '';
+        for (const [k, item] of Object.entries(groups)) {
+          html += `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border-bottom:1px dashed #eee; background:#fff; margin-bottom:4px; border-radius:6px;">
+              <div>
+                <strong>${item.marketName}</strong> (${item.ids.length} itens)<br>
+                <small style="color:#666;">Validade: ${item.validade || 'N/A'}</small>
+              </div>
+              <button onclick="adminDeleteEncarteBatch('${item.marketId}', '${item.validade}')" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:5px 8px; font-weight:bold; font-size:11px; cursor:pointer;">
+                🗑️ Excluir Encarte
+              </button>
+            </div>
+          `;
+        }
+        container.innerHTML = html;
+      } catch (e) {
+        container.innerHTML = '<div style="color:#c62828;">Erro ao carregar moderação de encartes.</div>';
+      }
+    }
+
+    async function adminDeleteEncarteBatch(marketId, validade) {
+      const conf = await showConfirmDialog({
+        title: 'Excluir Encarte',
+        message: 'Deseja realmente apagar todas as ofertas deste encarte?',
+        icon: '🗑️',
+        okText: 'Excluir',
+        isDestructive: true
+      });
+      if (!conf) return;
+
+      try {
+        showToast('Excluindo encarte...', 'info');
+        const { error } = await client
+          .from('registros_precos')
+          .delete()
+          .eq('mercado_id', marketId)
+          .eq('validade', validade)
+          .eq('is_encarte', true);
+
+        if (error) throw error;
+        showToast('Encarte excluído com sucesso!', 'success');
+        loadAdminEncartesModeration();
+        loadActiveEncartes();
+      } catch (err) {
+        showToast('Erro ao excluir: ' + err.message, 'error');
+      }
+    }
+
+    async function loadAdminPricesModeration() {
+      const container = document.getElementById('admin-manage-prices-list');
+      container.innerHTML = '<div style="padding:10px; color:#888;">Carregando últimas cotações...</div>';
+
+      try {
+        const { data, error } = await client
+          .from('registros_precos')
+          .select('id, preco, data_registro, mercados(nome), produtos(nome)')
+          .order('data_registro', { ascending: false })
+          .limit(30);
+
+        if (error) throw error;
+        if (!data || data.length === 0) {
+          container.innerHTML = '<div style="padding:10px; color:#888;">Nenhuma cotação recente.</div>';
+          return;
+        }
+
+        let html = '';
+        data.forEach(r => {
+          const prod = r.produtos?.nome || 'Produto';
+          const mk = r.mercados?.nome || 'Mercado';
+          const p = parseFloat(r.preco).toFixed(2);
+
+          html += `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:7px; border-bottom:1px dashed #eee; background:#fff; margin-bottom:4px; border-radius:6px;">
+              <div>
+                <strong>${prod}</strong> - R$ ${p}<br>
+                <small style="color:#666;">${mk}</small>
+              </div>
+              <button onclick="adminDeletePrice('${r.id}')" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:4px 7px; font-weight:bold; font-size:11px; cursor:pointer;">
+                🗑️ Excluir
+              </button>
+            </div>
+          `;
+        });
+        container.innerHTML = html;
+      } catch (e) {
+        container.innerHTML = '<div style="color:#c62828;">Erro ao carregar cotações.</div>';
+      }
+    }
+
+    async function adminDeletePrice(id) {
+      try {
+        const { error } = await client.from('registros_precos').delete().eq('id', id);
+        if (error) throw error;
+        showToast('Cotação excluída!', 'success');
+        loadAdminPricesModeration();
+      } catch (err) {
+        showToast('Erro: ' + err.message, 'error');
+      }
+    }
+
+    async function loadAdminMarketsModeration() {
+      const container = document.getElementById('admin-manage-markets-list');
+      container.innerHTML = '<div style="padding:10px; color:#888;">Carregando mercados...</div>';
+
+      try {
+        const { data, error } = await client.from('mercados').select('id, nome, cidade').order('nome');
+        if (error) throw error;
+        if (!data || data.length === 0) {
+          container.innerHTML = '<div style="padding:10px; color:#888;">Nenhum mercado cadastrado.</div>';
+          return;
+        }
+
+        let html = '';
+        data.forEach(m => {
+          html += `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:7px; border-bottom:1px dashed #eee; background:#fff; margin-bottom:4px; border-radius:6px;">
+              <div>
+                <strong>${m.nome}</strong><br>
+                <small style="color:#666;">${m.cidade || 'Cabo Frio'}</small>
+              </div>
+              <button onclick="adminDeleteMarket('${m.id}')" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:4px 7px; font-weight:bold; font-size:11px; cursor:pointer;">
+                🗑️ Excluir
+              </button>
+            </div>
+          `;
+        });
+        container.innerHTML = html;
+      } catch (e) {
+        container.innerHTML = '<div style="color:#c62828;">Erro ao carregar mercados.</div>';
+      }
+    }
+
+    async function adminDeleteMarket(id) {
+      const conf = await showConfirmDialog({
+        title: 'Excluir Mercado',
+        message: 'Deseja excluir este estabelecimento do cadastro?',
+        icon: '🗑️',
+        okText: 'Excluir',
+        isDestructive: true
+      });
+      if (!conf) return;
+
+      try {
+        const { error } = await client.from('mercados').delete().eq('id', id);
+        if (error) throw error;
+        showToast('Mercado excluído!', 'success');
+        loadAdminMarketsModeration();
+      } catch (err) {
+        showToast('Erro ao excluir: ' + err.message, 'error');
+      }
+    }
+
   </script>
 
 
 </body>
 </html>
-Exibindo index.html…
