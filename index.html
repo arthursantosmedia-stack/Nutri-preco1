@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -15,11 +15,12 @@
 
 
   <!-- Bibliotecas externas -->
+    <!-- Bibliotecas externas -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
-
-  <style>
+<style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background-color: #f4f6f8; color: #222; padding-bottom: 95px; }
 
@@ -448,55 +449,108 @@
       </div>
 
 
-            <!-- SEÇÃO ADMIN: GESTÃO DE ENCARTES E OFERTAS (AUTOMATIZADO) -->
+            <!-- SEÇÃO ADMIN: GESTÃO DE ENCARTES 100% FOTO (ZERO DIGITAÇÃO) -->
       <div style="background:#f9fcf9; border:2px solid #c8e6c9; border-radius:12px; padding:14px; margin-bottom:16px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
           <h4 style="font-size:15px; color:#1b5e20; font-weight:bold; display:flex; align-items:center; gap:6px;">
-            📰 Gestão de Encartes & Promoções
+            📸 Publicar Novo Encarte Oficial
           </h4>
-          <span style="font-size:11px; background:#e8f5e9; color:#2e7d32; padding:3px 8px; border-radius:12px; font-weight:bold;">Auto-expiração</span>
+          <span style="font-size:11px; background:#e8f5e9; color:#2e7d32; padding:3px 8px; border-radius:12px; font-weight:bold;">100% Imagem</span>
         </div>
         <p style="font-size:12px; color:#555; line-height:1.4; margin-bottom:12px;">
-          Alimente as promoções do <b>Avistão, Princesa, Multimarket, Supermarket</b> e outros. O sistema cruza os nomes com códigos de barras, atualiza os preços vigentes e <b>desativa os encartes anteriores automaticamente</b> sem você precisar apagar nada na mão.
+          Selecione a foto ou print do folheto do mercado (<b>Avistão, Princesa, Multimarket, etc.</b>). Ele fica imediatamente disponível na aba pública de encartes com zoom interativo para os clientes!
         </p>
 
-        <label style="font-size:12px; font-weight:bold; color:#333;">1. Supermercado da Promoção:</label>
-        <select id="encarte-market-select" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc; font-size:13px; margin-bottom:10px; background:#fff;">
-          <option value="Avistão">Supermercado Avistão</option>
-          <option value="Princesa">Princesa Supermercados</option>
+        <label style="font-size:12px; font-weight:bold; color:#333;">1. Supermercado do Encarte:</label>
+        <select id="encarte-photo-market" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc; font-size:13.5px; margin-bottom:10px; background:#fff;">
+          <option value="Supermercado Avistão">Supermercado Avistão</option>
+          <option value="Princesa Supermercados">Princesa Supermercados</option>
           <option value="Multimarket">Multimarket</option>
           <option value="Supermarket">Supermarket</option>
           <option value="Atacadão">Atacadão</option>
-          <option value="Assaí">Assaí Atacadista</option>
+          <option value="Assaí Atacadista">Assaí Atacadista</option>
           <option value="Extra">Extra</option>
+          <option value="Outro">Outro Mercado de Bairro</option>
         </select>
 
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:12px;">
           <div>
             <label style="font-size:12px; font-weight:bold; color:#333;">Início das Ofertas:</label>
-            <input type="date" id="encarte-start-date" style="width:100%; padding:8px; border-radius:8px; border:1px solid #ccc; font-size:13px;">
+            <input type="date" id="encarte-photo-start" style="width:100%; padding:8px; border-radius:8px; border:1px solid #ccc; font-size:13px;">
           </div>
           <div>
             <label style="font-size:12px; font-weight:bold; color:#333;">Validade do Encarte:</label>
-            <input type="date" id="encarte-end-date" style="width:100%; padding:8px; border-radius:8px; border:1px solid #ccc; font-size:13px;">
+            <input type="date" id="encarte-photo-end" style="width:100%; padding:8px; border-radius:8px; border:1px solid #ccc; font-size:13px;">
           </div>
         </div>
 
-        <label style="font-size:12px; font-weight:bold; color:#333;">2. Digite ou Cole as Ofertas (1 produto por linha):</label>
-        <textarea id="encarte-raw-text" placeholder="Formato: Nome do Produto - Preço&#10;Exemplo:&#10;Arroz Camil 5kg - 24,90&#10;Feijão Preto Comum 1kg - 6,89&#10;Café Pilão 500g - 16,98&#10;Óleo de Soja Soya 900ml - 5,49" rows="6" style="width:100%; border:1px solid #ccc; border-radius:8px; padding:10px; font-size:12.5px; margin-bottom:10px; font-family:inherit;"></textarea>
+        <!-- Botão de Tirar Foto / Selecionar Arquivo -->
+        <div style="background:#e8f5e9; border:2px dashed #2e7d32; border-radius:12px; padding:16px; text-align:center; margin-bottom:12px;">
+          <input type="file" id="encarte-photo-file" accept="image/*" onchange="handleEncartePhotoSelect(event)" style="display:none;">
+          <button type="button" onclick="document.getElementById('encarte-photo-file').click()" style="background:#1b5e20; color:#fff; border:none; padding:12px 20px; border-radius:10px; font-size:14px; font-weight:bold; cursor:pointer; display:inline-flex; align-items:center; gap:8px; box-shadow:0 3px 8px rgba(0,0,0,0.15);">
+            📸 Escolher Imagem ou Tirar Foto do Folheto
+          </button>
+          <span style="display:block; font-size:11.5px; color:#555; margin-top:6px;">Aceita foto da câmera ou print do WhatsApp/Instagram</span>
 
-        <button onclick="publishEncarte()" class="save-btn" style="margin:0; background:#2e7d32; font-size:13.5px; padding:11px; display:flex; align-items:center; justify-content:center; gap:6px;">
-          🚀 Publicar Encarte & Atualizar Preços
-        </button>
-
-        <div id="encarte-processing-status" class="hidden" style="margin-top:10px; font-size:12px; color:#2e7d32; font-weight:bold; text-align:center;">
-          ⏳ Cruzando catálogo e atualizando cotações no banco...
+          <!-- Preview da foto selecionada -->
+          <div id="encarte-photo-preview-box" class="hidden" style="margin-top:12px;">
+            <img id="encarte-photo-preview-img" style="max-width:100%; max-height:260px; border-radius:8px; border:1px solid #aaa; box-shadow:0 2px 8px rgba(0,0,0,0.15); object-fit:contain;">
+            <div style="font-size:12px; color:#2e7d32; font-weight:bold; margin-top:6px;" id="encarte-photo-info">Foto pronta para publicação</div>
+          </div>
         </div>
 
+        <button onclick="publishPhotoEncarte()" class="save-btn" style="margin:0; background:#2e7d32; font-size:14px; padding:13px; display:flex; align-items:center; justify-content:center; gap:8px;">
+          🚀 Publicar Encarte na Vitrine de Ofertas
+        </button>
+
         <div style="margin-top:16px;">
-          <h5 style="font-size:13px; color:#1b5e20; margin-bottom:6px; font-weight:bold;">Encartes Vigentes Cadastrados:</h5>
-          <div id="active-encartes-list" style="font-size:12px; color:#666; background:#fff; border:1px solid #e0e0e0; border-radius:8px; padding:8px;">
+          <h5 style="font-size:13px; color:#1b5e20; margin-bottom:6px; font-weight:bold;">Encartes Vigentes Publicados:</h5>
+          <div id="active-photo-encartes-list" style="font-size:12px; color:#666; background:#fff; border:1px solid #e0e0e0; border-radius:8px; padding:8px;">
             Carregando encartes ativos...
+          </div>
+        </div>
+      </div>
+
+      <!-- SEÇÃO ADMIN: MODERAÇÃO & EXCLUSÃO DE DADOS (CONTROLE DO ADM) -->
+      <div style="background:#fff7f7; border:2px solid #ffcdd2; border-radius:12px; padding:14px; margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <h4 style="font-size:15px; color:#b71c1c; font-weight:bold; display:flex; align-items:center; gap:6px;">
+            🛡️ Moderação & Auditoria de Dados
+          </h4>
+          <span style="font-size:11px; background:#ffebee; color:#c62828; padding:3px 8px; border-radius:12px; font-weight:bold;">Apenas ADM</span>
+        </div>
+        <p style="font-size:12px; color:#555; line-height:1.4; margin-bottom:12px;">
+          Exclua encartes desatualizados, remova preços errados/troll informados por usuários ou apague mercados duplicados.
+        </p>
+
+        <!-- Abas de Moderação -->
+        <div style="display:flex; gap:6px; margin-bottom:10px;">
+          <button type="button" onclick="switchAdminModTab('encartes')" id="admin-tab-encartes" style="flex:1; padding:7px; border:1px solid #c62828; background:#b71c1c; color:#fff; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">
+            📰 Encartes
+          </button>
+          <button type="button" onclick="switchAdminModTab('precos')" id="admin-tab-precos" style="flex:1; padding:7px; border:1px solid #ccc; background:#fff; color:#555; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">
+            💰 Preços Recentes
+          </button>
+          <button type="button" onclick="switchAdminModTab('mercados')" id="admin-tab-mercados" style="flex:1; padding:7px; border:1px solid #ccc; background:#fff; color:#555; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">
+            🏪 Mercados
+          </button>
+        </div>
+
+        <div id="admin-mod-encartes-view">
+          <div id="admin-manage-encartes-list" style="max-height:220px; overflow-y:auto; font-size:12px;">
+            Carregando encartes para moderação...
+          </div>
+        </div>
+
+        <div id="admin-mod-precos-view" class="hidden">
+          <div id="admin-manage-prices-list" style="max-height:220px; overflow-y:auto; font-size:12px;">
+            Carregando cotações recentes...
+          </div>
+        </div>
+
+        <div id="admin-mod-mercados-view" class="hidden">
+          <div id="admin-manage-markets-list" style="max-height:220px; overflow-y:auto; font-size:12px;">
+            Carregando lista de mercados...
           </div>
         </div>
       </div>
@@ -580,6 +634,142 @@
     </div>
   </div>
 
+    <!-- ========================================== -->
+  <!-- MODAL: ENCARTES & OFERTAS DA SEMANA (VITRINE PÚBLICA) -->
+  <!-- ========================================== -->
+  <div class="modal hidden" id="public-encartes-modal" style="z-index: 180;">
+    <div class="modal-content" style="max-height: 90vh;">
+      <div class="modal-header">
+        <div>
+          <h3 style="color: #1b5e20; display:flex; align-items:center; gap:8px;">
+            📰 Encartes & Ofertas da Semana
+          </h3>
+          <span style="font-size:12px; color:#555;" id="public-encartes-city-label">
+            📍 Região: <b>Cabo Frio - RJ</b>
+          </span>
+        </div>
+        <button style="border:none; background:none; font-size:24px; cursor:pointer; color:#777;" onclick="closePublicEncartesModal()">&times;</button>
+      </div>
+
+      <p style="font-size:12.5px; color:#666; margin-bottom:12px;">
+        Folhetos oficiais vigentes na sua cidade. Toque para ver em tela cheia com zoom:
+      </p>
+
+      <div id="public-encartes-container" style="display:flex; flex-direction:column; gap:12px; margin-bottom:16px;">
+        <div style="text-align:center; padding:25px; color:#888; font-size:13px;">
+          ⏳ Carregando encartes da sua região...
+        </div>
+      </div>
+
+      <button class="reset-btn" onclick="closePublicEncartesModal()">Fechar Encartes</button>
+    </div>
+  </div>
+
+  <!-- MODAL: VISUALIZADOR DE ENCARTE EM TELA CHEIA (ZOOM) -->
+  <div class="modal hidden" id="encarte-viewer-modal" style="z-index: 250; background: rgba(0,0,0,0.92); padding: 0;">
+    <div style="width: 100%; height: 100%; display: flex; flex-direction: column;">
+      <div style="padding: 14px 16px; background: rgba(0,0,0,0.7); display: flex; justify-content: space-between; align-items: center; color: #fff;">
+        <div>
+          <h4 id="viewer-market-title" style="font-size: 16px; font-weight: bold; margin: 0;">Encarte Oficial</h4>
+          <span id="viewer-validity-text" style="font-size: 11.5px; color: #a5d6a7;">Válido até --/--</span>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <button onclick="zoomEncarte(1.25)" style="background: rgba(255,255,255,0.2); border: none; color: #fff; width: 36px; height: 36px; border-radius: 50%; font-size: 18px; font-weight: bold; cursor: pointer;">🔍+</button>
+          <button onclick="zoomEncarte(0.8)" style="background: rgba(255,255,255,0.2); border: none; color: #fff; width: 36px; height: 36px; border-radius: 50%; font-size: 18px; font-weight: bold; cursor: pointer;">🔍-</button>
+          <button onclick="closeEncarteViewer()" style="background: #e53935; border: none; color: #fff; width: 36px; height: 36px; border-radius: 50%; font-size: 20px; font-weight: bold; cursor: pointer;">&times;</button>
+        </div>
+      </div>
+
+      <div style="flex: 1; overflow: auto; display: flex; justify-content: center; align-items: center; padding: 10px; -webkit-overflow-scrolling: touch;">
+        <img id="viewer-encarte-img" src="" style="max-width: 100%; height: auto; transition: transform 0.2s ease; transform-origin: center center; border-radius: 6px;">
+      </div>
+
+      <div style="padding: 10px; background: rgba(0,0,0,0.7); text-align: center; color: #ccc; font-size: 11.5px;">
+        💡 Use a pinça de dois dedos ou os botões de lupa no topo para dar zoom nas ofertas.
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: BASE LEGAL & DIREITOS (ART. 31 DO CDC) -->
+  <div class="modal hidden" id="legal-terms-modal" style="z-index: 220;">
+    <div class="modal-content" style="max-height: 85vh;">
+      <div class="modal-header">
+        <h3 style="color: #1b5e20; display:flex; align-items:center; gap:8px;">
+          ⚖️ Base Legal & Transparência
+        </h3>
+        <button style="border:none; background:none; font-size:24px; cursor:pointer; color:#777;" onclick="closeLegalTermsModal()">&times;</button>
+      </div>
+      <div style="font-size: 13px; color: #444; line-height: 1.55;">
+        <h4 style="color: #1b5e20; font-size: 14px; margin-bottom: 6px;">1. Direito à Informação Pública (CDC)</h4>
+        <p style="margin-bottom: 12px;">
+          De acordo com o <b>Art. 31 da Lei Federal nº 8.078/1990 (Código de Defesa do Consumidor)</b> e o <b>Decreto nº 5.903/2006</b>, os preços afixados em gôndolas e prateleiras são informações públicas e ostensivas de interesse coletivo. A coleta e comparação colaborativa de preços é um exercício legítimo de cidadania e defesa do poder de compra das famílias.
+        </p>
+        <h4 style="color: #1b5e20; font-size: 14px; margin-bottom: 6px;">2. Uso Exclusivo da Câmera (LGPD)</h4>
+        <p style="margin-bottom: 12px;">
+          A câmera do seu aparelho é acionada <b>única e exclusivamente para a decodificação óptica local de códigos de barras (EAN-13)</b>. Nenhuma imagem ou vídeo de pessoas, rostos ou corredores de lojas é filmado, gravado ou transmitido para servidores externos.
+        </p>
+        <h4 style="color: #1b5e20; font-size: 14px; margin-bottom: 6px;">3. Autoria e Contato</h4>
+        <p style="margin-bottom: 6px;">
+          O aplicativo <b>NutriPreço</b> é um projeto tecnológico independente, idealizado e desenvolvido por <b>Arthur L. Santos</b> em Cabo Frio — RJ.
+        </p>
+        <p>Canal oficial para dúvidas, parcerias ou suporte: <b>contato.nutripreco@gmail.com</b></p>
+      </div>
+      <button class="save-btn" onclick="closeLegalTermsModal()" style="margin-top: 16px; background: #2e7d32;">Entendido</button>
+    </div>
+  </div>
+
+  <!-- MODAL: SELETOR DE CIDADE & ESTADO (IBGE + OFFLINE) -->
+  <div class="modal hidden" id="city-selector-modal" style="z-index: 190;">
+    <div class="modal-content" style="max-height: 85vh;">
+      <div class="modal-header">
+        <h3 style="color: #1b5e20; display:flex; align-items:center; gap:8px;">
+          📍 Selecionar Sua Cidade
+        </h3>
+        <button style="border:none; background:none; font-size:24px; cursor:pointer; color:#777;" onclick="closeCitySelectorModal()">&times;</button>
+      </div>
+      <p style="font-size:12.5px; color:#555; margin-bottom:12px;">
+        Escolha o seu Estado e Município para ver os preços e encartes da sua região:
+      </p>
+      <label style="font-size:12px; font-weight:bold;">1. Estado (UF):</label>
+      <select id="select-uf" onchange="onUfChanged()" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc; font-size:13.5px; margin-bottom:12px; background:#fff;">
+        <option value="RJ">Rio de Janeiro (RJ)</option>
+        <option value="SP">São Paulo (SP)</option>
+        <option value="MG">Minas Gerais (MG)</option>
+        <option value="ES">Espírito Santo (ES)</option>
+        <option value="BA">Bahia (BA)</option>
+        <option value="PR">Paraná (PR)</option>
+        <option value="SC">Santa Catarina (SC)</option>
+        <option value="RS">Rio Grande do Sul (RS)</option>
+        <option value="GO">Goiás (GO)</option>
+        <option value="DF">Distrito Federal (DF)</option>
+        <option value="PE">Pernambuco (PE)</option>
+        <option value="CE">Ceará (CE)</option>
+        <option value="PA">Pará (PA)</option>
+        <option value="AM">Amazonas (AM)</option>
+      </select>
+      <label style="font-size:12px; font-weight:bold;">2. Município:</label>
+      <div id="city-loading-indicator" class="hidden" style="font-size:11.5px; color:#2e7d32; margin-bottom:4px;">
+        ⏳ Carregando municípios do IBGE...
+      </div>
+      <select id="select-city" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc; font-size:13.5px; margin-bottom:16px; background:#fff;">
+        <option value="Cabo Frio">Cabo Frio</option>
+        <option value="Arraial do Cabo">Arraial do Cabo</option>
+        <option value="Armação dos Búzios">Armação dos Búzios</option>
+        <option value="São Pedro da Aldeia">São Pedro da Aldeia</option>
+        <option value="Araruama">Araruama</option>
+        <option value="Saquarema">Saquarema</option>
+        <option value="Macaé">Macaé</option>
+        <option value="Rio das Ostras">Rio das Ostras</option>
+        <option value="Niterói">Niterói</option>
+        <option value="Rio de Janeiro">Rio de Janeiro</option>
+      </select>
+      <button class="save-btn" onclick="saveSelectedCity()" style="margin:0 0 8px 0; background:#2e7d32;">
+        Confirmar Minha Cidade 📍
+      </button>
+      <button class="reset-btn" onclick="closeCitySelectorModal()" style="margin:0;">Cancelar</button>
+    </div>
+  </div>
+
   <div id="toast-container"></div>
 
 
@@ -618,6 +808,20 @@
     </div>
   </div>
 
+  <!-- HUD CALCULADORA NO TOPO -->
+  <div id="top-calculator-hud" style="background: #ffffff; border-bottom: 2px solid #2e7d32; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 6px rgba(0,0,0,0.06); position: sticky; top: 52px; z-index: 95;">
+    <div>
+      <span style="font-size: 11px; color: #666; display: block; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Meu Pré-Caixa:</span>
+      <div style="display: flex; align-items: baseline; gap: 6px;">
+        <strong id="top-hud-total" style="font-size: 22px; color: #1b5e20; font-weight: 800;">R$ 0,00</strong>
+        <span id="top-hud-count" style="font-size: 12px; color: #666;">(0 itens)</span>
+      </div>
+    </div>
+    <button onclick="openCartModal()" style="background: #2e7d32; color: white; border: none; padding: 9px 15px; border-radius: 20px; font-size: 13px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(46,125,50,0.25);">
+      🛒 Ver Carrinho
+    </button>
+  </div>
+
 
 
   <!-- Menu Lateral Deslizante (Drawer) -->
@@ -648,6 +852,15 @@
         <span class="badge-highlight">Novo</span>
       </button>
 
+      <button class="sidebar-item" onclick="toggleSidebar(false); openPublicEncartesModal();">
+        <span class="sidebar-icon">📰</span>
+        <div class="sidebar-item-text">
+          <strong>Encartes & Ofertas da Semana</strong>
+          <small>Folhetos e promoções da sua cidade</small>
+        </div>
+        <span class="badge-highlight">Ofertas</span>
+      </button>
+
 
       <button class="sidebar-item" onclick="toggleSidebar(false); openHistoryModal();">
         <span class="sidebar-icon">📂</span>
@@ -658,13 +871,13 @@
       </button>
 
 
-      <button class="sidebar-item" onclick="toggleSidebar(false); showToast('Em breve no Passo 3: Montar Lista Prévia no sofá de casa!', 'info');">
+      <button class="sidebar-item" onclick="toggleSidebar(false); openPreListModal();">
         <span class="sidebar-icon">📝</span>
         <div class="sidebar-item-text">
           <strong>Lista Prévia de Compras</strong>
           <small>Planeje os gastos antes de ir ao mercado</small>
         </div>
-        <span class="badge-step">Passo 3</span>
+        <span class="badge-highlight">Disponível</span>
       </button>
 
 
@@ -698,17 +911,18 @@
       </button>
 
 
-            <div class="sidebar-section-title">Administração & Dados</div>
-      <button class="sidebar-item" onclick="toggleSidebar(false); openAdminModal();">
-        <span class="sidebar-icon">⚙️</span>
-        <div class="sidebar-item-text">
-          <strong>Painel do Administrador</strong>
-          <small>Estatísticas & Exportação CSV</small>
-        </div>
-      </button>
-      <div class="sidebar-section-title">Legal & Privacidade</div>
-
-
+                  <!-- SEÇÃO EXCLUSIVA DO ADMINISTRADOR (SÓ APARECE PARA O ARTHUR LOGADO) -->
+      <div id="sidebar-admin-section" class="hidden">
+        <div class="sidebar-section-title" style="color: #1b5e20;">Administração & Dados</div>
+        <button class="sidebar-item" onclick="toggleSidebar(false); openAdminModal();" style="background:#f1f8e9; border:1px solid #c8e6c9;">
+          <span class="sidebar-icon">⚙️</span>
+          <div class="sidebar-item-text">
+            <strong style="color:#1b5e20;">Painel do Administrador</strong>
+            <small>Publicar Encartes & Moderação</small>
+          </div>
+        </button>
+      </div>
+      <div class="sidebar-section-title">Legal & Institucional</div>
       <a href="privacidade.html" class="sidebar-item" style="text-decoration:none;">
         <span class="sidebar-icon">📄</span>
         <div class="sidebar-item-text">
@@ -716,8 +930,21 @@
           <small>Uso da câmera & LGPD</small>
         </div>
       </a>
+      <button class="sidebar-item" onclick="toggleSidebar(false); openLegalTermsModal();">
+        <span class="sidebar-icon">⚖️</span>
+        <div class="sidebar-item-text">
+          <strong>Base Legal & Direitos</strong>
+          <small>Art. 31 do CDC & Transparência</small>
+        </div>
+      </button>
     </div>
 
+    <!-- Assinatura Elegante do Autor no Rodapé do Menu -->
+    <div style="padding: 10px 14px; font-size: 11.5px; color: #555; text-align: center; border-top: 1px solid #eee; background: #fafafa;">
+      NutriPreço • Idealizado por 🌿 <b>Arthur L. Santos</b> 🌿<br>
+      <span style="font-size: 10.5px; color: #777;">Cabo Frio • Rio de Janeiro</span><br>
+      <a href="mailto:contato.nutripreco@gmail.com" style="color: #2e7d32; font-weight: bold; text-decoration: none; font-size: 11px;">contato.nutripreco@gmail.com</a>
+    </div>
 
     <div class="sidebar-footer">
       <div id="sidebar-user-info" style="font-size:12px; color:#555; margin-bottom:8px;">
@@ -746,7 +973,23 @@
     <div id="result-section" class="hidden">
       
       <!-- Cabeçalho do Produto -->
-      <div class="card" style="padding-bottom: 10px; margin-bottom: 12px;">
+      
+      <!-- Banner e Atalhos para Etiquetas de Balança (Açougue / Frios / Padaria) -->
+      <div id="scale-badge-box" class="hidden" style="margin-bottom: 12px; background: #e8f5e9; border: 1.5px dashed #2e7d32; border-radius: 10px; padding: 10px 12px;">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <span style="font-weight: bold; color: #1b5e20; font-size: 13px;">⚖️ Etiqueta de Balança Detectada</span>
+          <span id="scale-badge-price" style="font-weight: 800; color: #2e7d32; font-size: 15px;"></span>
+        </div>
+        <div style="font-size: 11.5px; color: #444; margin-top: 4px;">Toque no setor para definir o nome rápido:</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px;">
+          <button type="button" class="budget-chip" style="font-size: 12px; padding: 5px 10px;" onclick="setScaleProductName('🥩 Carne / Açougue')">🥩 Açougue</button>
+          <button type="button" class="budget-chip" style="font-size: 12px; padding: 5px 10px;" onclick="setScaleProductName('🧀 Queijo / Frios')">🧀 Frios</button>
+          <button type="button" class="budget-chip" style="font-size: 12px; padding: 5px 10px;" onclick="setScaleProductName('🍎 Frutas & Legumes')">🍎 Hortifrúti</button>
+          <button type="button" class="budget-chip" style="font-size: 12px; padding: 5px 10px;" onclick="setScaleProductName('🥖 Pão / Padaria')">🥖 Padaria</button>
+        </div>
+      </div>
+
+<div class="card" style="padding-bottom: 10px; margin-bottom: 12px;">
         <h2 id="prod-name" style="font-size: 20px; color: #1a1a1a; margin-bottom: 3px;">Nome do Produto</h2>
         <p id="prod-brand" style="color: #666; font-size: 13px; margin-bottom: 0;">Marca | EAN</p>
 
@@ -834,145 +1077,11 @@
 
 
     <!-- Rodapé Legal e LGPD -->
-    <footer>
-      <p><b>NutriPreço</b> • Inteligência de Preços & Calculadora de Supermercado em Cabo Frio</p>
-      <p style="margin-top: 6px;">Os preços são colaborativos e informados pelos próprios consumidores no momento da compra (Art. 31 do Código de Defesa do Consumidor). As imagens da câmera são decodificadas localmente apenas para leitura do código de barras.</p>
-      <p style="margin-top: 10px;">
-        <a href="privacidade.html">📄 Política de Privacidade (LGPD)</a> | 
-        <a href="#" onclick="openAuthModal(); return false;">Gerenciar / Excluir Conta</a>
-      </p>
-    </footer>
+    
   </div>
 
 
-  <!-- Barra Fixa do Pré-Caixa -->
-  <div class="cart-bar" id="cart-bar">
-    <div class="cart-bar-budget-line">
-      <div id="cart-bar-budget-fill" class="cart-bar-budget-fill"></div>
-    </div>
-    <div class="cart-info">
-      <span>Meu Pré-Caixa (<span id="cart-count">0</span> itens):</span>
-      <strong id="cart-total">R$ 0,00</strong>
-    </div>
-    <button class="cart-btn" onclick="openCartModal()">Ver Carrinho</button>
-  </div>
-
-
-  <!-- Modal do Radar de Preços & Cesta Básica -->
-  <div class="modal hidden" id="radar-modal">
-    <div class="modal-content" style="max-height: 88vh;">
-      <div class="modal-header">
-        <div>
-          <h3 style="color: #2e7d32; display:flex; align-items:center; gap:6px;">📊 Radar de Preços</h3>
-          <span style="font-size:12px; color:#666;">Cabo Frio • Cotações da Cidade</span>
-        </div>
-        <button style="border:none; background:none; font-size:24px; cursor:pointer;" onclick="closeRadarModal()">&times;</button>
-      </div>
-
-
-      <!-- Abas / Filtros Rápidos -->
-      <div class="radar-tabs">
-        <button class="radar-tab active" id="tab-all-products" onclick="setRadarFilter('all')">🌐 Todos os Produtos</button>
-        <button class="radar-tab" id="tab-cesta-basica" onclick="setRadarFilter('cesta')">🧺 Cesta Básica Oficial</button>
-      </div>
-
-
-      <!-- Campo de Busca em Tempo Real -->
-      <div style="margin: 11px 0;">
-        <input type="text" id="radar-search-input" placeholder="🔍 Buscar produto (ex: café, arroz, leite, carne)..." oninput="renderRadarProducts()" style="padding: 10px 14px; font-size: 14px;">
-      </div>
-
-
-      <!-- Placar da Cesta Básica -->
-      <div id="cesta-summary-box" class="cesta-summary-box hidden">
-        <div style="font-size:13px; font-weight:bold; color:#1b5e20; margin-bottom:6px;">🧺 Placar Cesta Básica em Cabo Frio:</div>
-        <div id="cesta-markets-ranking"></div>
-      </div>
-
-
-      <!-- Lista Comparativa Tipo Planilha -->
-      <div id="radar-loading" class="loading" style="padding: 20px;">🔍 Carregando cotações de Cabo Frio...</div>
-      <div id="radar-products-list" style="margin-bottom: 16px;"></div>
-
-
-      <button class="reset-btn" onclick="closeRadarModal()">Fechar Radar</button>
-    </div>
-  </div>
-
-
-  <!-- Modal do Carrinho Atual -->
-  <div class="modal hidden" id="cart-modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 style="color: #2e7d32;">🛒 Meu Pré-Caixa (Carrinho)</h3>
-        <button style="border:none; background:none; font-size:22px; cursor:pointer;" onclick="closeCartModal()">&times;</button>
-      </div>
-      <div id="cart-items-list" style="margin-bottom: 16px;"></div>
-      
-      <div style="display:flex; justify-content:space-between; font-size:18px; font-weight:bold; margin-bottom:15px; padding:10px 0; border-top:1px solid #eee;">
-        <span>Total da Compra:</span>
-        <span id="modal-cart-total" style="color: #2e7d32;">R$ 0,00</span>
-      </div>
-
-
-      <!-- Ações do Carrinho -->
-      <button class="save-btn" style="margin-top:0; margin-bottom:8px; background:#1b5e20;" onclick="finalizeAndSavePurchase()">💾 Finalizar e Salvar no Histórico</button>
-      <button class="whatsapp-btn" onclick="shareCartWhatsApp()">📲 Enviar Lista no WhatsApp</button>
-      <button class="reset-btn" style="background:#ffebee; color:#c62828; margin-top:8px;" onclick="clearCart()">🗑️ Limpar Carrinho</button>
-    </div>
-  </div>
-
-
-  <!-- Modal Minhas Compras Salvas -->
-  <div class="modal hidden" id="history-modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 style="color: #2e7d32;">📂 Minhas Compras Salvas</h3>
-        <button style="border:none; background:none; font-size:22px; cursor:pointer;" onclick="closeHistoryModal()">&times;</button>
-      </div>
-
-
-      <!-- Estatísticas do Histórico -->
-      <div class="history-stat-box">
-        <div class="stat-card">
-          <span>Total Acumulado</span>
-          <strong id="stat-month-total">R$ 0,00</strong>
-        </div>
-        <div class="stat-card">
-          <span>Compras Salvas</span>
-          <strong id="stat-purchases-count">0</strong>
-        </div>
-      </div>
-
-
-      <div id="history-items-container" style="margin-bottom: 16px;"></div>
-      <button class="reset-btn" onclick="closeHistoryModal()">Fechar Histórico</button>
-    </div>
-  </div>
-
-
-  <!-- Modal de Login & Conta -->
-  <div class="modal hidden" id="auth-modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 style="color: #2e7d32;">👤 Conta & Identificação</h3>
-        <button style="border:none; background:none; font-size:22px; cursor:pointer;" onclick="closeAuthModal()">&times;</button>
-      </div>
-      <div class="auth-box">
-        <div id="auth-logged-in-view" class="hidden">
-          <p style="font-size:14px; margin-bottom:12px;">Conectado como: <strong id="user-email-display"></strong></p>
-          <button class="reset-btn" style="background:#ffebee; color:#c62828; margin-bottom:8px;" onclick="logoutUser()">🚪 Sair da Conta</button>
-          <button class="reset-btn" style="background:#ffebee; color:#b71c1c; font-size:12px;" onclick="deleteUserAccount()">⚠️ Excluir Minha Conta e Meus Dados (LGPD)</button>
-        </div>
-        <div id="auth-form-view">
-          <p style="font-size:13px; color:#666; margin-bottom:12px;">Identifique-se para cadastrar preços confiáveis e sincronizar suas compras.</p>
-          <input type="email" id="auth-email" placeholder="Seu e-mail">
-          <input type="password" id="auth-password" placeholder="Sua senha (mínimo 6 dígitos)">
-          <button class="save-btn" onclick="handleAuth('login')">Entrar na Conta</button>
-          <button class="reset-btn" onclick="handleAuth('signup')">Criar Nova Conta Grátis</button>
-        </div>
-      </div>
-    </div>
+  
   </div>
 
 
@@ -1060,6 +1169,182 @@
     const SUPABASE_URL = 'https://fzoyldcfyiigwyxxhosd.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_asGr3f2xfay96fUJAkIHBg_L5vfLYvv';
     const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // ==========================================
+    // LEITOR DE BALANÇA & MINI-CATÁLOGO OFFLINE
+    // ==========================================
+    const MINI_CATALOGO_OFFLINE = {
+      '7891000100103': { nome: 'Leite Condensado Moça', marca: 'Nestlé' },
+      '7891000053508': { nome: 'Nescau Chocolate em Pó', marca: 'Nestlé' },
+      '7891055313015': { nome: 'Cerveja Skol Lata 350ml', marca: 'Ambev' },
+      '7891025114024': { nome: 'Refrigerante Coca-Cola 2L', marca: 'Coca-Cola' },
+      '7896005800118': { nome: 'Café Pilão Tradicional 500g', marca: 'Pilão' },
+      '7896004000113': { nome: 'Açúcar Refinado União 1kg', marca: 'União' },
+      '7896001250115': { nome: 'Arroz Branco Tio João 5kg', marca: 'Tio João' },
+      '7896001250122': { nome: 'Arroz Camil Tipo 1 5kg', marca: 'Camil' },
+      '7896001250139': { nome: 'Feijão Carioca Camil 1kg', marca: 'Camil' },
+      '7896001250146': { nome: 'Feijão Preto Combrasil 1kg', marca: 'Combrasil' },
+      '7891022101010': { nome: 'Óleo de Soja Liza 900ml', marca: 'Liza' },
+      '7891022101027': { nome: 'Óleo de Soja Soya 900ml', marca: 'Soya' },
+      '7896005800200': { nome: 'Macarrão Espaguete Adria 500g', marca: 'Adria' },
+      '7891000100202': { nome: 'Creme de Leite Nestlé 200g', marca: 'Nestlé' },
+      '7891024132012': { nome: 'Sabão em Pó Omo Lavagem Perfeita 800g', marca: 'Omo' },
+      '7891024132029': { nome: 'Detergente Líquido Ypê 500ml', marca: 'Ypê' },
+      '7891024132036': { nome: 'Amaciante Comfort Concentrado 500ml', marca: 'Comfort' },
+      '7891024132043': { nome: 'Água Sanitária Ypê 1L', marca: 'Ypê' },
+      '7891024132050': { nome: 'Papel Higiênico Neve 4 rolos', marca: 'Neve' },
+      '7891024132067': { nome: 'Creme Dental Colgate Total 12 90g', marca: 'Colgate' },
+      '7891024132074': { nome: 'Sabonete Dove Original 90g', marca: 'Dove' },
+      '7891024132081': { nome: 'Shampoo Seda Ceramidas 325ml', marca: 'Seda' },
+      '7891024132098': { nome: 'Desodorante Rexona Aerosol 150ml', marca: 'Rexona' },
+      '7891024132104': { nome: 'Maionese Hellmanns 500g', marca: 'Hellmanns' },
+      '7891024132111': { nome: 'Molho de Tomate Pomarola 300g', marca: 'Pomarola' },
+      '7891024132128': { nome: 'Extrato de Tomate Elefante 340g', marca: 'Elefante' },
+      '7891024132135': { nome: 'Farinha de Trigo Dona Benta 1kg', marca: 'Dona Benta' },
+      '7891024132142': { nome: 'Milho Verde Quero Lata 170g', marca: 'Quero' },
+      '7891024132159': { nome: 'Ervilha Quero Lata 170g', marca: 'Quero' },
+      '7891024132166': { nome: 'Atum Ralado Gomes da Costa 170g', marca: 'Gomes da Costa' },
+      '7891024132173': { nome: 'Sardinha em Óleo Coqueiro 125g', marca: 'Coqueiro' },
+      '7891024132180': { nome: 'Biscoito Recheado Passatempo 130g', marca: 'Nestlé' },
+      '7891024132197': { nome: 'Biscoito Cream Cracker Vitarella 400g', marca: 'Vitarella' },
+      '7891024132203': { nome: 'Torrada Bauducco Tradicional 142g', marca: 'Bauducco' },
+      '7891024132210': { nome: 'Margarina Qualy com Sal 500g', marca: 'Qualy' },
+      '7891024132227': { nome: 'Manteiga Aviação com Sal 200g', marca: 'Aviação' },
+      '7891024132234': { nome: 'Leite UHT Integral Piracanjuba 1L', marca: 'Piracanjuba' },
+      '7891024132241': { nome: 'Leite UHT Desnatado Itambé 1L', marca: 'Itambé' },
+      '7891024132258': { nome: 'Iogurte Grego Danone 90g', marca: 'Danone' },
+      '7891024132265': { nome: 'Queijo Mussarela Fatiado 200g', marca: 'Laticínios' },
+      '7891024132272': { nome: 'Presunto Cozido Sadia 200g', marca: 'Sadia' },
+      '7891024132289': { nome: 'Linguiça Calabresa Perdigão 1kg', marca: 'Perdigão' },
+      '7891024132296': { nome: 'Hambúrguer Bovino Sadia 672g', marca: 'Sadia' },
+      '7891024132302': { nome: 'Água Mineral Crystal sem Gás 500ml', marca: 'Crystal' },
+      '7891024132319': { nome: 'Suco Del Valle Uva 1L', marca: 'Del Valle' },
+      '7891024132326': { nome: 'Cerveja Heineken Long Neck 330ml', marca: 'Heineken' },
+      '7891024132333': { nome: 'Cerveja Amstel Lata 350ml', marca: 'Amstel' },
+      '7891024132340': { nome: 'Esponja de Aço Bombril c/ 8', marca: 'Bombril' },
+      '7891024132357': { nome: 'Esponja Multiuso Scotch-Brite', marca: '3M' }
+    };
+
+    function parseScaleBarcode(code) {
+      if (!code || typeof code !== 'string') return null;
+      const clean = code.trim();
+      if (clean.length === 13 && clean.startsWith('2')) {
+        // Padrão Brasil GS1: 2 + CCCCC + VVVVV + D
+        const valCentavos = parseInt(clean.substring(7, 12), 10);
+        if (!isNaN(valCentavos) && valCentavos > 0) {
+          return { isScale: true, price: valCentavos / 100, itemCode: clean.substring(1, 7) };
+        }
+      } else if (clean.length === 12 && clean.startsWith('2')) {
+        const valCentavos = parseInt(clean.substring(6, 11), 10);
+        if (!isNaN(valCentavos) && valCentavos > 0) {
+          return { isScale: true, price: valCentavos / 100, itemCode: clean.substring(1, 6) };
+        }
+      }
+      return null;
+    }
+
+    function setScaleProductName(name) {
+      currentName = name;
+      document.getElementById('prod-name').innerText = currentName;
+      document.getElementById('manual-name-input').value = currentName;
+      document.getElementById('unnamed-box').classList.add('hidden');
+      showToast(`Setor definido: ${name}`, 'info');
+    }
+
+    function getCachedProduct(barcode) {
+      try {
+        const localDb = JSON.parse(localStorage.getItem('nutri_products_cache') || '{}');
+        if (localDb[barcode]) return localDb[barcode];
+      } catch(e) {}
+      if (MINI_CATALOGO_OFFLINE[barcode]) {
+        return MINI_CATALOGO_OFFLINE[barcode];
+      }
+      return null;
+    }
+
+    function saveProductToLocalCache(barcode, name, brand) {
+      if (!barcode || !name) return;
+      try {
+        const localDb = JSON.parse(localStorage.getItem('nutri_products_cache') || '{}');
+        localDb[barcode] = { nome: name, marca: brand || '' };
+        localStorage.setItem('nutri_products_cache', JSON.stringify(localDb));
+      } catch(e) {}
+    }
+
+    // ==========================================
+    // FILA DE SINCRONIZAÇÃO OFFLINE (LOCAL-FIRST)
+    // ==========================================
+    function queueOfflinePrice(itemData) {
+      try {
+        const queue = JSON.parse(localStorage.getItem('nutri_offline_sync_queue') || '[]');
+        queue.push(itemData);
+        localStorage.setItem('nutri_offline_sync_queue', JSON.stringify(queue));
+      } catch(e) {}
+    }
+
+    async function syncOfflineQueue() {
+      if (!navigator.onLine) return;
+      let queue = [];
+      try {
+        queue = JSON.parse(localStorage.getItem('nutri_offline_sync_queue') || '[]');
+      } catch(e) { return; }
+      if (!queue || queue.length === 0) return;
+
+      const remaining = [];
+      let syncedCount = 0;
+
+      for (const item of queue) {
+        try {
+          let prodId = item.produto_id;
+          if (!prodId) {
+            const { data: pData } = await client.from('produtos').upsert({
+              codigo_barras: item.codigo_barras,
+              nome: item.nome || 'Produto sem nome',
+              marca: item.marca || ''
+            }, { onConflict: 'codigo_barras' }).select();
+            if (pData && pData[0]) prodId = pData[0].id;
+          }
+
+          let mercadoId = null;
+          const { data: mkData } = await client.from('mercados').select('id').eq('nome', item.mercado || 'Supermercado Local').limit(1);
+          if (mkData && mkData.length > 0) {
+            mercadoId = mkData[0].id;
+          } else {
+            const { data: newMk } = await client.from('mercados').insert({
+              nome: item.mercado || 'Supermercado Local',
+              cidade: 'Cabo Frio'
+            }).select();
+            if (newMk && newMk[0]) mercadoId = newMk[0].id;
+          }
+
+          if (prodId && mercadoId) {
+            await client.from('registros_precos').insert({
+              produto_id: prodId,
+              mercado_id: mercadoId,
+              preco: item.preco,
+              usuario_id: currentUser?.id || null,
+              data_registro: item.data_registro || new Date().toISOString()
+            });
+            syncedCount++;
+          }
+        } catch(err) {
+          remaining.push(item);
+        }
+      }
+
+      localStorage.setItem('nutri_offline_sync_queue', JSON.stringify(remaining));
+      if (syncedCount > 0) {
+        showToast(`🔄 Sincronização: ${syncedCount} cotações salvas offline foram gravadas no banco!`, 'success');
+      }
+    }
+
+    window.addEventListener('online', () => {
+      showToast('🌐 Internet reconectada! Sincronizando dados pendentes...', 'info');
+      syncOfflineQueue();
+    });
+
+    setTimeout(syncOfflineQueue, 2500);
+
 
 
     // ==========================================
@@ -1629,165 +1914,14 @@
     // ==========================================
     // GESTÃO DE ENCARTES & SUBSTITUIÇÃO AUTOMÁTICA
     // ==========================================
-    async function publishEncarte() {
-      const marketName = document.getElementById('encarte-market-select').value;
-      const startDate = document.getElementById('encarte-start-date').value || new Date().toISOString().split('T')[0];
-      const endDate = document.getElementById('encarte-end-date').value;
-      const rawText = document.getElementById('encarte-raw-text').value.trim();
-      const statusDiv = document.getElementById('encarte-processing-status');
+        // ==========================================
+    // LEITURA ÓPTICA DE ENCARTE POR IMAGEM (OCR TESSERACT)
+    // ==========================================
+    
 
-      if (!endDate) {
-        showToast('Informe a data de validade final do encarte.', 'warning');
-        return;
-      }
-      if (!rawText) {
-        showToast('Cole ou digite pelo menos um produto e preço.', 'warning');
-        return;
-      }
+    
 
-      statusDiv.classList.remove('hidden');
-      statusDiv.innerText = '⏳ Processando ofertas e cruzando dados...';
-
-      try {
-        // 1. Localiza ou cria o mercado no Supabase
-        let mercadoId = null;
-        const { data: mkData } = await client.from('mercados').select('id').eq('nome', marketName).limit(1);
-        if (mkData && mkData.length > 0) {
-          mercadoId = mkData[0].id;
-        } else {
-          const { data: newMk } = await client.from('mercados').insert({ nome: marketName, cidade: 'Cabo Frio' }).select();
-          if (newMk && newMk[0]) mercadoId = newMk[0].id;
-        }
-
-        // 2. REGRA DE OURO: Desativa automaticamente ofertas anteriores deste mesmo mercado
-        if (mercadoId) {
-          try {
-            await client.from('registros_precos')
-              .update({ ativo: false })
-              .eq('mercado_id', mercadoId)
-              .eq('is_encarte', true);
-          } catch(e) {
-            console.log('Aviso ao expirar registros anteriores:', e);
-          }
-        }
-
-        // 3. Processa cada linha de texto do encarte
-        const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-        let countSaved = 0;
-
-        for (const line of lines) {
-          // Extrai nome e preço da linha (suporta "Arroz Camil 5kg - 24,90" ou "Feijão R$ 7,50")
-          const match = line.match(/(.*?)(?:[-—:]|\bR\$|\$)?\s*(\d+[,.]\d{2})\s*$/i);
-          let prodName = '';
-          let price = 0;
-
-          if (match) {
-            prodName = match[1].replace(/[-—:]/g, '').trim();
-            price = parseFloat(match[2].replace(',', '.'));
-          } else {
-            // Tentativa alternativa caso formato seja livre
-            const numMatch = line.match(/\d+[,.]\d{2}/);
-            if (numMatch) {
-              price = parseFloat(numMatch[0].replace(',', '.'));
-              prodName = line.replace(numMatch[0], '').replace(/[-—:R$]/g, '').trim();
-            }
-          }
-
-          if (!prodName || !price || isNaN(price)) continue;
-
-          // Busca produto correspondente no catálogo por nome (ilike)
-          let prodId = null;
-          const { data: existingProds } = await client.from('produtos')
-            .select('id, nome, codigo_barras')
-            .ilike('nome', `%${prodName.split(' ')[0]}%`)
-            .limit(5);
-
-          if (existingProds && existingProds.length > 0) {
-            // Encontra melhor correspondência
-            const exact = existingProds.find(p => p.nome.toLowerCase().includes(prodName.toLowerCase())) || existingProds[0];
-            prodId = exact.id;
-          } else {
-            // Cria produto novo no catálogo
-            const generatedEan = 'ENC' + Math.floor(1000000000 + Math.random() * 9000000000);
-            const { data: newProd } = await client.from('produtos').insert({
-              nome: prodName,
-              codigo_barras: generatedEan,
-              marca: 'Encarte Oficial'
-            }).select();
-            if (newProd && newProd[0]) prodId = newProd[0].id;
-          }
-
-          // Grava a cotação no registros_precos com tag is_encarte e validade
-          if (prodId && mercadoId) {
-            await client.from('registros_precos').insert({
-              produto_id: prodId,
-              mercado_id: mercadoId,
-              preco: price,
-              data_registro: new Date().toISOString(),
-              validade: endDate,
-              is_encarte: true,
-              ativo: true
-            });
-            countSaved++;
-          }
-        }
-
-        statusDiv.classList.add('hidden');
-        document.getElementById('encarte-raw-text').value = '';
-        showToast(`Encarte do ${marketName} publicado! ${countSaved} ofertas ativas até ${endDate}.`, 'success');
-        loadActiveEncartes();
-      } catch (err) {
-        statusDiv.classList.add('hidden');
-        showToast('Erro ao publicar encarte: ' + err.message, 'error');
-      }
-    }
-
-    async function loadActiveEncartes() {
-      const container = document.getElementById('active-encartes-list');
-      if (!container) return;
-
-      try {
-        const today = new Date().toISOString().split('T')[0];
-        const { data, error } = await client
-          .from('registros_precos')
-          .select('id, preco, validade, data_registro, mercados(nome), produtos(nome)')
-          .eq('is_encarte', true)
-          .gte('validade', today)
-          .order('validade', { ascending: true })
-          .limit(50);
-
-        if (error) throw error;
-
-        if (!data || data.length === 0) {
-          container.innerHTML = '<p style="color:#888; font-style:italic;">Nenhum encarte cadastrado ativo no momento. Use o formulário acima para adicionar.</p>';
-          return;
-        }
-
-        // Agrupa por mercado
-        const grouped = {};
-        data.forEach(r => {
-          const mkName = r.mercados?.nome || 'Mercado';
-          if (!grouped[mkName]) {
-            grouped[mkName] = { count: 0, validade: r.validade };
-          }
-          grouped[mkName].count++;
-        });
-
-        let html = '<ul style="list-style:none; padding:0; margin:0;">';
-        for (const [mk, info] of Object.entries(grouped)) {
-          html += `
-            <li style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px dashed #eee;">
-              <span><b>${mk}</b> (${info.count} ofertas vigentes)</span>
-              <span style="color:#2e7d32; font-weight:bold; font-size:11px;">Válido até ${info.validade}</span>
-            </li>
-          `;
-        }
-        html += '</ul>';
-        container.innerHTML = html;
-      } catch (e) {
-        container.innerHTML = '<p style="color:#999;">Histórico de encartes pronto para novos cadastros.</p>';
-      }
-    }
+    
 
 
     async function openAdminModal() {
@@ -1938,6 +2072,7 @@
     let cart = JSON.parse(localStorage.getItem('nutri_cart') || '[]');
     let purchaseHistory = JSON.parse(localStorage.getItem('nutri_purchases_history') || '[]');
     let currentUser = null;
+        checkAdminAccess(null);
 
 
     // Estado do Radar de Preços & Cesta Básica
@@ -2320,6 +2455,7 @@
       const { data: { session } } = await client.auth.getSession();
       if (session?.user) {
         currentUser = session.user;
+        checkAdminAccess(currentUser);
         const shortName = currentUser.email.split('@')[0];
         document.getElementById('header-auth-btn').innerText = '👤 ' + shortName;
         document.getElementById('sidebar-user-text').innerText = '👤 ' + currentUser.email;
@@ -2349,6 +2485,7 @@
     async function logoutUser() {
       await client.auth.signOut();
       currentUser = null;
+        checkAdminAccess(null);
       document.getElementById('header-auth-btn').innerText = '👤 Entrar';
       document.getElementById('sidebar-user-text').innerText = '👤 Modo Visitante';
       document.getElementById('sidebar-login-btn').innerText = 'Entrar ou Criar Conta';
@@ -2441,60 +2578,107 @@
     async function onCodeScanned(barcode) {
       if (html5QrCode) await html5QrCode.stop();
 
-
       document.getElementById('scan-section').classList.add('hidden');
       document.getElementById('loading').classList.remove('hidden');
       document.getElementById('unnamed-box').classList.add('hidden');
+      const scaleBadge = document.getElementById('scale-badge-box');
+      if (scaleBadge) scaleBadge.classList.add('hidden');
       currentBarcode = barcode;
+      currentProdDbId = null;
 
-
-      try {
-        const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json`);
-        const data = await res.json();
-
-
-        if (data.status === 1 && data.product && data.product.product_name) {
-          const p = data.product;
-          currentName = p.product_name;
-          currentBrand = p.brands || 'Marca não informada';
-          document.getElementById('prod-name').innerText = currentName;
-          document.getElementById('prod-brand').innerText = `${currentBrand} | EAN: ${barcode}`;
-          document.getElementById('prod-cal').innerText = (p.nutriments?.['energy-kcal_100g'] ?? 'N/D') + ' kcal';
-          document.getElementById('prod-sugar').innerText = (p.nutriments?.sugars_100g ?? 'N/D') + ' g';
-          document.getElementById('prod-sodium').innerText = (p.nutriments?.sodium_100g ?? 'N/D') + ' g';
-        } else {
-          currentName = '';
-          currentBrand = '';
-          document.getElementById('prod-name').innerText = 'Produto Novo';
-          document.getElementById('prod-brand').innerText = `EAN: ${barcode}`;
-          document.getElementById('prod-cal').innerText = 'N/D';
-          document.getElementById('prod-sugar').innerText = 'N/D';
-          document.getElementById('prod-sodium').innerText = 'N/D';
-          document.getElementById('unnamed-box').classList.remove('hidden');
+      // 1. LEITURA INTELIGENTE DE BALANÇA (EAN iniciado com 2: açougue/frios/padaria)
+      const scaleData = parseScaleBarcode(barcode);
+      if (scaleData) {
+        currentName = 'Item de Balança (Açougue / Frios)';
+        currentBrand = 'Pesado no Mercado';
+        document.getElementById('prod-name').innerText = currentName;
+        document.getElementById('prod-brand').innerText = `⚖️ Balança | EAN: ${barcode}`;
+        document.getElementById('prod-cal').innerText = 'N/D';
+        document.getElementById('prod-sugar').innerText = 'N/D';
+        document.getElementById('prod-sodium').innerText = 'N/D';
+        document.getElementById('price-input').value = scaleData.price.toFixed(2);
+        
+        if (scaleBadge) {
+          scaleBadge.classList.remove('hidden');
+          document.getElementById('scale-badge-price').innerText = `R$ ${scaleData.price.toFixed(2).replace('.', ',')}`;
         }
-
-
-        const { data: prodData } = await client.from('produtos').upsert({
-          codigo_barras: currentBarcode,
-          nome: currentName || 'Produto sem nome',
-          marca: currentBrand
-        }, { onConflict: 'codigo_barras' }).select();
-
-
-        if (prodData && prodData[0]) {
-          currentProdDbId = prodData[0].id;
-          await loadPriceHistory(currentProdDbId);
-        }
-
-
+        setProductUnitType('un');
         document.getElementById('loading').classList.add('hidden');
         document.getElementById('result-section').classList.remove('hidden');
-      } catch (e) {
-        showToast('Erro ao buscar dados: ' + e.message, 'error');
-        resetScan();
+        updateItemTotalCalc();
+        showToast(`⚖️ Etiqueta de balança: R$ ${scaleData.price.toFixed(2).replace('.', ',')}`, 'info');
+        return;
       }
-    }
 
+      // 2. MINI-CATÁLOGO OFFLINE & CACHE LOCAL
+      const cached = getCachedProduct(barcode);
+      if (cached) {
+        currentName = cached.nome;
+        currentBrand = cached.marca || 'Marca Popular';
+        document.getElementById('prod-name').innerText = currentName;
+        document.getElementById('prod-brand').innerText = `${currentBrand} | EAN: ${barcode}`;
+        document.getElementById('prod-cal').innerText = 'N/D';
+        document.getElementById('prod-sugar').innerText = 'N/D';
+        document.getElementById('prod-sodium').innerText = 'N/D';
+      } else {
+        currentName = '';
+        currentBrand = '';
+        document.getElementById('prod-name').innerText = 'Produto Novo';
+        document.getElementById('prod-brand').innerText = `EAN: ${barcode}`;
+        document.getElementById('prod-cal').innerText = 'N/D';
+        document.getElementById('prod-sugar').innerText = 'N/D';
+        document.getElementById('prod-sodium').innerText = 'N/D';
+        document.getElementById('unnamed-box').classList.remove('hidden');
+      }
+
+      // 3. CONSULTA EM REDE (SE ONLINE, COM TIMEOUT RÁPIDO PARA NÃO TRAVAR A GÔNDOLA)
+      if (navigator.onLine) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 2800);
+          const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${barcode}.json`, { signal: controller.signal });
+          clearTimeout(timeoutId);
+          const data = await res.json();
+
+          if (data.status === 1 && data.product && data.product.product_name) {
+            const p = data.product;
+            currentName = p.product_name;
+            currentBrand = p.brands || 'Marca não informada';
+            document.getElementById('prod-name').innerText = currentName;
+            document.getElementById('prod-brand').innerText = `${currentBrand} | EAN: ${barcode}`;
+            document.getElementById('prod-cal').innerText = (p.nutriments?.['energy-kcal_100g'] ?? 'N/D') + ' kcal';
+            document.getElementById('prod-sugar').innerText = (p.nutriments?.sugars_100g ?? 'N/D') + ' g';
+            document.getElementById('prod-sodium').innerText = (p.nutriments?.sodium_100g ?? 'N/D') + ' g';
+            document.getElementById('unnamed-box').classList.add('hidden');
+            saveProductToLocalCache(barcode, currentName, currentBrand);
+          }
+        } catch(e) {
+          console.warn('Busca remota offline ou lenta, seguindo com dados locais.');
+        }
+
+        try {
+          const { data: prodData } = await client.from('produtos').upsert({
+            codigo_barras: currentBarcode,
+            nome: currentName || 'Produto sem nome',
+            marca: currentBrand
+          }, { onConflict: 'codigo_barras' }).select();
+
+          if (prodData && prodData[0]) {
+            currentProdDbId = prodData[0].id;
+            await loadPriceHistory(currentProdDbId);
+          }
+        } catch(e) {
+          console.warn('Banco offline no momento.');
+        }
+      } else {
+        showToast('⚡ Modo Offline ativo: sem internet no momento.', 'info');
+      }
+
+      // MODO BLINDADO: Abre sempre a tela de cálculo sem travar
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('result-section').classList.remove('hidden');
+      updateItemTotalCalc();
+    }
 
     async function loadPriceHistory(productId) {
       const historyList = document.getElementById('history-list');
@@ -2634,13 +2818,14 @@
       const priceVal = parseFloat(document.getElementById('price-input').value);
       const manualName = document.getElementById('manual-name-input').value.trim();
 
-
       if (!currentName && manualName) {
         currentName = manualName;
         document.getElementById('prod-name').innerText = currentName;
-        await client.from('produtos').update({ nome: currentName }).eq('id', currentProdDbId);
+        saveProductToLocalCache(currentBarcode, currentName, currentBrand);
+        if (navigator.onLine && currentProdDbId) {
+          client.from('produtos').update({ nome: currentName }).eq('id', currentProdDbId).catch(()=>{});
+        }
       }
-
 
       // Trava de sanidade e segurança anti-fraude / anti-troll
       if (!priceVal || isNaN(priceVal) || priceVal < 0.10 || priceVal > 3000) {
@@ -2648,9 +2833,8 @@
         return;
       }
 
-
-      // Validação de discrepância extrema (se já houver preços registrados)
-      if (cachedPrices.length > 0) {
+      // Validação de discrepância extrema
+      if (cachedPrices && cachedPrices.length > 0) {
         const valores = cachedPrices.map(p => parseFloat(p.preco));
         const media = valores.reduce((a, b) => a + b, 0) / valores.length;
         if (priceVal < media * 0.2 || priceVal > media * 3.0) {
@@ -2665,16 +2849,32 @@
         }
       }
 
-
-      await recordPriceInDb(priceVal);
+      // 1. LOCAL-FIRST: Adiciona SEMPRE ao carrinho no celular (nunca falha sem internet)
       addToCart(currentName || 'Produto', priceVal);
+
+      // 2. Grava no banco ou adiciona na fila offline
+      await recordPriceInDb(priceVal);
+
       resetScan();
     }
 
-
     async function recordPriceInDb(priceVal) {
       const marketName = document.getElementById('market-input').value.trim() || 'Supermercado Local';
+      const itemToSync = {
+        codigo_barras: currentBarcode,
+        produto_id: currentProdDbId,
+        nome: currentName || 'Produto',
+        marca: currentBrand || '',
+        mercado: marketName,
+        preco: priceVal,
+        data_registro: new Date().toISOString()
+      };
 
+      if (!navigator.onLine) {
+        queueOfflinePrice(itemToSync);
+        showToast('⚡ Cotação guardada na fila offline! Será sincronizada quando a rede voltar.', 'info');
+        return;
+      }
 
       try {
         let mercadoId = null;
@@ -2690,15 +2890,28 @@
           if (newMk && newMk[0]) mercadoId = newMk[0].id;
         }
 
+        let prodId = currentProdDbId;
+        if (!prodId) {
+          const { data: pData } = await client.from('produtos').upsert({
+            codigo_barras: currentBarcode,
+            nome: currentName || 'Produto sem nome',
+            marca: currentBrand
+          }, { onConflict: 'codigo_barras' }).select();
+          if (pData && pData[0]) prodId = pData[0].id;
+        }
 
-        await client.from('registros_precos').insert({
-          produto_id: currentProdDbId,
-          mercado_id: mercadoId,
-          preco: priceVal,
-          usuario_id: currentUser?.id || null
-        });
+        if (prodId && mercadoId) {
+          await client.from('registros_precos').insert({
+            produto_id: prodId,
+            mercado_id: mercadoId,
+            preco: priceVal,
+            usuario_id: currentUser?.id || null,
+            data_registro: new Date().toISOString()
+          });
+        }
       } catch (err) {
-        console.error('Erro ao salvar no banco:', err);
+        console.warn('Erro na conexão com Supabase, salvando na fila offline:', err);
+        queueOfflinePrice(itemToSync);
       }
     }
 
@@ -2960,6 +3173,8 @@
 
 
     function resetScan() {
+      const scaleBadge = document.getElementById('scale-badge-box');
+      if (scaleBadge) scaleBadge.classList.add('hidden');
       document.getElementById('price-input').value = '';
       document.getElementById('manual-name-input').value = '';
       document.getElementById('compare-alert').classList.add('hidden');
@@ -2976,6 +3191,618 @@
         navigator.serviceWorker.register('./sw.js').catch(() => {});
       });
     }
+  
+    // ==========================================
+    // SEGURANÇA E ACESSO DO ADMINISTRADOR (ARTHUR)
+    // ==========================================
+    const ADMIN_EMAILS = ['arthurlvdss@gmail.com', 'contato.nutripreco@gmail.com'];
+
+    function checkAdminAccess(user) {
+      const adminSection = document.getElementById('sidebar-admin-section');
+      if (!adminSection) return;
+      if (user && user.email && ADMIN_EMAILS.includes(user.email.toLowerCase().trim())) {
+        adminSection.classList.remove('hidden');
+      } else {
+        adminSection.classList.add('hidden');
+      }
+    }
+
+    // ==========================================
+    // CONTROLES DE GÔNDOLA: LANTERNA & CÓDIGO MANUAL
+    // ==========================================
+    let isFlashOn = false;
+
+    async function toggleFlashlight() {
+      try {
+        const videoElem = document.querySelector('#reader video');
+        if (!videoElem || !videoElem.srcObject) {
+          showToast('Inicie a câmera primeiro para ligar a lanterna.', 'info');
+          return;
+        }
+        const stream = videoElem.srcObject;
+        const track = stream.getVideoTracks()[0];
+        const caps = track.getCapabilities ? track.getCapabilities() : {};
+
+        if (caps.torch) {
+          isFlashOn = !isFlashOn;
+          await track.applyConstraints({ advanced: [{ torch: isFlashOn }] });
+          document.getElementById('torch-btn').innerHTML = isFlashOn ? '🔦 Desligar Flash' : '🔦 Lanterna';
+          showToast(isFlashOn ? '🔦 Lanterna ligada!' : '🔦 Lanterna desligada', 'info');
+        } else {
+          showToast('A lanterna não é suportada por esta câmera.', 'warning');
+        }
+      } catch (err) {
+        showToast('Não foi possível acionar a lanterna: ' + err.message, 'warning');
+      }
+    }
+
+    function openManualBarcodePrompt() {
+      const code = prompt('Digite os números do código de barras (EAN):');
+      if (code && code.trim().length >= 6) {
+        onCodeScanned(code.trim());
+      } else if (code) {
+        showToast('Código de barras inválido (muito curto).', 'warning');
+      }
+    }
+
+    // ==========================================
+    // QUANTIDADE, PESO (UNIDADE vs KG) & CÁLCULOS
+    // ==========================================
+    let currentProductUnitType = 'un';
+
+    function setProductUnitType(type) {
+      currentProductUnitType = type;
+      const btnUn = document.getElementById('type-btn-un');
+      const btnKg = document.getElementById('type-btn-kg');
+      const chips = document.getElementById('quick-qty-chips');
+      const qtyInput = document.getElementById('product-qty-input');
+
+      if (type === 'un') {
+        btnUn.style.background = '#2e7d32';
+        btnUn.style.color = '#fff';
+        btnKg.style.background = '#eee';
+        btnKg.style.color = '#444';
+        qtyInput.value = '1';
+        chips.innerHTML = `
+          <button type="button" class="budget-chip" onclick="setQuickQty(1)">1 un</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(2)">2 un</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(3)">3 un</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(6)">6 un</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(12)">12 un</button>
+        `;
+      } else {
+        btnKg.style.background = '#2e7d32';
+        btnKg.style.color = '#fff';
+        btnUn.style.background = '#eee';
+        btnUn.style.color = '#444';
+        qtyInput.value = '1.0';
+        chips.innerHTML = `
+          <button type="button" class="budget-chip" onclick="setQuickQty(0.5)">0.5 kg</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(1.0)">1.0 kg</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(1.5)">1.5 kg</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(2.0)">2.0 kg</button>
+        `;
+      }
+      updateItemTotalCalc();
+    }
+
+    function adjustProductQty(delta) {
+      const qtyInput = document.getElementById('product-qty-input');
+      let val = parseFloat(qtyInput.value) || 1;
+      if (currentProductUnitType === 'un') {
+        val = Math.max(1, Math.round(val + delta));
+      } else {
+        val = Math.max(0.1, parseFloat((val + (delta * 0.5)).toFixed(2)));
+      }
+      qtyInput.value = val;
+      updateItemTotalCalc();
+    }
+
+    function setQuickQty(val) {
+      const qtyInput = document.getElementById('product-qty-input');
+      qtyInput.value = val;
+      updateItemTotalCalc();
+    }
+
+    function updateItemTotalCalc() {
+      const qtyInput = document.getElementById('product-qty-input');
+      const priceInput = document.getElementById('price-input');
+      const preview = document.getElementById('item-subtotal-preview');
+
+      const qty = parseFloat(qtyInput?.value) || 1;
+      const price = parseFloat(priceInput?.value) || 0;
+      const subtotal = qty * price;
+
+      const unitLabel = currentProductUnitType === 'un' ? 'un.' : 'kg';
+      if (preview) {
+        preview.innerText = `Subtotal deste item: R$ ${subtotal.toFixed(2)} (${qty} ${unitLabel})`;
+      }
+    }
+
+    // Helper redimensionador leve para imagens de folheto
+    function resizeFlyerImage(file, maxDimension = 1600) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            let width = img.width;
+            let height = img.height;
+            if (width > maxDimension || height > maxDimension) {
+              if (width > height) {
+                height = Math.round((height * maxDimension) / width);
+                width = maxDimension;
+              } else {
+                width = Math.round((width * maxDimension) / height);
+                height = maxDimension;
+              }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', 0.85));
+          };
+          img.onerror = reject;
+          img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // ==========================================
+    // GESTÃO DE ENCARTES 100% FOTO (ZERO DIGITAÇÃO)
+    // ==========================================
+    let currentEncartePhotoBase64 = null;
+
+    function handleEncartePhotoSelect(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const previewBox = document.getElementById('encarte-photo-preview-box');
+      const previewImg = document.getElementById('encarte-photo-preview-img');
+      const info = document.getElementById('encarte-photo-info');
+
+      if (info) info.innerText = '⏳ Carregando imagem...';
+      if (previewBox) previewBox.classList.remove('hidden');
+
+      resizeFlyerImage(file, 1600).then(base64 => {
+        currentEncartePhotoBase64 = base64;
+        if (previewImg) previewImg.src = base64;
+        if (info) info.innerText = '✅ Foto pronta para publicação!';
+      }).catch(err => {
+        showToast('Erro ao carregar foto: ' + err.message, 'error');
+      });
+    }
+
+    async function publishPhotoEncarte() {
+      const market = document.getElementById('encarte-photo-market').value;
+      const start = document.getElementById('encarte-photo-start').value || new Date().toISOString().split('T')[0];
+      const end = document.getElementById('encarte-photo-end').value;
+      const userCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
+
+      if (!end) {
+        showToast('Informe a data de validade final do encarte.', 'warning');
+        return;
+      }
+      if (!currentEncartePhotoBase64) {
+        showToast('Tire uma foto ou selecione a imagem do encarte.', 'warning');
+        return;
+      }
+
+      showToast('Publicando encarte oficial...', 'info');
+
+      const encarteObj = {
+        id: 'ENC_' + Date.now(),
+        mercado: market,
+        cidade: userCity,
+        data_inicio: start,
+        validade: end,
+        imagem: currentEncartePhotoBase64,
+        criado_em: new Date().toISOString()
+      };
+
+      // 1. Salva no aparelho local (garantia 100% de funcionamento)
+      let encartesLocais = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
+      encartesLocais = encartesLocais.filter(e => e.mercado.toLowerCase() !== market.toLowerCase());
+      encartesLocais.unshift(encarteObj);
+      localStorage.setItem('nutri_photo_encartes', JSON.stringify(encartesLocais));
+
+      // 2. Tenta sincronizar na nuvem Supabase se a tabela encartes existir
+      try {
+        await client.from('encartes').insert({
+          mercado: market,
+          cidade: userCity,
+          data_inicio: start,
+          validade: end,
+          imagem: currentEncartePhotoBase64
+        });
+      } catch(cloudErr) {
+        console.log('Aviso cloud:', cloudErr);
+      }
+
+      showToast(`Encarte do ${market} publicado com sucesso!`, 'success');
+
+      currentEncartePhotoBase64 = null;
+      document.getElementById('encarte-photo-preview-box').classList.add('hidden');
+      document.getElementById('encarte-photo-file').value = '';
+
+      loadActivePhotoEncartes();
+      renderPublicEncartes();
+    }
+
+    async function loadActivePhotoEncartes() {
+      const container = document.getElementById('active-photo-encartes-list');
+      if (!container) return;
+
+      const today = new Date().toISOString().split('T')[0];
+      let encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
+
+      try {
+        const { data } = await client.from('encartes').select('*').gte('validade', today).order('validade', { ascending: true });
+        if (data && data.length > 0) {
+          encartes = data;
+          localStorage.setItem('nutri_photo_encartes', JSON.stringify(encartes));
+        }
+      } catch(e) {}
+
+      const valid = encartes.filter(e => e.validade >= today);
+
+      if (valid.length === 0) {
+        container.innerHTML = '<p style="color:#888; font-style:italic;">Nenhum encarte publicado ativo no momento.</p>';
+        return;
+      }
+
+      let html = '<ul style="list-style:none; padding:0; margin:0;">';
+      valid.forEach(e => {
+        html += `
+          <li style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px dashed #eee;">
+            <div>
+              <strong>${e.mercado}</strong> (${e.cidade || 'Cabo Frio'})<br>
+              <small style="color:#2e7d32; font-weight:bold;">Válido até ${formatDateBR(e.validade)}</small>
+            </div>
+            <button onclick="deletePhotoEncarte('${e.id}')" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:bold; cursor:pointer;">
+              🗑️ Excluir
+            </button>
+          </li>
+        `;
+      });
+      html += '</ul>';
+      container.innerHTML = html;
+    }
+
+    async function deletePhotoEncarte(id) {
+      let encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
+      encartes = encartes.filter(e => String(e.id) !== String(id));
+      localStorage.setItem('nutri_photo_encartes', JSON.stringify(encartes));
+
+      try {
+        await client.from('encartes').delete().eq('id', id);
+      } catch(e) {}
+
+      showToast('Encarte excluído!', 'info');
+      loadActivePhotoEncartes();
+      renderPublicEncartes();
+    }
+
+    // ==========================================
+    // VITRINE PÚBLICA DE ENCARTES (VISÍVEL AOS USUÁRIOS)
+    // ==========================================
+    async function openPublicEncartesModal() {
+      const modal = document.getElementById('public-encartes-modal');
+      const cityLabel = document.getElementById('public-encartes-city-label');
+      const userCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
+      const userState = localStorage.getItem('nutri_user_state') || 'RJ';
+
+      const cleanCity = userCity.replace(/\s*-\s*[A-Z]{2}$/i, '').trim();
+      if (cityLabel) cityLabel.innerHTML = `📍 Região: <b>${cleanCity} - ${userState}</b>`;
+      if (modal) modal.classList.remove('hidden');
+
+      renderPublicEncartes();
+    }
+
+    function closePublicEncartesModal() {
+      const modal = document.getElementById('public-encartes-modal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function renderPublicEncartes() {
+      const container = document.getElementById('public-encartes-container');
+      if (!container) return;
+
+      const userCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
+      const today = new Date().toISOString().split('T')[0];
+
+      let encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
+
+      try {
+        const { data } = await client.from('encartes').select('*').gte('validade', today).order('validade', { ascending: true });
+        if (data && data.length > 0) {
+          encartes = data;
+          localStorage.setItem('nutri_photo_encartes', JSON.stringify(encartes));
+        }
+      } catch(e) {}
+
+      const valid = encartes.filter(e => e.validade >= today);
+
+      if (valid.length === 0) {
+        container.innerHTML = `
+          <div style="text-align:center; padding:32px 16px; background:#fafafa; border:1px dashed #ccc; border-radius:12px;">
+            <span style="font-size:38px; display:block; margin-bottom:8px;">📰</span>
+            <strong style="color:#333; font-size:14.5px;">Nenhum encarte publicado para ${userCity} no momento.</strong>
+            <p style="font-size:12px; color:#777; margin-top:6px;">Os encartes são atualizados semanalmente.</p>
+          </div>
+        `;
+        return;
+      }
+
+      let html = '';
+      valid.forEach(e => {
+        html += `
+          <div style="background:#fff; border:1.5px solid #c8e6c9; border-radius:14px; padding:14px; box-shadow:0 3px 8px rgba(0,0,0,0.06);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+              <div>
+                <h4 style="font-size:16px; color:#1b5e20; font-weight:bold; margin:0;">🏪 ${e.mercado}</h4>
+                <span style="font-size:11.5px; color:#666;">Cabo Frio e região</span>
+              </div>
+              <span style="background:#e8f5e9; color:#2e7d32; font-size:11.5px; font-weight:bold; padding:4px 9px; border-radius:12px; border:1px solid #c8e6c9;">
+                Válido até ${formatDateBR(e.validade)}
+              </span>
+            </div>
+
+            <!-- Capa do Folheto -->
+            <div style="text-align:center; margin-bottom:10px; cursor:pointer;" onclick="openEncarteViewer('${e.id}')">
+              <img src="${e.imagem}" style="max-width:100%; max-height:280px; border-radius:8px; border:1px solid #ddd; object-fit:contain; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+            </div>
+
+            <button onclick="openEncarteViewer('${e.id}')" class="save-btn" style="margin:0; background:#1b5e20; font-size:14px; padding:12px; display:flex; align-items:center; justify-content:center; gap:8px;">
+              🔍 Abrir Folheto em Tela Cheia (Com Zoom)
+            </button>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
+    // ==========================================
+    // VISUALIZADOR DE ENCARTE COM ZOOM
+    // ==========================================
+    let currentViewerZoom = 1.0;
+
+    function openEncarteViewer(encarteId) {
+      const encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
+      const item = encartes.find(e => String(e.id) === String(encarteId));
+      if (!item) return;
+
+      currentViewerZoom = 1.0;
+      const modal = document.getElementById('encarte-viewer-modal');
+      const title = document.getElementById('viewer-market-title');
+      const val = document.getElementById('viewer-validity-text');
+      const img = document.getElementById('viewer-encarte-img');
+
+      if (title) title.innerText = item.mercado;
+      if (val) val.innerText = `Válido até ${formatDateBR(item.validade)}`;
+      if (img) {
+        img.src = item.imagem;
+        img.style.transform = 'scale(1.0)';
+      }
+
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeEncarteViewer() {
+      const modal = document.getElementById('encarte-viewer-modal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function zoomEncarte(factor) {
+      const img = document.getElementById('viewer-encarte-img');
+      currentViewerZoom = Math.min(3.5, Math.max(0.6, currentViewerZoom * factor));
+      if (img) img.style.transform = `scale(${currentViewerZoom})`;
+    }
+
+    function formatDateBR(dateStr) {
+      if (!dateStr) return '';
+      const parts = dateStr.split('-');
+      if (parts.length === 3) return `${parts[2]}/${parts[1]}`;
+      return dateStr;
+    }
+
+    // ==========================================
+    // MODERAÇÃO DO ADMINISTRADOR
+    // ==========================================
+    function switchAdminModTab(tab) {
+      document.getElementById('admin-tab-encartes').style.background = tab === 'encartes' ? '#b71c1c' : '#fff';
+      document.getElementById('admin-tab-encartes').style.color = tab === 'encartes' ? '#fff' : '#555';
+      document.getElementById('admin-tab-precos').style.background = tab === 'precos' ? '#b71c1c' : '#fff';
+      document.getElementById('admin-tab-precos').style.color = tab === 'precos' ? '#fff' : '#555';
+      document.getElementById('admin-tab-mercados').style.background = tab === 'mercados' ? '#b71c1c' : '#fff';
+      document.getElementById('admin-tab-mercados').style.color = tab === 'mercados' ? '#fff' : '#555';
+
+      document.getElementById('admin-mod-encartes-view').classList.toggle('hidden', tab !== 'encartes');
+      document.getElementById('admin-mod-precos-view').classList.toggle('hidden', tab !== 'precos');
+      document.getElementById('admin-mod-mercados-view').classList.toggle('hidden', tab !== 'mercados');
+
+      if (tab === 'encartes') loadActivePhotoEncartes();
+      if (tab === 'precos') loadAdminPricesModeration();
+      if (tab === 'mercados') loadAdminMarketsModeration();
+    }
+
+    async function loadAdminPricesModeration() {
+      const container = document.getElementById('admin-manage-prices-list');
+      container.innerHTML = '<div style="padding:10px; color:#888;">Carregando cotações...</div>';
+      try {
+        const { data } = await client.from('registros_precos').select('id, preco, mercados(nome), produtos(nome)').order('data_registro', { ascending: false }).limit(25);
+        if (!data || data.length === 0) {
+          container.innerHTML = '<div style="padding:10px; color:#888;">Nenhuma cotação recente.</div>';
+          return;
+        }
+        let html = '';
+        data.forEach(r => {
+          html += `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:7px; border-bottom:1px dashed #eee; background:#fff; margin-bottom:4px; border-radius:6px;">
+              <div><strong>${r.produtos?.nome || 'Produto'}</strong> - R$ ${parseFloat(r.preco).toFixed(2)}<br><small style="color:#666;">${r.mercados?.nome || 'Mercado'}</small></div>
+              <button onclick="adminDeletePrice('${r.id}')" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:4px 7px; font-weight:bold; font-size:11px; cursor:pointer;">🗑️ Excluir</button>
+            </div>
+          `;
+        });
+        container.innerHTML = html;
+      } catch(e) {
+        container.innerHTML = '<div style="color:#c62828;">Erro ao carregar cotações.</div>';
+      }
+    }
+
+    async function adminDeletePrice(id) {
+      try {
+        await client.from('registros_precos').delete().eq('id', id);
+        showToast('Cotação excluída!', 'success');
+        loadAdminPricesModeration();
+      } catch(e) {}
+    }
+
+    async function loadAdminMarketsModeration() {
+      const container = document.getElementById('admin-manage-markets-list');
+      container.innerHTML = '<div style="padding:10px; color:#888;">Carregando mercados...</div>';
+      try {
+        const { data } = await client.from('mercados').select('id, nome, cidade').order('nome');
+        if (!data || data.length === 0) {
+          container.innerHTML = '<div style="padding:10px; color:#888;">Nenhum mercado cadastrado.</div>';
+          return;
+        }
+        let html = '';
+        data.forEach(m => {
+          html += `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:7px; border-bottom:1px dashed #eee; background:#fff; margin-bottom:4px; border-radius:6px;">
+              <div><strong>${m.nome}</strong><br><small style="color:#666;">${m.cidade || 'Cabo Frio'}</small></div>
+              <button onclick="adminDeleteMarket('${m.id}')" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:4px 7px; font-weight:bold; font-size:11px; cursor:pointer;">🗑️ Excluir</button>
+            </div>
+          `;
+        });
+        container.innerHTML = html;
+      } catch(e) {
+        container.innerHTML = '<div style="color:#c62828;">Erro ao carregar mercados.</div>';
+      }
+    }
+
+    async function adminDeleteMarket(id) {
+      const conf = await showConfirmDialog({ title: 'Excluir Mercado', message: 'Deseja excluir este mercado?', icon: '🗑️', okText: 'Excluir', isDestructive: true });
+      if (!conf) return;
+      try {
+        await client.from('mercados').delete().eq('id', id);
+        showToast('Mercado excluído!', 'success');
+        loadAdminMarketsModeration();
+      } catch(e) {}
+    }
+
+    // ==========================================
+    // MODAL DE TERMOS LEGAIS & ART 31 CDC
+    // ==========================================
+    function openLegalTermsModal() {
+      document.getElementById('legal-terms-modal').classList.remove('hidden');
+    }
+    function closeLegalTermsModal() {
+      document.getElementById('legal-terms-modal').classList.add('hidden');
+    }
+
+    // ==========================================
+    // SELETOR DE CIDADE & ESTADO (IBGE + OFFLINE)
+    // ==========================================
+    const OFFLINE_CITIES_BACKUP = {
+      'RJ': ['Cabo Frio', 'Arraial do Cabo', 'Armação dos Búzios', 'São Pedro da Aldeia', 'Araruama', 'Saquarema', 'Macaé', 'Rio das Ostras', 'Niterói', 'Rio de Janeiro', 'Campos dos Goytacazes', 'Petrópolis', 'Volta Redonda', 'Nova Friburgo'],
+      'SP': ['São Paulo', 'Campinas', 'Santos', 'São José dos Campos', 'Ribeirão Preto', 'Sorocaba', 'Santo André', 'São Bernardo do Campo'],
+      'MG': ['Belo Horizonte', 'Juiz de Fora', 'Uberlândia', 'Contagem', 'Betim', 'Montes Claros'],
+      'ES': ['Vitória', 'Vila Velha', 'Serra', 'Cariacica', 'Guarapari', 'Linhares']
+    };
+
+    function openCitySelectorModal() {
+      const modal = document.getElementById('city-selector-modal');
+      const savedCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
+      const savedUf = localStorage.getItem('nutri_user_state') || 'RJ';
+
+      document.getElementById('select-uf').value = savedUf;
+      onUfChanged(savedCity);
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeCitySelectorModal() {
+      const modal = document.getElementById('city-selector-modal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function onUfChanged(preselectedCity = null) {
+      const uf = document.getElementById('select-uf').value;
+      const citySelect = document.getElementById('select-city');
+      const loader = document.getElementById('city-loading-indicator');
+
+      citySelect.innerHTML = '';
+      const cacheKey = 'nutri_cities_' + uf;
+      const cached = localStorage.getItem(cacheKey);
+
+      if (cached) {
+        try {
+          populateCityDropdown(JSON.parse(cached), preselectedCity);
+          return;
+        } catch(e){}
+      }
+
+      if (!navigator.onLine && OFFLINE_CITIES_BACKUP[uf]) {
+        populateCityDropdown(OFFLINE_CITIES_BACKUP[uf], preselectedCity);
+        return;
+      }
+
+      if (loader) loader.classList.remove('hidden');
+      try {
+        const res = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios?orderBy=nome`);
+        const data = await res.json();
+        const cityNames = data.map(c => c.nome);
+        localStorage.setItem(cacheKey, JSON.stringify(cityNames));
+        populateCityDropdown(cityNames, preselectedCity);
+      } catch (err) {
+        populateCityDropdown(OFFLINE_CITIES_BACKUP[uf] || ['Capital', 'Interior'], preselectedCity);
+      } finally {
+        if (loader) loader.classList.add('hidden');
+      }
+    }
+
+    function populateCityDropdown(cityList, preselectedCity) {
+      const citySelect = document.getElementById('select-city');
+      citySelect.innerHTML = '';
+      cityList.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c;
+        opt.innerText = c;
+        if (preselectedCity && c.toLowerCase() === preselectedCity.toLowerCase()) {
+          opt.selected = true;
+        }
+        citySelect.appendChild(opt);
+      });
+    }
+
+    function saveSelectedCity() {
+      const uf = document.getElementById('select-uf').value;
+      const city = document.getElementById('select-city').value;
+      if (!city) return;
+
+      const formatted = `${city} - ${uf}`;
+      localStorage.setItem('nutri_user_city', city);
+      localStorage.setItem('nutri_user_state', uf);
+
+      const bannerCity = document.getElementById('banner-user-city');
+      if (bannerCity) bannerCity.innerText = formatted;
+
+      closeCitySelectorModal();
+      showToast(`Região: ${formatted}`, 'success');
+      loadActivePhotoEncartes();
+      renderPublicEncartes();
+    }
+
+    function editUserCity() {
+      openCitySelectorModal();
+    }
+
   </script>
 
 
