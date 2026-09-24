@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -15,2274 +15,8 @@
 
 
   <!-- Bibliotecas externas -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">    // ==========================================
-    // SISTEMA DE CIDADES (IBGE + CACHE OFFLINE LOCAL-FIRST)
-    // ==========================================
-    const OFFLINE_CITIES_BACKUP = {
-      'RJ': ['Cabo Frio', 'Arraial do Cabo', 'Armação dos Búzios', 'São Pedro da Aldeia', 'Araruama', 'Saquarema', 'Macaé', 'Rio das Ostras', 'Niterói', 'Rio de Janeiro', 'Campos dos Goytacazes', 'Petrópolis', 'Volta Redonda', 'Nova Friburgo'],
-      'SP': ['São Paulo', 'Campinas', 'Santos', 'São José dos Campos', 'Ribeirão Preto', 'Sorocaba', 'Santo André', 'São Bernardo do Campo'],
-      'MG': ['Belo Horizonte', 'Juiz de Fora', 'Uberlândia', 'Contagem', 'Betim', 'Montes Claros'],
-      'ES': ['Vitória', 'Vila Velha', 'Serra', 'Cariacica', 'Guarapari', 'Linhares']
-    };
-
-    function openCitySelectorModal() {
-      const modal = document.getElementById('city-selector-modal');
-      const savedCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
-      const savedUf = localStorage.getItem('nutri_user_state') || 'RJ';
-
-      document.getElementById('select-uf').value = savedUf;
-      onUfChanged(savedCity);
-      if (modal) modal.classList.remove('hidden');
-    }
-
-    function closeCitySelectorModal() {
-      const modal = document.getElementById('city-selector-modal');
-      if (modal) modal.classList.add('hidden');
-    }
-
-    async function onUfChanged(preselectedCity = null) {
-      const uf = document.getElementById('select-uf').value;
-      const citySelect = document.getElementById('select-city');
-      const loader = document.getElementById('city-loading-indicator');
-
-      citySelect.innerHTML = '';
-
-      // 1. Tenta carregar do Cache Local do celular
-      const cacheKey = 'nutri_cities_' + uf;
-      const cached = localStorage.getItem(cacheKey);
-
-      if (cached) {
-        try {
-          const list = JSON.parse(cached);
-          populateCityDropdown(list, preselectedCity);
-          return;
-        } catch(e){}
-      }
-
-      // 2. Se offline, usa backup pré-embarcado
-      if (!navigator.onLine && OFFLINE_CITIES_BACKUP[uf]) {
-        populateCityDropdown(OFFLINE_CITIES_BACKUP[uf], preselectedCity);
-        return;
-      }
-
-      // 3. Se online, busca na API oficial do IBGE
-      if (loader) loader.classList.remove('hidden');
-      try {
-        const res = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios?orderBy=nome`);
-        const data = await res.json();
-        const cityNames = data.map(c => c.nome);
-
-        // Salva no cache local do celular para sempre funcionar offline
-        localStorage.setItem(cacheKey, JSON.stringify(cityNames));
-
-        populateCityDropdown(cityNames, preselectedCity);
-      } catch (err) {
-        // Fallback emergencial offline
-        const backup = OFFLINE_CITIES_BACKUP[uf] || ['Capital', 'Interior'];
-        populateCityDropdown(backup, preselectedCity);
-      } finally {
-        if (loader) loader.classList.add('hidden');
-      }
-    }
-
-    function populateCityDropdown(cityList, preselectedCity) {
-      const citySelect = document.getElementById('select-city');
-      citySelect.innerHTML = '';
-      cityList.forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c;
-        opt.innerText = c;
-        if (preselectedCity && c.toLowerCase() === preselectedCity.toLowerCase()) {
-          opt.selected = true;
-        }
-        citySelect.appendChild(opt);
-      });
-    }
-
-    function saveSelectedCity() {
-      const uf = document.getElementById('select-uf').value;
-      const city = document.getElementById('select-city').value;
-
-      if (!city) {
-        showToast('Selecione uma cidade.', 'warning');
-        return;
-      }
-
-      const formatted = `${city} - ${uf}`;
-      localStorage.setItem('nutri_user_city', city);
-      localStorage.setItem('nutri_user_state', uf);
-
-      const bannerCity = document.getElementById('banner-user-city');
-      if (bannerCity) bannerCity.innerText = formatted;
-
-      closeCitySelectorModal();
-      showToast(`Região atualizada para: ${formatted}`, 'success');
-      loadActiveEncartes(); loadActivePhotoEncartes();
-    }
-
-    // Altera editUserCity para abrir o modal do IBGE
-    function editUserCity() {
-      openCitySelectorModal();
-    }
-
-    // ==========================================
-    // VITRINE PÚBLICA DE ENCARTES (POR REGIÃO)
-    // ==========================================
-    async function openPublicEncartesModal() {
-      const modal = document.getElementById('public-encartes-modal');
-      const cityLabel = document.getElementById('public-encartes-city-label');
-      const userCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
-      const userState = localStorage.getItem('nutri_user_state') || 'RJ';
-
-      const cleanCity = userCity.replace(/\s*-\s*[A-Z]{2}$/i, '').trim();
-      if (cityLabel) cityLabel.innerHTML = `📍 Região: <b>${cleanCity} - ${userState}</b>`;
-      if (modal) modal.classList.remove('hidden');
-
-      renderPublicEncartes();
-    }
-
-    function closePublicEncartesModal() {
-      const modal = document.getElementById('public-encartes-modal');
-      if (modal) modal.classList.add('hidden');
-    }
-
-    async function renderPublicEncartes() {
-      const container = document.getElementById('public-encartes-container');
-      const userCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
-      const today = new Date().toISOString().split('T')[0];
-
-      container.innerHTML = '<div style="text-align:center; padding:25px; color:#888;">⏳ Buscando encartes vigentes da sua região...</div>';
-
-      try {
-        const { data, error } = await client
-          .from('registros_precos')
-          .select('id, preco, validade, data_registro, mercados(id, nome, cidade), produtos(id, nome, marca, codigo_barras)')
-          .eq('is_encarte', true)
-          .gte('validade', today)
-          .order('validade', { ascending: true })
-          .limit(100);
-
-        if (error) throw error;
-
-        if (!data || data.length === 0) {
-          container.innerHTML = `
-            <div style="text-align:center; padding:30px 16px; background:#fafafa; border:1px dashed #ccc; border-radius:12px;">
-              <span style="font-size:32px; display:block; margin-bottom:8px;">📰</span>
-              <strong style="color:#444;">Nenhum encarte cadastrado para ${userCity} no momento.</strong>
-              <p style="font-size:12px; color:#777; margin-top:6px;">Os administradores e mercados parceiros atualizam os folhetos semanalmente.</p>
-            </div>
-          `;
-          return;
-        }
-
-        // Agrupa por mercado
-        const grouped = {};
-        data.forEach(item => {
-          const mkName = item.mercados?.nome || 'Supermercado';
-          if (!grouped[mkName]) {
-            grouped[mkName] = {
-              validade: item.validade,
-              produtos: []
-            };
-          }
-          grouped[mkName].produtos.push({
-            id: item.id,
-            nome: item.produtos?.nome || 'Produto',
-            preco: parseFloat(item.preco).toFixed(2),
-            marca: item.produtos?.marca || ''
-          });
-        });
-
-        let html = '';
-        for (const [marketName, info] of Object.entries(grouped)) {
-          html += `
-            <div style="background:#fff; border:1px solid #c8e6c9; border-radius:14px; padding:14px; box-shadow:0 2px 6px rgba(0,0,0,0.05);">
-              <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; border-bottom:1px solid #f0f0f0; padding-bottom:8px;">
-                <div>
-                  <h4 style="font-size:16px; color:#1b5e20; font-weight:bold; margin-bottom:2px;">🏪 ${marketName}</h4>
-                  <span style="font-size:11.5px; color:#666;">${info.produtos.length} ofertas vigentes</span>
-                </div>
-                <span style="background:#e8f5e9; color:#2e7d32; font-size:11px; font-weight:bold; padding:3px 8px; border-radius:12px; border:1px solid #c8e6c9;">
-                  Válido até ${formatDateBR(info.validade)}
-                </span>
-              </div>
-              <div style="display:flex; flex-direction:column; gap:8px;">
-          `;
-
-          info.produtos.forEach(p => {
-            const safeName = p.nome.replace(/'/g, "\\'");
-            html += `
-              <div style="display:flex; justify-content:space-between; align-items:center; background:#fafafa; border-radius:8px; padding:8px 10px; border:1px solid #eee;">
-                <div>
-                  <strong style="font-size:13px; color:#222; display:block;">${p.nome}</strong>
-                  <span style="font-size:14px; color:#1b5e20; font-weight:bold;">R$ ${p.preco}</span>
-                </div>
-                <button onclick="addEncarteItemToPrelist('${safeName}')" style="background:#e8f5e9; border:1px solid #a5d6a7; color:#1b5e20; padding:6px 10px; border-radius:8px; font-size:11.5px; font-weight:bold; cursor:pointer;">
-                  + Na Lista
-                </button>
-              </div>
-            `;
-          });
-
-          html += `
-              </div>
-            </div>
-          `;
-        }
-
-        container.innerHTML = html;
-      } catch (err) {
-        container.innerHTML = '<div style="color:#c62828; text-align:center; padding:20px;">Erro ao carregar encartes da nuvem.</div>';
-      }
-    }
-
-    function addEncarteItemToPrelist(prodName) {
-      preShoppingList.push({ id: Date.now(), name: prodName, done: false });
-      savePrelist();
-      showToast(`"${prodName}" adicionado à sua Lista Prévia!`, 'success');
-    }
-
-    function formatDateBR(dateStr) {
-      if (!dateStr) return '';
-      const parts = dateStr.split('-');
-      if (parts.length === 3) return `${parts[2]}/${parts[1]}`;
-      return dateStr;
-    }
-
-    // ==========================================
-    // MODERAÇÃO DO ADMINISTRADOR (EXCLUIR DADOS)
-    // ==========================================
-    function switchAdminModTab(tab) {
-      document.getElementById('admin-tab-encartes').style.background = tab === 'encartes' ? '#b71c1c' : '#fff';
-      document.getElementById('admin-tab-encartes').style.color = tab === 'encartes' ? '#fff' : '#555';
-      document.getElementById('admin-tab-precos').style.background = tab === 'precos' ? '#b71c1c' : '#fff';
-      document.getElementById('admin-tab-precos').style.color = tab === 'precos' ? '#fff' : '#555';
-      document.getElementById('admin-tab-mercados').style.background = tab === 'mercados' ? '#b71c1c' : '#fff';
-      document.getElementById('admin-tab-mercados').style.color = tab === 'mercados' ? '#fff' : '#555';
-
-      document.getElementById('admin-mod-encartes-view').classList.toggle('hidden', tab !== 'encartes');
-      document.getElementById('admin-mod-precos-view').classList.toggle('hidden', tab !== 'precos');
-      document.getElementById('admin-mod-mercados-view').classList.toggle('hidden', tab !== 'mercados');
-
-      if (tab === 'encartes') loadAdminEncartesModeration();
-      if (tab === 'precos') loadAdminPricesModeration();
-      if (tab === 'mercados') loadAdminMarketsModeration();
-    }
-
-    async function loadAdminEncartesModeration() {
-      const container = document.getElementById('admin-manage-encartes-list');
-      container.innerHTML = '<div style="padding:10px; color:#888;">Carregando encartes para moderação...</div>';
-
-      try {
-        const { data, error } = await client
-          .from('registros_precos')
-          .select('id, mercado_id, validade, data_registro, mercados(id, nome)')
-          .eq('is_encarte', true)
-          .order('validade', { ascending: false })
-          .limit(100);
-
-        if (error) throw error;
-        if (!data || data.length === 0) {
-          container.innerHTML = '<div style="padding:10px; color:#888;">Nenhum encarte cadastrado no momento.</div>';
-          return;
-        }
-
-        // Agrupa por mercado + validade
-        const groups = {};
-        data.forEach(r => {
-          const key = (r.mercados?.nome || 'Mercado') + '_' + (r.validade || '');
-          if (!groups[key]) {
-            groups[key] = {
-              marketId: r.mercado_id,
-              marketName: r.mercados?.nome || 'Mercado',
-              validade: r.validade,
-              ids: []
-            };
-          }
-          groups[key].ids.push(r.id);
-        });
-
-        let html = '';
-        for (const [k, item] of Object.entries(groups)) {
-          html += `
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border-bottom:1px dashed #eee; background:#fff; margin-bottom:4px; border-radius:6px;">
-              <div>
-                <strong>${item.marketName}</strong> (${item.ids.length} itens)<br>
-                <small style="color:#666;">Validade: ${item.validade || 'N/A'}</small>
-              </div>
-              <button onclick="adminDeleteEncarteBatch('${item.marketId}', '${item.validade}')" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:5px 8px; font-weight:bold; font-size:11px; cursor:pointer;">
-                🗑️ Excluir Encarte
-              </button>
-            </div>
-          `;
-        }
-        container.innerHTML = html;
-      } catch (e) {
-        container.innerHTML = '<div style="color:#c62828;">Erro ao carregar moderação de encartes.</div>';
-      }
-    }
-
-    async function adminDeleteEncarteBatch(marketId, validade) {
-      const conf = await showConfirmDialog({
-        title: 'Excluir Encarte',
-        message: 'Deseja realmente apagar todas as ofertas deste encarte?',
-        icon: '🗑️',
-        okText: 'Excluir',
-        isDestructive: true
-      });
-      if (!conf) return;
-
-      try {
-        showToast('Excluindo encarte...', 'info');
-        const { error } = await client
-          .from('registros_precos')
-          .delete()
-          .eq('mercado_id', marketId)
-          .eq('validade', validade)
-          .eq('is_encarte', true);
-
-        if (error) throw error;
-        showToast('Encarte excluído com sucesso!', 'success');
-        loadAdminEncartesModeration();
-        loadActiveEncartes(); loadActivePhotoEncartes();
-      } catch (err) {
-        showToast('Erro ao excluir: ' + err.message, 'error');
-      }
-    }
-
-    async function loadAdminPricesModeration() {
-      const container = document.getElementById('admin-manage-prices-list');
-      container.innerHTML = '<div style="padding:10px; color:#888;">Carregando últimas cotações...</div>';
-
-      try {
-        const { data, error } = await client
-          .from('registros_precos')
-          .select('id, preco, data_registro, mercados(nome), produtos(nome)')
-          .order('data_registro', { ascending: false })
-          .limit(30);
-
-        if (error) throw error;
-        if (!data || data.length === 0) {
-          container.innerHTML = '<div style="padding:10px; color:#888;">Nenhuma cotação recente.</div>';
-          return;
-        }
-
-        let html = '';
-        data.forEach(r => {
-          const prod = r.produtos?.nome || 'Produto';
-          const mk = r.mercados?.nome || 'Mercado';
-          const p = parseFloat(r.preco).toFixed(2);
-
-          html += `
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:7px; border-bottom:1px dashed #eee; background:#fff; margin-bottom:4px; border-radius:6px;">
-              <div>
-                <strong>${prod}</strong> - R$ ${p}<br>
-                <small style="color:#666;">${mk}</small>
-              </div>
-              <button onclick="adminDeletePrice('${r.id}')" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:4px 7px; font-weight:bold; font-size:11px; cursor:pointer;">
-                🗑️ Excluir
-              </button>
-            </div>
-          `;
-        });
-        container.innerHTML = html;
-      } catch (e) {
-        container.innerHTML = '<div style="color:#c62828;">Erro ao carregar cotações.</div>';
-      }
-    }
-
-    async function adminDeletePrice(id) {
-      try {
-        const { error } = await client.from('registros_precos').delete().eq('id', id);
-        if (error) throw error;
-        showToast('Cotação excluída!', 'success');
-        loadAdminPricesModeration();
-      } catch (err) {
-        showToast('Erro: ' + err.message, 'error');
-      }
-    }
-
-    async function loadAdminMarketsModeration() {
-      const container = document.getElementById('admin-manage-markets-list');
-      container.innerHTML = '<div style="padding:10px; color:#888;">Carregando mercados...</div>';
-
-      try {
-        const { data, error } = await client.from('mercados').select('id, nome, cidade').order('nome');
-        if (error) throw error;
-        if (!data || data.length === 0) {
-          container.innerHTML = '<div style="padding:10px; color:#888;">Nenhum mercado cadastrado.</div>';
-          return;
-        }
-
-        let html = '';
-        data.forEach(m => {
-          html += `
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:7px; border-bottom:1px dashed #eee; background:#fff; margin-bottom:4px; border-radius:6px;">
-              <div>
-                <strong>${m.nome}</strong><br>
-                <small style="color:#666;">${m.cidade || 'Cabo Frio'}</small>
-              </div>
-              <button onclick="adminDeleteMarket('${m.id}')" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:4px 7px; font-weight:bold; font-size:11px; cursor:pointer;">
-                🗑️ Excluir
-              </button>
-            </div>
-          `;
-        });
-        container.innerHTML = html;
-      } catch (e) {
-        container.innerHTML = '<div style="color:#c62828;">Erro ao carregar mercados.</div>';
-      }
-    }
-
-    async function adminDeleteMarket(id) {
-      const conf = await showConfirmDialog({
-        title: 'Excluir Mercado',
-        message: 'Deseja excluir este estabelecimento do cadastro?',
-        icon: '🗑️',
-        okText: 'Excluir',
-        isDestructive: true
-      });
-      if (!conf) return;
-
-      try {
-        const { error } = await client.from('mercados').delete().eq('id', id);
-        if (error) throw error;
-        showToast('Mercado excluído!', 'success');
-        loadAdminMarketsModeration();
-      } catch (err) {
-        showToast('Erro ao excluir: ' + err.message, 'error');
-      }
-    }
-
-      // ==========================================
-    // CONTROLES DE GÔNDOLA: LANTERNA & CÓDIGO MANUAL
-    // ==========================================
-    let isFlashOn = false;
-
-    async function toggleFlashlight() {
-      try {
-        const videoElem = document.querySelector('#reader video');
-        if (!videoElem || !videoElem.srcObject) {
-          showToast('Inicie a câmera primeiro para ligar a lanterna.', 'info');
-          return;
-        }
-        const stream = videoElem.srcObject;
-        const track = stream.getVideoTracks()[0];
-        const caps = track.getCapabilities ? track.getCapabilities() : {};
-
-        if (caps.torch) {
-          isFlashOn = !isFlashOn;
-          await track.applyConstraints({ advanced: [{ torch: isFlashOn }] });
-          document.getElementById('torch-btn').innerHTML = isFlashOn ? '🔦 Desligar Flash' : '🔦 Lanterna';
-          showToast(isFlashOn ? '🔦 Lanterna ligada!' : '🔦 Lanterna desligada', 'info');
-        } else {
-          showToast('A lanterna não é suportada por esta câmera.', 'warning');
-        }
-      } catch (err) {
-        showToast('Não foi possível acionar a lanterna: ' + err.message, 'warning');
-      }
-    }
-
-    function openManualBarcodePrompt() {
-      const code = prompt('Digite os números do código de barras (EAN):');
-      if (code && code.trim().length >= 6) {
-        onCodeScanned(code.trim());
-      } else if (code) {
-        showToast('Código de barras inválido (muito curto).', 'warning');
-      }
-    }
-
-    // ==========================================
-    // QUANTIDADE, PESO (UNIDADE vs KG) & CÁLCULOS
-    // ==========================================
-    let currentProductUnitType = 'un';
-
-    function setProductUnitType(type) {
-      currentProductUnitType = type;
-      const btnUn = document.getElementById('type-btn-un');
-      const btnKg = document.getElementById('type-btn-kg');
-      const chips = document.getElementById('quick-qty-chips');
-      const qtyInput = document.getElementById('product-qty-input');
-
-      if (type === 'un') {
-        btnUn.style.background = '#2e7d32';
-        btnUn.style.color = '#fff';
-        btnKg.style.background = '#eee';
-        btnKg.style.color = '#444';
-        qtyInput.value = '1';
-        chips.innerHTML = `
-          <button type="button" class="budget-chip" onclick="setQuickQty(1)">1 un</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(2)">2 un</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(3)">3 un</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(6)">6 un</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(12)">12 un</button>
-        `;
-      } else {
-        btnKg.style.background = '#2e7d32';
-        btnKg.style.color = '#fff';
-        btnUn.style.background = '#eee';
-        btnUn.style.color = '#444';
-        qtyInput.value = '1.0';
-        chips.innerHTML = `
-          <button type="button" class="budget-chip" onclick="setQuickQty(0.5)">0.5 kg</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(1.0)">1.0 kg</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(1.5)">1.5 kg</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(2.0)">2.0 kg</button>
-        `;
-      }
-      updateItemTotalCalc();
-    }
-
-    function adjustProductQty(delta) {
-      const qtyInput = document.getElementById('product-qty-input');
-      let val = parseFloat(qtyInput.value) || 1;
-      if (currentProductUnitType === 'un') {
-        val = Math.max(1, Math.round(val + delta));
-      } else {
-        val = Math.max(0.1, parseFloat((val + (delta * 0.5)).toFixed(2)));
-      }
-      qtyInput.value = val;
-      updateItemTotalCalc();
-    }
-
-    function setQuickQty(val) {
-      const qtyInput = document.getElementById('product-qty-input');
-      qtyInput.value = val;
-      updateItemTotalCalc();
-    }
-
-    function updateItemTotalCalc() {
-      const qtyInput = document.getElementById('product-qty-input');
-      const priceInput = document.getElementById('price-input');
-      const preview = document.getElementById('item-subtotal-preview');
-
-      const qty = parseFloat(qtyInput.value) || 1;
-      const price = parseFloat(priceInput.value) || 0;
-      const subtotal = qty * price;
-
-      const unitLabel = currentProductUnitType === 'un' ? 'un.' : 'kg';
-      preview.innerText = `Subtotal deste item: R$ ${subtotal.toFixed(2)} (${qty} ${unitLabel})`;
-    }
-
-    // ==========================================
-    // GESTÃO DE ENCARTES 100% FOTO (ZERO DIGITAÇÃO)
-    // ==========================================
-    let currentEncartePhotoBase64 = null;
-
-    function handleEncartePhotoSelect(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const previewBox = document.getElementById('encarte-photo-preview-box');
-      const previewImg = document.getElementById('encarte-photo-preview-img');
-      const info = document.getElementById('encarte-photo-info');
-
-      info.innerText = '⏳ Carregando imagem...';
-      previewBox.classList.remove('hidden');
-
-      // Otimiza imagem para não estourar memória do navegador
-      resizeImageForOCR(file, 1600).then(canvas => {
-        currentEncartePhotoBase64 = canvas.toDataURL('image/jpeg', 0.85);
-        previewImg.src = currentEncartePhotoBase64;
-        info.innerText = `✅ Foto carregada e pronta para publicação!`;
-      }).catch(err => {
-        showToast('Erro ao carregar foto: ' + err.message, 'error');
-      });
-    }
-
-    function publishPhotoEncarte() {
-      const market = document.getElementById('encarte-photo-market').value;
-      const start = document.getElementById('encarte-photo-start').value || new Date().toISOString().split('T')[0];
-      const end = document.getElementById('encarte-photo-end').value;
-      const userCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
-
-      if (!end) {
-        showToast('Informe a data de validade final do encarte.', 'warning');
-        return;
-      }
-      if (!currentEncartePhotoBase64) {
-        showToast('Tire uma foto ou selecione a imagem do encarte.', 'warning');
-        return;
-      }
-
-      showToast('Publicando encarte oficial...', 'info');
-
-      // Salva no banco local do app (infalível e resiliente)
-      const encartesLocais = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
-
-      // Remove encartes anteriores desse mesmo mercado (auto-substituição)
-      const filtered = encartesLocais.filter(e => e.mercado.toLowerCase() !== market.toLowerCase());
-
-      const newEncarte = {
-        id: 'ENC_' + Date.now(),
-        mercado: market,
-        cidade: userCity,
-        data_inicio: start,
-        validade: end,
-        imagem: currentEncartePhotoBase64,
-        criado_em: new Date().toISOString()
-      };
-
-      filtered.unshift(newEncarte);
-      localStorage.setItem('nutri_photo_encartes', JSON.stringify(filtered));
-
-      showToast(`Encarte do ${market} publicado com sucesso!`, 'success');
-
-      // Limpa formulário
-      currentEncartePhotoBase64 = null;
-      document.getElementById('encarte-photo-preview-box').classList.add('hidden');
-      document.getElementById('encarte-photo-file').value = '';
-
-      loadActivePhotoEncartes();
-      renderPublicEncartes();
-    }
-
-    function loadActivePhotoEncartes() {
-      const container = document.getElementById('active-photo-encartes-list');
-      if (!container) return;
-
-      const encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
-      const today = new Date().toISOString().split('T')[0];
-      const valid = encartes.filter(e => e.validade >= today);
-
-      if (valid.length === 0) {
-        container.innerHTML = '<p style="color:#888; font-style:italic;">Nenhum encarte cadastrado ativo no momento.</p>';
-        return;
-      }
-
-      let html = '<ul style="list-style:none; padding:0; margin:0;">';
-      valid.forEach(e => {
-        html += `
-          <li style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px dashed #eee;">
-            <div>
-              <strong>${e.mercado}</strong> (${e.cidade})<br>
-              <small style="color:#2e7d32; font-weight:bold;">Válido até ${formatDateBR(e.validade)}</small>
-            </div>
-            <button onclick="deletePhotoEncarte('${e.id}')" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:bold; cursor:pointer;">
-              🗑️ Excluir
-            </button>
-          </li>
-        `;
-      });
-      html += '</ul>';
-      container.innerHTML = html;
-    }
-
-    function deletePhotoEncarte(id) {
-      let encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
-      encartes = encartes.filter(e => e.id !== id);
-      localStorage.setItem('nutri_photo_encartes', JSON.stringify(encartes));
-      showToast('Encarte excluído!', 'info');
-      loadActivePhotoEncartes();
-      renderPublicEncartes();
-    }
-
-    // ==========================================
-    // RENDERIZAÇÃO DA VITRINE PÚBLICA DE ENCARTES (POR FOTO)
-    // ==========================================
-    function renderPublicEncartes() {
-      const container = document.getElementById('public-encartes-container');
-      if (!container) return;
-
-      const userCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
-      const today = new Date().toISOString().split('T')[0];
-      const encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
-      const valid = encartes.filter(e => e.validade >= today);
-
-      if (valid.length === 0) {
-        container.innerHTML = `
-          <div style="text-align:center; padding:30px 16px; background:#fafafa; border:1px dashed #ccc; border-radius:12px;">
-            <span style="font-size:36px; display:block; margin-bottom:8px;">📰</span>
-            <strong style="color:#333; font-size:14px;">Nenhum encarte cadastrado para ${userCity} no momento.</strong>
-            <p style="font-size:12px; color:#777; margin-top:6px;">Os administradores atualizam os folhetos semanalmente.</p>
-          </div>
-        `;
-        return;
-      }
-
-      let html = '';
-      valid.forEach(e => {
-        html += `
-          <div style="background:#fff; border:1px solid #c8e6c9; border-radius:14px; padding:14px; box-shadow:0 3px 8px rgba(0,0,0,0.06);">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-              <div>
-                <h4 style="font-size:16px; color:#1b5e20; font-weight:bold; margin:0;">🏪 ${e.mercado}</h4>
-                <span style="font-size:11.5px; color:#666;">Cabo Frio e região</span>
-              </div>
-              <span style="background:#e8f5e9; color:#2e7d32; font-size:11px; font-weight:bold; padding:4px 8px; border-radius:12px; border:1px solid #c8e6c9;">
-                Válido até ${formatDateBR(e.validade)}
-              </span>
-            </div>
-
-            <!-- Miniatura da Imagem -->
-            <div style="text-align:center; margin-bottom:10px; cursor:pointer;" onclick="openEncarteViewer('${e.id}')">
-              <img src="${e.imagem}" style="max-width:100%; max-height:260px; border-radius:8px; border:1px solid #ddd; object-fit:contain; box-shadow:0 2px 6px rgba(0,0,0,0.1);">
-            </div>
-
-            <button onclick="openEncarteViewer('${e.id}')" class="save-btn" style="margin:0; background:#1b5e20; font-size:13.5px; padding:11px; display:flex; align-items:center; justify-content:center; gap:6px;">
-              🔍 Abrir Folheto em Tela Cheia (Com Zoom)
-            </button>
-          </div>
-        `;
-      });
-
-      container.innerHTML = html;
-    }
-
-    // ==========================================
-    // VISUALIZADOR DE ENCARTE COM ZOOM
-    // ==========================================
-    let currentViewerZoom = 1.0;
-
-    function openEncarteViewer(encarteId) {
-      const encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
-      const item = encartes.find(e => e.id === encarteId);
-      if (!item) return;
-
-      currentViewerZoom = 1.0;
-      const modal = document.getElementById('encarte-viewer-modal');
-      const title = document.getElementById('viewer-market-title');
-      const val = document.getElementById('viewer-validity-text');
-      const img = document.getElementById('viewer-encarte-img');
-
-      title.innerText = item.mercado;
-      val.innerText = `Válido até ${formatDateBR(item.validade)}`;
-      img.src = item.imagem;
-      img.style.transform = `scale(1.0)`;
-
-      modal.classList.remove('hidden');
-    }
-
-    function closeEncarteViewer() {
-      document.getElementById('encarte-viewer-modal').classList.add('hidden');
-    }
-
-    function zoomEncarte(factor) {
-      const img = document.getElementById('viewer-encarte-img');
-      currentViewerZoom = Math.min(3.0, Math.max(0.6, currentViewerZoom * factor));
-      img.style.transform = `scale(${currentViewerZoom})`;
-    }
-
-      function openLegalTermsModal() {
-      document.getElementById('legal-terms-modal').classList.remove('hidden');
-    }
-    function closeLegalTermsModal() {
-      document.getElementById('legal-terms-modal').classList.add('hidden');
-    }
-
-  </script>
-  <script src="https://unpkg.com/html5-qrcode">    // ==========================================
-    // SISTEMA DE CIDADES (IBGE + CACHE OFFLINE LOCAL-FIRST)
-    // ==========================================
-    const OFFLINE_CITIES_BACKUP = {
-      'RJ': ['Cabo Frio', 'Arraial do Cabo', 'Armação dos Búzios', 'São Pedro da Aldeia', 'Araruama', 'Saquarema', 'Macaé', 'Rio das Ostras', 'Niterói', 'Rio de Janeiro', 'Campos dos Goytacazes', 'Petrópolis', 'Volta Redonda', 'Nova Friburgo'],
-      'SP': ['São Paulo', 'Campinas', 'Santos', 'São José dos Campos', 'Ribeirão Preto', 'Sorocaba', 'Santo André', 'São Bernardo do Campo'],
-      'MG': ['Belo Horizonte', 'Juiz de Fora', 'Uberlândia', 'Contagem', 'Betim', 'Montes Claros'],
-      'ES': ['Vitória', 'Vila Velha', 'Serra', 'Cariacica', 'Guarapari', 'Linhares']
-    };
-
-    function openCitySelectorModal() {
-      const modal = document.getElementById('city-selector-modal');
-      const savedCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
-      const savedUf = localStorage.getItem('nutri_user_state') || 'RJ';
-
-      document.getElementById('select-uf').value = savedUf;
-      onUfChanged(savedCity);
-      if (modal) modal.classList.remove('hidden');
-    }
-
-    function closeCitySelectorModal() {
-      const modal = document.getElementById('city-selector-modal');
-      if (modal) modal.classList.add('hidden');
-    }
-
-    async function onUfChanged(preselectedCity = null) {
-      const uf = document.getElementById('select-uf').value;
-      const citySelect = document.getElementById('select-city');
-      const loader = document.getElementById('city-loading-indicator');
-
-      citySelect.innerHTML = '';
-
-      // 1. Tenta carregar do Cache Local do celular
-      const cacheKey = 'nutri_cities_' + uf;
-      const cached = localStorage.getItem(cacheKey);
-
-      if (cached) {
-        try {
-          const list = JSON.parse(cached);
-          populateCityDropdown(list, preselectedCity);
-          return;
-        } catch(e){}
-      }
-
-      // 2. Se offline, usa backup pré-embarcado
-      if (!navigator.onLine && OFFLINE_CITIES_BACKUP[uf]) {
-        populateCityDropdown(OFFLINE_CITIES_BACKUP[uf], preselectedCity);
-        return;
-      }
-
-      // 3. Se online, busca na API oficial do IBGE
-      if (loader) loader.classList.remove('hidden');
-      try {
-        const res = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios?orderBy=nome`);
-        const data = await res.json();
-        const cityNames = data.map(c => c.nome);
-
-        // Salva no cache local do celular para sempre funcionar offline
-        localStorage.setItem(cacheKey, JSON.stringify(cityNames));
-
-        populateCityDropdown(cityNames, preselectedCity);
-      } catch (err) {
-        // Fallback emergencial offline
-        const backup = OFFLINE_CITIES_BACKUP[uf] || ['Capital', 'Interior'];
-        populateCityDropdown(backup, preselectedCity);
-      } finally {
-        if (loader) loader.classList.add('hidden');
-      }
-    }
-
-    function populateCityDropdown(cityList, preselectedCity) {
-      const citySelect = document.getElementById('select-city');
-      citySelect.innerHTML = '';
-      cityList.forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c;
-        opt.innerText = c;
-        if (preselectedCity && c.toLowerCase() === preselectedCity.toLowerCase()) {
-          opt.selected = true;
-        }
-        citySelect.appendChild(opt);
-      });
-    }
-
-    function saveSelectedCity() {
-      const uf = document.getElementById('select-uf').value;
-      const city = document.getElementById('select-city').value;
-
-      if (!city) {
-        showToast('Selecione uma cidade.', 'warning');
-        return;
-      }
-
-      const formatted = `${city} - ${uf}`;
-      localStorage.setItem('nutri_user_city', city);
-      localStorage.setItem('nutri_user_state', uf);
-
-      const bannerCity = document.getElementById('banner-user-city');
-      if (bannerCity) bannerCity.innerText = formatted;
-
-      closeCitySelectorModal();
-      showToast(`Região atualizada para: ${formatted}`, 'success');
-      loadActiveEncartes(); loadActivePhotoEncartes();
-    }
-
-    // Altera editUserCity para abrir o modal do IBGE
-    function editUserCity() {
-      openCitySelectorModal();
-    }
-
-    // ==========================================
-    // VITRINE PÚBLICA DE ENCARTES (POR REGIÃO)
-    // ==========================================
-    async function openPublicEncartesModal() {
-      const modal = document.getElementById('public-encartes-modal');
-      const cityLabel = document.getElementById('public-encartes-city-label');
-      const userCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
-      const userState = localStorage.getItem('nutri_user_state') || 'RJ';
-
-      const cleanCity = userCity.replace(/\s*-\s*[A-Z]{2}$/i, '').trim();
-      if (cityLabel) cityLabel.innerHTML = `📍 Região: <b>${cleanCity} - ${userState}</b>`;
-      if (modal) modal.classList.remove('hidden');
-
-      renderPublicEncartes();
-    }
-
-    function closePublicEncartesModal() {
-      const modal = document.getElementById('public-encartes-modal');
-      if (modal) modal.classList.add('hidden');
-    }
-
-    async function renderPublicEncartes() {
-      const container = document.getElementById('public-encartes-container');
-      const userCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
-      const today = new Date().toISOString().split('T')[0];
-
-      container.innerHTML = '<div style="text-align:center; padding:25px; color:#888;">⏳ Buscando encartes vigentes da sua região...</div>';
-
-      try {
-        const { data, error } = await client
-          .from('registros_precos')
-          .select('id, preco, validade, data_registro, mercados(id, nome, cidade), produtos(id, nome, marca, codigo_barras)')
-          .eq('is_encarte', true)
-          .gte('validade', today)
-          .order('validade', { ascending: true })
-          .limit(100);
-
-        if (error) throw error;
-
-        if (!data || data.length === 0) {
-          container.innerHTML = `
-            <div style="text-align:center; padding:30px 16px; background:#fafafa; border:1px dashed #ccc; border-radius:12px;">
-              <span style="font-size:32px; display:block; margin-bottom:8px;">📰</span>
-              <strong style="color:#444;">Nenhum encarte cadastrado para ${userCity} no momento.</strong>
-              <p style="font-size:12px; color:#777; margin-top:6px;">Os administradores e mercados parceiros atualizam os folhetos semanalmente.</p>
-            </div>
-          `;
-          return;
-        }
-
-        // Agrupa por mercado
-        const grouped = {};
-        data.forEach(item => {
-          const mkName = item.mercados?.nome || 'Supermercado';
-          if (!grouped[mkName]) {
-            grouped[mkName] = {
-              validade: item.validade,
-              produtos: []
-            };
-          }
-          grouped[mkName].produtos.push({
-            id: item.id,
-            nome: item.produtos?.nome || 'Produto',
-            preco: parseFloat(item.preco).toFixed(2),
-            marca: item.produtos?.marca || ''
-          });
-        });
-
-        let html = '';
-        for (const [marketName, info] of Object.entries(grouped)) {
-          html += `
-            <div style="background:#fff; border:1px solid #c8e6c9; border-radius:14px; padding:14px; box-shadow:0 2px 6px rgba(0,0,0,0.05);">
-              <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; border-bottom:1px solid #f0f0f0; padding-bottom:8px;">
-                <div>
-                  <h4 style="font-size:16px; color:#1b5e20; font-weight:bold; margin-bottom:2px;">🏪 ${marketName}</h4>
-                  <span style="font-size:11.5px; color:#666;">${info.produtos.length} ofertas vigentes</span>
-                </div>
-                <span style="background:#e8f5e9; color:#2e7d32; font-size:11px; font-weight:bold; padding:3px 8px; border-radius:12px; border:1px solid #c8e6c9;">
-                  Válido até ${formatDateBR(info.validade)}
-                </span>
-              </div>
-              <div style="display:flex; flex-direction:column; gap:8px;">
-          `;
-
-          info.produtos.forEach(p => {
-            const safeName = p.nome.replace(/'/g, "\\'");
-            html += `
-              <div style="display:flex; justify-content:space-between; align-items:center; background:#fafafa; border-radius:8px; padding:8px 10px; border:1px solid #eee;">
-                <div>
-                  <strong style="font-size:13px; color:#222; display:block;">${p.nome}</strong>
-                  <span style="font-size:14px; color:#1b5e20; font-weight:bold;">R$ ${p.preco}</span>
-                </div>
-                <button onclick="addEncarteItemToPrelist('${safeName}')" style="background:#e8f5e9; border:1px solid #a5d6a7; color:#1b5e20; padding:6px 10px; border-radius:8px; font-size:11.5px; font-weight:bold; cursor:pointer;">
-                  + Na Lista
-                </button>
-              </div>
-            `;
-          });
-
-          html += `
-              </div>
-            </div>
-          `;
-        }
-
-        container.innerHTML = html;
-      } catch (err) {
-        container.innerHTML = '<div style="color:#c62828; text-align:center; padding:20px;">Erro ao carregar encartes da nuvem.</div>';
-      }
-    }
-
-    function addEncarteItemToPrelist(prodName) {
-      preShoppingList.push({ id: Date.now(), name: prodName, done: false });
-      savePrelist();
-      showToast(`"${prodName}" adicionado à sua Lista Prévia!`, 'success');
-    }
-
-    function formatDateBR(dateStr) {
-      if (!dateStr) return '';
-      const parts = dateStr.split('-');
-      if (parts.length === 3) return `${parts[2]}/${parts[1]}`;
-      return dateStr;
-    }
-
-    // ==========================================
-    // MODERAÇÃO DO ADMINISTRADOR (EXCLUIR DADOS)
-    // ==========================================
-    function switchAdminModTab(tab) {
-      document.getElementById('admin-tab-encartes').style.background = tab === 'encartes' ? '#b71c1c' : '#fff';
-      document.getElementById('admin-tab-encartes').style.color = tab === 'encartes' ? '#fff' : '#555';
-      document.getElementById('admin-tab-precos').style.background = tab === 'precos' ? '#b71c1c' : '#fff';
-      document.getElementById('admin-tab-precos').style.color = tab === 'precos' ? '#fff' : '#555';
-      document.getElementById('admin-tab-mercados').style.background = tab === 'mercados' ? '#b71c1c' : '#fff';
-      document.getElementById('admin-tab-mercados').style.color = tab === 'mercados' ? '#fff' : '#555';
-
-      document.getElementById('admin-mod-encartes-view').classList.toggle('hidden', tab !== 'encartes');
-      document.getElementById('admin-mod-precos-view').classList.toggle('hidden', tab !== 'precos');
-      document.getElementById('admin-mod-mercados-view').classList.toggle('hidden', tab !== 'mercados');
-
-      if (tab === 'encartes') loadAdminEncartesModeration();
-      if (tab === 'precos') loadAdminPricesModeration();
-      if (tab === 'mercados') loadAdminMarketsModeration();
-    }
-
-    async function loadAdminEncartesModeration() {
-      const container = document.getElementById('admin-manage-encartes-list');
-      container.innerHTML = '<div style="padding:10px; color:#888;">Carregando encartes para moderação...</div>';
-
-      try {
-        const { data, error } = await client
-          .from('registros_precos')
-          .select('id, mercado_id, validade, data_registro, mercados(id, nome)')
-          .eq('is_encarte', true)
-          .order('validade', { ascending: false })
-          .limit(100);
-
-        if (error) throw error;
-        if (!data || data.length === 0) {
-          container.innerHTML = '<div style="padding:10px; color:#888;">Nenhum encarte cadastrado no momento.</div>';
-          return;
-        }
-
-        // Agrupa por mercado + validade
-        const groups = {};
-        data.forEach(r => {
-          const key = (r.mercados?.nome || 'Mercado') + '_' + (r.validade || '');
-          if (!groups[key]) {
-            groups[key] = {
-              marketId: r.mercado_id,
-              marketName: r.mercados?.nome || 'Mercado',
-              validade: r.validade,
-              ids: []
-            };
-          }
-          groups[key].ids.push(r.id);
-        });
-
-        let html = '';
-        for (const [k, item] of Object.entries(groups)) {
-          html += `
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border-bottom:1px dashed #eee; background:#fff; margin-bottom:4px; border-radius:6px;">
-              <div>
-                <strong>${item.marketName}</strong> (${item.ids.length} itens)<br>
-                <small style="color:#666;">Validade: ${item.validade || 'N/A'}</small>
-              </div>
-              <button onclick="adminDeleteEncarteBatch('${item.marketId}', '${item.validade}')" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:5px 8px; font-weight:bold; font-size:11px; cursor:pointer;">
-                🗑️ Excluir Encarte
-              </button>
-            </div>
-          `;
-        }
-        container.innerHTML = html;
-      } catch (e) {
-        container.innerHTML = '<div style="color:#c62828;">Erro ao carregar moderação de encartes.</div>';
-      }
-    }
-
-    async function adminDeleteEncarteBatch(marketId, validade) {
-      const conf = await showConfirmDialog({
-        title: 'Excluir Encarte',
-        message: 'Deseja realmente apagar todas as ofertas deste encarte?',
-        icon: '🗑️',
-        okText: 'Excluir',
-        isDestructive: true
-      });
-      if (!conf) return;
-
-      try {
-        showToast('Excluindo encarte...', 'info');
-        const { error } = await client
-          .from('registros_precos')
-          .delete()
-          .eq('mercado_id', marketId)
-          .eq('validade', validade)
-          .eq('is_encarte', true);
-
-        if (error) throw error;
-        showToast('Encarte excluído com sucesso!', 'success');
-        loadAdminEncartesModeration();
-        loadActiveEncartes(); loadActivePhotoEncartes();
-      } catch (err) {
-        showToast('Erro ao excluir: ' + err.message, 'error');
-      }
-    }
-
-    async function loadAdminPricesModeration() {
-      const container = document.getElementById('admin-manage-prices-list');
-      container.innerHTML = '<div style="padding:10px; color:#888;">Carregando últimas cotações...</div>';
-
-      try {
-        const { data, error } = await client
-          .from('registros_precos')
-          .select('id, preco, data_registro, mercados(nome), produtos(nome)')
-          .order('data_registro', { ascending: false })
-          .limit(30);
-
-        if (error) throw error;
-        if (!data || data.length === 0) {
-          container.innerHTML = '<div style="padding:10px; color:#888;">Nenhuma cotação recente.</div>';
-          return;
-        }
-
-        let html = '';
-        data.forEach(r => {
-          const prod = r.produtos?.nome || 'Produto';
-          const mk = r.mercados?.nome || 'Mercado';
-          const p = parseFloat(r.preco).toFixed(2);
-
-          html += `
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:7px; border-bottom:1px dashed #eee; background:#fff; margin-bottom:4px; border-radius:6px;">
-              <div>
-                <strong>${prod}</strong> - R$ ${p}<br>
-                <small style="color:#666;">${mk}</small>
-              </div>
-              <button onclick="adminDeletePrice('${r.id}')" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:4px 7px; font-weight:bold; font-size:11px; cursor:pointer;">
-                🗑️ Excluir
-              </button>
-            </div>
-          `;
-        });
-        container.innerHTML = html;
-      } catch (e) {
-        container.innerHTML = '<div style="color:#c62828;">Erro ao carregar cotações.</div>';
-      }
-    }
-
-    async function adminDeletePrice(id) {
-      try {
-        const { error } = await client.from('registros_precos').delete().eq('id', id);
-        if (error) throw error;
-        showToast('Cotação excluída!', 'success');
-        loadAdminPricesModeration();
-      } catch (err) {
-        showToast('Erro: ' + err.message, 'error');
-      }
-    }
-
-    async function loadAdminMarketsModeration() {
-      const container = document.getElementById('admin-manage-markets-list');
-      container.innerHTML = '<div style="padding:10px; color:#888;">Carregando mercados...</div>';
-
-      try {
-        const { data, error } = await client.from('mercados').select('id, nome, cidade').order('nome');
-        if (error) throw error;
-        if (!data || data.length === 0) {
-          container.innerHTML = '<div style="padding:10px; color:#888;">Nenhum mercado cadastrado.</div>';
-          return;
-        }
-
-        let html = '';
-        data.forEach(m => {
-          html += `
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:7px; border-bottom:1px dashed #eee; background:#fff; margin-bottom:4px; border-radius:6px;">
-              <div>
-                <strong>${m.nome}</strong><br>
-                <small style="color:#666;">${m.cidade || 'Cabo Frio'}</small>
-              </div>
-              <button onclick="adminDeleteMarket('${m.id}')" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:4px 7px; font-weight:bold; font-size:11px; cursor:pointer;">
-                🗑️ Excluir
-              </button>
-            </div>
-          `;
-        });
-        container.innerHTML = html;
-      } catch (e) {
-        container.innerHTML = '<div style="color:#c62828;">Erro ao carregar mercados.</div>';
-      }
-    }
-
-    async function adminDeleteMarket(id) {
-      const conf = await showConfirmDialog({
-        title: 'Excluir Mercado',
-        message: 'Deseja excluir este estabelecimento do cadastro?',
-        icon: '🗑️',
-        okText: 'Excluir',
-        isDestructive: true
-      });
-      if (!conf) return;
-
-      try {
-        const { error } = await client.from('mercados').delete().eq('id', id);
-        if (error) throw error;
-        showToast('Mercado excluído!', 'success');
-        loadAdminMarketsModeration();
-      } catch (err) {
-        showToast('Erro ao excluir: ' + err.message, 'error');
-      }
-    }
-
-      // ==========================================
-    // CONTROLES DE GÔNDOLA: LANTERNA & CÓDIGO MANUAL
-    // ==========================================
-    let isFlashOn = false;
-
-    async function toggleFlashlight() {
-      try {
-        const videoElem = document.querySelector('#reader video');
-        if (!videoElem || !videoElem.srcObject) {
-          showToast('Inicie a câmera primeiro para ligar a lanterna.', 'info');
-          return;
-        }
-        const stream = videoElem.srcObject;
-        const track = stream.getVideoTracks()[0];
-        const caps = track.getCapabilities ? track.getCapabilities() : {};
-
-        if (caps.torch) {
-          isFlashOn = !isFlashOn;
-          await track.applyConstraints({ advanced: [{ torch: isFlashOn }] });
-          document.getElementById('torch-btn').innerHTML = isFlashOn ? '🔦 Desligar Flash' : '🔦 Lanterna';
-          showToast(isFlashOn ? '🔦 Lanterna ligada!' : '🔦 Lanterna desligada', 'info');
-        } else {
-          showToast('A lanterna não é suportada por esta câmera.', 'warning');
-        }
-      } catch (err) {
-        showToast('Não foi possível acionar a lanterna: ' + err.message, 'warning');
-      }
-    }
-
-    function openManualBarcodePrompt() {
-      const code = prompt('Digite os números do código de barras (EAN):');
-      if (code && code.trim().length >= 6) {
-        onCodeScanned(code.trim());
-      } else if (code) {
-        showToast('Código de barras inválido (muito curto).', 'warning');
-      }
-    }
-
-    // ==========================================
-    // QUANTIDADE, PESO (UNIDADE vs KG) & CÁLCULOS
-    // ==========================================
-    let currentProductUnitType = 'un';
-
-    function setProductUnitType(type) {
-      currentProductUnitType = type;
-      const btnUn = document.getElementById('type-btn-un');
-      const btnKg = document.getElementById('type-btn-kg');
-      const chips = document.getElementById('quick-qty-chips');
-      const qtyInput = document.getElementById('product-qty-input');
-
-      if (type === 'un') {
-        btnUn.style.background = '#2e7d32';
-        btnUn.style.color = '#fff';
-        btnKg.style.background = '#eee';
-        btnKg.style.color = '#444';
-        qtyInput.value = '1';
-        chips.innerHTML = `
-          <button type="button" class="budget-chip" onclick="setQuickQty(1)">1 un</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(2)">2 un</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(3)">3 un</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(6)">6 un</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(12)">12 un</button>
-        `;
-      } else {
-        btnKg.style.background = '#2e7d32';
-        btnKg.style.color = '#fff';
-        btnUn.style.background = '#eee';
-        btnUn.style.color = '#444';
-        qtyInput.value = '1.0';
-        chips.innerHTML = `
-          <button type="button" class="budget-chip" onclick="setQuickQty(0.5)">0.5 kg</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(1.0)">1.0 kg</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(1.5)">1.5 kg</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(2.0)">2.0 kg</button>
-        `;
-      }
-      updateItemTotalCalc();
-    }
-
-    function adjustProductQty(delta) {
-      const qtyInput = document.getElementById('product-qty-input');
-      let val = parseFloat(qtyInput.value) || 1;
-      if (currentProductUnitType === 'un') {
-        val = Math.max(1, Math.round(val + delta));
-      } else {
-        val = Math.max(0.1, parseFloat((val + (delta * 0.5)).toFixed(2)));
-      }
-      qtyInput.value = val;
-      updateItemTotalCalc();
-    }
-
-    function setQuickQty(val) {
-      const qtyInput = document.getElementById('product-qty-input');
-      qtyInput.value = val;
-      updateItemTotalCalc();
-    }
-
-    function updateItemTotalCalc() {
-      const qtyInput = document.getElementById('product-qty-input');
-      const priceInput = document.getElementById('price-input');
-      const preview = document.getElementById('item-subtotal-preview');
-
-      const qty = parseFloat(qtyInput.value) || 1;
-      const price = parseFloat(priceInput.value) || 0;
-      const subtotal = qty * price;
-
-      const unitLabel = currentProductUnitType === 'un' ? 'un.' : 'kg';
-      preview.innerText = `Subtotal deste item: R$ ${subtotal.toFixed(2)} (${qty} ${unitLabel})`;
-    }
-
-    // ==========================================
-    // GESTÃO DE ENCARTES 100% FOTO (ZERO DIGITAÇÃO)
-    // ==========================================
-    let currentEncartePhotoBase64 = null;
-
-    function handleEncartePhotoSelect(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const previewBox = document.getElementById('encarte-photo-preview-box');
-      const previewImg = document.getElementById('encarte-photo-preview-img');
-      const info = document.getElementById('encarte-photo-info');
-
-      info.innerText = '⏳ Carregando imagem...';
-      previewBox.classList.remove('hidden');
-
-      // Otimiza imagem para não estourar memória do navegador
-      resizeImageForOCR(file, 1600).then(canvas => {
-        currentEncartePhotoBase64 = canvas.toDataURL('image/jpeg', 0.85);
-        previewImg.src = currentEncartePhotoBase64;
-        info.innerText = `✅ Foto carregada e pronta para publicação!`;
-      }).catch(err => {
-        showToast('Erro ao carregar foto: ' + err.message, 'error');
-      });
-    }
-
-    function publishPhotoEncarte() {
-      const market = document.getElementById('encarte-photo-market').value;
-      const start = document.getElementById('encarte-photo-start').value || new Date().toISOString().split('T')[0];
-      const end = document.getElementById('encarte-photo-end').value;
-      const userCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
-
-      if (!end) {
-        showToast('Informe a data de validade final do encarte.', 'warning');
-        return;
-      }
-      if (!currentEncartePhotoBase64) {
-        showToast('Tire uma foto ou selecione a imagem do encarte.', 'warning');
-        return;
-      }
-
-      showToast('Publicando encarte oficial...', 'info');
-
-      // Salva no banco local do app (infalível e resiliente)
-      const encartesLocais = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
-
-      // Remove encartes anteriores desse mesmo mercado (auto-substituição)
-      const filtered = encartesLocais.filter(e => e.mercado.toLowerCase() !== market.toLowerCase());
-
-      const newEncarte = {
-        id: 'ENC_' + Date.now(),
-        mercado: market,
-        cidade: userCity,
-        data_inicio: start,
-        validade: end,
-        imagem: currentEncartePhotoBase64,
-        criado_em: new Date().toISOString()
-      };
-
-      filtered.unshift(newEncarte);
-      localStorage.setItem('nutri_photo_encartes', JSON.stringify(filtered));
-
-      showToast(`Encarte do ${market} publicado com sucesso!`, 'success');
-
-      // Limpa formulário
-      currentEncartePhotoBase64 = null;
-      document.getElementById('encarte-photo-preview-box').classList.add('hidden');
-      document.getElementById('encarte-photo-file').value = '';
-
-      loadActivePhotoEncartes();
-      renderPublicEncartes();
-    }
-
-    function loadActivePhotoEncartes() {
-      const container = document.getElementById('active-photo-encartes-list');
-      if (!container) return;
-
-      const encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
-      const today = new Date().toISOString().split('T')[0];
-      const valid = encartes.filter(e => e.validade >= today);
-
-      if (valid.length === 0) {
-        container.innerHTML = '<p style="color:#888; font-style:italic;">Nenhum encarte cadastrado ativo no momento.</p>';
-        return;
-      }
-
-      let html = '<ul style="list-style:none; padding:0; margin:0;">';
-      valid.forEach(e => {
-        html += `
-          <li style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px dashed #eee;">
-            <div>
-              <strong>${e.mercado}</strong> (${e.cidade})<br>
-              <small style="color:#2e7d32; font-weight:bold;">Válido até ${formatDateBR(e.validade)}</small>
-            </div>
-            <button onclick="deletePhotoEncarte('${e.id}')" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:bold; cursor:pointer;">
-              🗑️ Excluir
-            </button>
-          </li>
-        `;
-      });
-      html += '</ul>';
-      container.innerHTML = html;
-    }
-
-    function deletePhotoEncarte(id) {
-      let encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
-      encartes = encartes.filter(e => e.id !== id);
-      localStorage.setItem('nutri_photo_encartes', JSON.stringify(encartes));
-      showToast('Encarte excluído!', 'info');
-      loadActivePhotoEncartes();
-      renderPublicEncartes();
-    }
-
-    // ==========================================
-    // RENDERIZAÇÃO DA VITRINE PÚBLICA DE ENCARTES (POR FOTO)
-    // ==========================================
-    function renderPublicEncartes() {
-      const container = document.getElementById('public-encartes-container');
-      if (!container) return;
-
-      const userCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
-      const today = new Date().toISOString().split('T')[0];
-      const encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
-      const valid = encartes.filter(e => e.validade >= today);
-
-      if (valid.length === 0) {
-        container.innerHTML = `
-          <div style="text-align:center; padding:30px 16px; background:#fafafa; border:1px dashed #ccc; border-radius:12px;">
-            <span style="font-size:36px; display:block; margin-bottom:8px;">📰</span>
-            <strong style="color:#333; font-size:14px;">Nenhum encarte cadastrado para ${userCity} no momento.</strong>
-            <p style="font-size:12px; color:#777; margin-top:6px;">Os administradores atualizam os folhetos semanalmente.</p>
-          </div>
-        `;
-        return;
-      }
-
-      let html = '';
-      valid.forEach(e => {
-        html += `
-          <div style="background:#fff; border:1px solid #c8e6c9; border-radius:14px; padding:14px; box-shadow:0 3px 8px rgba(0,0,0,0.06);">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-              <div>
-                <h4 style="font-size:16px; color:#1b5e20; font-weight:bold; margin:0;">🏪 ${e.mercado}</h4>
-                <span style="font-size:11.5px; color:#666;">Cabo Frio e região</span>
-              </div>
-              <span style="background:#e8f5e9; color:#2e7d32; font-size:11px; font-weight:bold; padding:4px 8px; border-radius:12px; border:1px solid #c8e6c9;">
-                Válido até ${formatDateBR(e.validade)}
-              </span>
-            </div>
-
-            <!-- Miniatura da Imagem -->
-            <div style="text-align:center; margin-bottom:10px; cursor:pointer;" onclick="openEncarteViewer('${e.id}')">
-              <img src="${e.imagem}" style="max-width:100%; max-height:260px; border-radius:8px; border:1px solid #ddd; object-fit:contain; box-shadow:0 2px 6px rgba(0,0,0,0.1);">
-            </div>
-
-            <button onclick="openEncarteViewer('${e.id}')" class="save-btn" style="margin:0; background:#1b5e20; font-size:13.5px; padding:11px; display:flex; align-items:center; justify-content:center; gap:6px;">
-              🔍 Abrir Folheto em Tela Cheia (Com Zoom)
-            </button>
-          </div>
-        `;
-      });
-
-      container.innerHTML = html;
-    }
-
-    // ==========================================
-    // VISUALIZADOR DE ENCARTE COM ZOOM
-    // ==========================================
-    let currentViewerZoom = 1.0;
-
-    function openEncarteViewer(encarteId) {
-      const encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
-      const item = encartes.find(e => e.id === encarteId);
-      if (!item) return;
-
-      currentViewerZoom = 1.0;
-      const modal = document.getElementById('encarte-viewer-modal');
-      const title = document.getElementById('viewer-market-title');
-      const val = document.getElementById('viewer-validity-text');
-      const img = document.getElementById('viewer-encarte-img');
-
-      title.innerText = item.mercado;
-      val.innerText = `Válido até ${formatDateBR(item.validade)}`;
-      img.src = item.imagem;
-      img.style.transform = `scale(1.0)`;
-
-      modal.classList.remove('hidden');
-    }
-
-    function closeEncarteViewer() {
-      document.getElementById('encarte-viewer-modal').classList.add('hidden');
-    }
-
-    function zoomEncarte(factor) {
-      const img = document.getElementById('viewer-encarte-img');
-      currentViewerZoom = Math.min(3.0, Math.max(0.6, currentViewerZoom * factor));
-      img.style.transform = `scale(${currentViewerZoom})`;
-    }
-
-      function openLegalTermsModal() {
-      document.getElementById('legal-terms-modal').classList.remove('hidden');
-    }
-    function closeLegalTermsModal() {
-      document.getElementById('legal-terms-modal').classList.add('hidden');
-    }
-
-  </script>
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js">    // ==========================================
-    // SISTEMA DE CIDADES (IBGE + CACHE OFFLINE LOCAL-FIRST)
-    // ==========================================
-    const OFFLINE_CITIES_BACKUP = {
-      'RJ': ['Cabo Frio', 'Arraial do Cabo', 'Armação dos Búzios', 'São Pedro da Aldeia', 'Araruama', 'Saquarema', 'Macaé', 'Rio das Ostras', 'Niterói', 'Rio de Janeiro', 'Campos dos Goytacazes', 'Petrópolis', 'Volta Redonda', 'Nova Friburgo'],
-      'SP': ['São Paulo', 'Campinas', 'Santos', 'São José dos Campos', 'Ribeirão Preto', 'Sorocaba', 'Santo André', 'São Bernardo do Campo'],
-      'MG': ['Belo Horizonte', 'Juiz de Fora', 'Uberlândia', 'Contagem', 'Betim', 'Montes Claros'],
-      'ES': ['Vitória', 'Vila Velha', 'Serra', 'Cariacica', 'Guarapari', 'Linhares']
-    };
-
-    function openCitySelectorModal() {
-      const modal = document.getElementById('city-selector-modal');
-      const savedCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
-      const savedUf = localStorage.getItem('nutri_user_state') || 'RJ';
-
-      document.getElementById('select-uf').value = savedUf;
-      onUfChanged(savedCity);
-      if (modal) modal.classList.remove('hidden');
-    }
-
-    function closeCitySelectorModal() {
-      const modal = document.getElementById('city-selector-modal');
-      if (modal) modal.classList.add('hidden');
-    }
-
-    async function onUfChanged(preselectedCity = null) {
-      const uf = document.getElementById('select-uf').value;
-      const citySelect = document.getElementById('select-city');
-      const loader = document.getElementById('city-loading-indicator');
-
-      citySelect.innerHTML = '';
-
-      // 1. Tenta carregar do Cache Local do celular
-      const cacheKey = 'nutri_cities_' + uf;
-      const cached = localStorage.getItem(cacheKey);
-
-      if (cached) {
-        try {
-          const list = JSON.parse(cached);
-          populateCityDropdown(list, preselectedCity);
-          return;
-        } catch(e){}
-      }
-
-      // 2. Se offline, usa backup pré-embarcado
-      if (!navigator.onLine && OFFLINE_CITIES_BACKUP[uf]) {
-        populateCityDropdown(OFFLINE_CITIES_BACKUP[uf], preselectedCity);
-        return;
-      }
-
-      // 3. Se online, busca na API oficial do IBGE
-      if (loader) loader.classList.remove('hidden');
-      try {
-        const res = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios?orderBy=nome`);
-        const data = await res.json();
-        const cityNames = data.map(c => c.nome);
-
-        // Salva no cache local do celular para sempre funcionar offline
-        localStorage.setItem(cacheKey, JSON.stringify(cityNames));
-
-        populateCityDropdown(cityNames, preselectedCity);
-      } catch (err) {
-        // Fallback emergencial offline
-        const backup = OFFLINE_CITIES_BACKUP[uf] || ['Capital', 'Interior'];
-        populateCityDropdown(backup, preselectedCity);
-      } finally {
-        if (loader) loader.classList.add('hidden');
-      }
-    }
-
-    function populateCityDropdown(cityList, preselectedCity) {
-      const citySelect = document.getElementById('select-city');
-      citySelect.innerHTML = '';
-      cityList.forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c;
-        opt.innerText = c;
-        if (preselectedCity && c.toLowerCase() === preselectedCity.toLowerCase()) {
-          opt.selected = true;
-        }
-        citySelect.appendChild(opt);
-      });
-    }
-
-    function saveSelectedCity() {
-      const uf = document.getElementById('select-uf').value;
-      const city = document.getElementById('select-city').value;
-
-      if (!city) {
-        showToast('Selecione uma cidade.', 'warning');
-        return;
-      }
-
-      const formatted = `${city} - ${uf}`;
-      localStorage.setItem('nutri_user_city', city);
-      localStorage.setItem('nutri_user_state', uf);
-
-      const bannerCity = document.getElementById('banner-user-city');
-      if (bannerCity) bannerCity.innerText = formatted;
-
-      closeCitySelectorModal();
-      showToast(`Região atualizada para: ${formatted}`, 'success');
-      loadActiveEncartes(); loadActivePhotoEncartes();
-    }
-
-    // Altera editUserCity para abrir o modal do IBGE
-    function editUserCity() {
-      openCitySelectorModal();
-    }
-
-    // ==========================================
-    // VITRINE PÚBLICA DE ENCARTES (POR REGIÃO)
-    // ==========================================
-    async function openPublicEncartesModal() {
-      const modal = document.getElementById('public-encartes-modal');
-      const cityLabel = document.getElementById('public-encartes-city-label');
-      const userCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
-      const userState = localStorage.getItem('nutri_user_state') || 'RJ';
-
-      const cleanCity = userCity.replace(/\s*-\s*[A-Z]{2}$/i, '').trim();
-      if (cityLabel) cityLabel.innerHTML = `📍 Região: <b>${cleanCity} - ${userState}</b>`;
-      if (modal) modal.classList.remove('hidden');
-
-      renderPublicEncartes();
-    }
-
-    function closePublicEncartesModal() {
-      const modal = document.getElementById('public-encartes-modal');
-      if (modal) modal.classList.add('hidden');
-    }
-
-    async function renderPublicEncartes() {
-      const container = document.getElementById('public-encartes-container');
-      const userCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
-      const today = new Date().toISOString().split('T')[0];
-
-      container.innerHTML = '<div style="text-align:center; padding:25px; color:#888;">⏳ Buscando encartes vigentes da sua região...</div>';
-
-      try {
-        const { data, error } = await client
-          .from('registros_precos')
-          .select('id, preco, validade, data_registro, mercados(id, nome, cidade), produtos(id, nome, marca, codigo_barras)')
-          .eq('is_encarte', true)
-          .gte('validade', today)
-          .order('validade', { ascending: true })
-          .limit(100);
-
-        if (error) throw error;
-
-        if (!data || data.length === 0) {
-          container.innerHTML = `
-            <div style="text-align:center; padding:30px 16px; background:#fafafa; border:1px dashed #ccc; border-radius:12px;">
-              <span style="font-size:32px; display:block; margin-bottom:8px;">📰</span>
-              <strong style="color:#444;">Nenhum encarte cadastrado para ${userCity} no momento.</strong>
-              <p style="font-size:12px; color:#777; margin-top:6px;">Os administradores e mercados parceiros atualizam os folhetos semanalmente.</p>
-            </div>
-          `;
-          return;
-        }
-
-        // Agrupa por mercado
-        const grouped = {};
-        data.forEach(item => {
-          const mkName = item.mercados?.nome || 'Supermercado';
-          if (!grouped[mkName]) {
-            grouped[mkName] = {
-              validade: item.validade,
-              produtos: []
-            };
-          }
-          grouped[mkName].produtos.push({
-            id: item.id,
-            nome: item.produtos?.nome || 'Produto',
-            preco: parseFloat(item.preco).toFixed(2),
-            marca: item.produtos?.marca || ''
-          });
-        });
-
-        let html = '';
-        for (const [marketName, info] of Object.entries(grouped)) {
-          html += `
-            <div style="background:#fff; border:1px solid #c8e6c9; border-radius:14px; padding:14px; box-shadow:0 2px 6px rgba(0,0,0,0.05);">
-              <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; border-bottom:1px solid #f0f0f0; padding-bottom:8px;">
-                <div>
-                  <h4 style="font-size:16px; color:#1b5e20; font-weight:bold; margin-bottom:2px;">🏪 ${marketName}</h4>
-                  <span style="font-size:11.5px; color:#666;">${info.produtos.length} ofertas vigentes</span>
-                </div>
-                <span style="background:#e8f5e9; color:#2e7d32; font-size:11px; font-weight:bold; padding:3px 8px; border-radius:12px; border:1px solid #c8e6c9;">
-                  Válido até ${formatDateBR(info.validade)}
-                </span>
-              </div>
-              <div style="display:flex; flex-direction:column; gap:8px;">
-          `;
-
-          info.produtos.forEach(p => {
-            const safeName = p.nome.replace(/'/g, "\\'");
-            html += `
-              <div style="display:flex; justify-content:space-between; align-items:center; background:#fafafa; border-radius:8px; padding:8px 10px; border:1px solid #eee;">
-                <div>
-                  <strong style="font-size:13px; color:#222; display:block;">${p.nome}</strong>
-                  <span style="font-size:14px; color:#1b5e20; font-weight:bold;">R$ ${p.preco}</span>
-                </div>
-                <button onclick="addEncarteItemToPrelist('${safeName}')" style="background:#e8f5e9; border:1px solid #a5d6a7; color:#1b5e20; padding:6px 10px; border-radius:8px; font-size:11.5px; font-weight:bold; cursor:pointer;">
-                  + Na Lista
-                </button>
-              </div>
-            `;
-          });
-
-          html += `
-              </div>
-            </div>
-          `;
-        }
-
-        container.innerHTML = html;
-      } catch (err) {
-        container.innerHTML = '<div style="color:#c62828; text-align:center; padding:20px;">Erro ao carregar encartes da nuvem.</div>';
-      }
-    }
-
-    function addEncarteItemToPrelist(prodName) {
-      preShoppingList.push({ id: Date.now(), name: prodName, done: false });
-      savePrelist();
-      showToast(`"${prodName}" adicionado à sua Lista Prévia!`, 'success');
-    }
-
-    function formatDateBR(dateStr) {
-      if (!dateStr) return '';
-      const parts = dateStr.split('-');
-      if (parts.length === 3) return `${parts[2]}/${parts[1]}`;
-      return dateStr;
-    }
-
-    // ==========================================
-    // MODERAÇÃO DO ADMINISTRADOR (EXCLUIR DADOS)
-    // ==========================================
-    function switchAdminModTab(tab) {
-      document.getElementById('admin-tab-encartes').style.background = tab === 'encartes' ? '#b71c1c' : '#fff';
-      document.getElementById('admin-tab-encartes').style.color = tab === 'encartes' ? '#fff' : '#555';
-      document.getElementById('admin-tab-precos').style.background = tab === 'precos' ? '#b71c1c' : '#fff';
-      document.getElementById('admin-tab-precos').style.color = tab === 'precos' ? '#fff' : '#555';
-      document.getElementById('admin-tab-mercados').style.background = tab === 'mercados' ? '#b71c1c' : '#fff';
-      document.getElementById('admin-tab-mercados').style.color = tab === 'mercados' ? '#fff' : '#555';
-
-      document.getElementById('admin-mod-encartes-view').classList.toggle('hidden', tab !== 'encartes');
-      document.getElementById('admin-mod-precos-view').classList.toggle('hidden', tab !== 'precos');
-      document.getElementById('admin-mod-mercados-view').classList.toggle('hidden', tab !== 'mercados');
-
-      if (tab === 'encartes') loadAdminEncartesModeration();
-      if (tab === 'precos') loadAdminPricesModeration();
-      if (tab === 'mercados') loadAdminMarketsModeration();
-    }
-
-    async function loadAdminEncartesModeration() {
-      const container = document.getElementById('admin-manage-encartes-list');
-      container.innerHTML = '<div style="padding:10px; color:#888;">Carregando encartes para moderação...</div>';
-
-      try {
-        const { data, error } = await client
-          .from('registros_precos')
-          .select('id, mercado_id, validade, data_registro, mercados(id, nome)')
-          .eq('is_encarte', true)
-          .order('validade', { ascending: false })
-          .limit(100);
-
-        if (error) throw error;
-        if (!data || data.length === 0) {
-          container.innerHTML = '<div style="padding:10px; color:#888;">Nenhum encarte cadastrado no momento.</div>';
-          return;
-        }
-
-        // Agrupa por mercado + validade
-        const groups = {};
-        data.forEach(r => {
-          const key = (r.mercados?.nome || 'Mercado') + '_' + (r.validade || '');
-          if (!groups[key]) {
-            groups[key] = {
-              marketId: r.mercado_id,
-              marketName: r.mercados?.nome || 'Mercado',
-              validade: r.validade,
-              ids: []
-            };
-          }
-          groups[key].ids.push(r.id);
-        });
-
-        let html = '';
-        for (const [k, item] of Object.entries(groups)) {
-          html += `
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border-bottom:1px dashed #eee; background:#fff; margin-bottom:4px; border-radius:6px;">
-              <div>
-                <strong>${item.marketName}</strong> (${item.ids.length} itens)<br>
-                <small style="color:#666;">Validade: ${item.validade || 'N/A'}</small>
-              </div>
-              <button onclick="adminDeleteEncarteBatch('${item.marketId}', '${item.validade}')" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:5px 8px; font-weight:bold; font-size:11px; cursor:pointer;">
-                🗑️ Excluir Encarte
-              </button>
-            </div>
-          `;
-        }
-        container.innerHTML = html;
-      } catch (e) {
-        container.innerHTML = '<div style="color:#c62828;">Erro ao carregar moderação de encartes.</div>';
-      }
-    }
-
-    async function adminDeleteEncarteBatch(marketId, validade) {
-      const conf = await showConfirmDialog({
-        title: 'Excluir Encarte',
-        message: 'Deseja realmente apagar todas as ofertas deste encarte?',
-        icon: '🗑️',
-        okText: 'Excluir',
-        isDestructive: true
-      });
-      if (!conf) return;
-
-      try {
-        showToast('Excluindo encarte...', 'info');
-        const { error } = await client
-          .from('registros_precos')
-          .delete()
-          .eq('mercado_id', marketId)
-          .eq('validade', validade)
-          .eq('is_encarte', true);
-
-        if (error) throw error;
-        showToast('Encarte excluído com sucesso!', 'success');
-        loadAdminEncartesModeration();
-        loadActiveEncartes(); loadActivePhotoEncartes();
-      } catch (err) {
-        showToast('Erro ao excluir: ' + err.message, 'error');
-      }
-    }
-
-    async function loadAdminPricesModeration() {
-      const container = document.getElementById('admin-manage-prices-list');
-      container.innerHTML = '<div style="padding:10px; color:#888;">Carregando últimas cotações...</div>';
-
-      try {
-        const { data, error } = await client
-          .from('registros_precos')
-          .select('id, preco, data_registro, mercados(nome), produtos(nome)')
-          .order('data_registro', { ascending: false })
-          .limit(30);
-
-        if (error) throw error;
-        if (!data || data.length === 0) {
-          container.innerHTML = '<div style="padding:10px; color:#888;">Nenhuma cotação recente.</div>';
-          return;
-        }
-
-        let html = '';
-        data.forEach(r => {
-          const prod = r.produtos?.nome || 'Produto';
-          const mk = r.mercados?.nome || 'Mercado';
-          const p = parseFloat(r.preco).toFixed(2);
-
-          html += `
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:7px; border-bottom:1px dashed #eee; background:#fff; margin-bottom:4px; border-radius:6px;">
-              <div>
-                <strong>${prod}</strong> - R$ ${p}<br>
-                <small style="color:#666;">${mk}</small>
-              </div>
-              <button onclick="adminDeletePrice('${r.id}')" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:4px 7px; font-weight:bold; font-size:11px; cursor:pointer;">
-                🗑️ Excluir
-              </button>
-            </div>
-          `;
-        });
-        container.innerHTML = html;
-      } catch (e) {
-        container.innerHTML = '<div style="color:#c62828;">Erro ao carregar cotações.</div>';
-      }
-    }
-
-    async function adminDeletePrice(id) {
-      try {
-        const { error } = await client.from('registros_precos').delete().eq('id', id);
-        if (error) throw error;
-        showToast('Cotação excluída!', 'success');
-        loadAdminPricesModeration();
-      } catch (err) {
-        showToast('Erro: ' + err.message, 'error');
-      }
-    }
-
-    async function loadAdminMarketsModeration() {
-      const container = document.getElementById('admin-manage-markets-list');
-      container.innerHTML = '<div style="padding:10px; color:#888;">Carregando mercados...</div>';
-
-      try {
-        const { data, error } = await client.from('mercados').select('id, nome, cidade').order('nome');
-        if (error) throw error;
-        if (!data || data.length === 0) {
-          container.innerHTML = '<div style="padding:10px; color:#888;">Nenhum mercado cadastrado.</div>';
-          return;
-        }
-
-        let html = '';
-        data.forEach(m => {
-          html += `
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:7px; border-bottom:1px dashed #eee; background:#fff; margin-bottom:4px; border-radius:6px;">
-              <div>
-                <strong>${m.nome}</strong><br>
-                <small style="color:#666;">${m.cidade || 'Cabo Frio'}</small>
-              </div>
-              <button onclick="adminDeleteMarket('${m.id}')" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:4px 7px; font-weight:bold; font-size:11px; cursor:pointer;">
-                🗑️ Excluir
-              </button>
-            </div>
-          `;
-        });
-        container.innerHTML = html;
-      } catch (e) {
-        container.innerHTML = '<div style="color:#c62828;">Erro ao carregar mercados.</div>';
-      }
-    }
-
-    async function adminDeleteMarket(id) {
-      const conf = await showConfirmDialog({
-        title: 'Excluir Mercado',
-        message: 'Deseja excluir este estabelecimento do cadastro?',
-        icon: '🗑️',
-        okText: 'Excluir',
-        isDestructive: true
-      });
-      if (!conf) return;
-
-      try {
-        const { error } = await client.from('mercados').delete().eq('id', id);
-        if (error) throw error;
-        showToast('Mercado excluído!', 'success');
-        loadAdminMarketsModeration();
-      } catch (err) {
-        showToast('Erro ao excluir: ' + err.message, 'error');
-      }
-    }
-
-      // ==========================================
-    // CONTROLES DE GÔNDOLA: LANTERNA & CÓDIGO MANUAL
-    // ==========================================
-    let isFlashOn = false;
-
-    async function toggleFlashlight() {
-      try {
-        const videoElem = document.querySelector('#reader video');
-        if (!videoElem || !videoElem.srcObject) {
-          showToast('Inicie a câmera primeiro para ligar a lanterna.', 'info');
-          return;
-        }
-        const stream = videoElem.srcObject;
-        const track = stream.getVideoTracks()[0];
-        const caps = track.getCapabilities ? track.getCapabilities() : {};
-
-        if (caps.torch) {
-          isFlashOn = !isFlashOn;
-          await track.applyConstraints({ advanced: [{ torch: isFlashOn }] });
-          document.getElementById('torch-btn').innerHTML = isFlashOn ? '🔦 Desligar Flash' : '🔦 Lanterna';
-          showToast(isFlashOn ? '🔦 Lanterna ligada!' : '🔦 Lanterna desligada', 'info');
-        } else {
-          showToast('A lanterna não é suportada por esta câmera.', 'warning');
-        }
-      } catch (err) {
-        showToast('Não foi possível acionar a lanterna: ' + err.message, 'warning');
-      }
-    }
-
-    function openManualBarcodePrompt() {
-      const code = prompt('Digite os números do código de barras (EAN):');
-      if (code && code.trim().length >= 6) {
-        onCodeScanned(code.trim());
-      } else if (code) {
-        showToast('Código de barras inválido (muito curto).', 'warning');
-      }
-    }
-
-    // ==========================================
-    // QUANTIDADE, PESO (UNIDADE vs KG) & CÁLCULOS
-    // ==========================================
-    let currentProductUnitType = 'un';
-
-    function setProductUnitType(type) {
-      currentProductUnitType = type;
-      const btnUn = document.getElementById('type-btn-un');
-      const btnKg = document.getElementById('type-btn-kg');
-      const chips = document.getElementById('quick-qty-chips');
-      const qtyInput = document.getElementById('product-qty-input');
-
-      if (type === 'un') {
-        btnUn.style.background = '#2e7d32';
-        btnUn.style.color = '#fff';
-        btnKg.style.background = '#eee';
-        btnKg.style.color = '#444';
-        qtyInput.value = '1';
-        chips.innerHTML = `
-          <button type="button" class="budget-chip" onclick="setQuickQty(1)">1 un</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(2)">2 un</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(3)">3 un</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(6)">6 un</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(12)">12 un</button>
-        `;
-      } else {
-        btnKg.style.background = '#2e7d32';
-        btnKg.style.color = '#fff';
-        btnUn.style.background = '#eee';
-        btnUn.style.color = '#444';
-        qtyInput.value = '1.0';
-        chips.innerHTML = `
-          <button type="button" class="budget-chip" onclick="setQuickQty(0.5)">0.5 kg</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(1.0)">1.0 kg</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(1.5)">1.5 kg</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(2.0)">2.0 kg</button>
-        `;
-      }
-      updateItemTotalCalc();
-    }
-
-    function adjustProductQty(delta) {
-      const qtyInput = document.getElementById('product-qty-input');
-      let val = parseFloat(qtyInput.value) || 1;
-      if (currentProductUnitType === 'un') {
-        val = Math.max(1, Math.round(val + delta));
-      } else {
-        val = Math.max(0.1, parseFloat((val + (delta * 0.5)).toFixed(2)));
-      }
-      qtyInput.value = val;
-      updateItemTotalCalc();
-    }
-
-    function setQuickQty(val) {
-      const qtyInput = document.getElementById('product-qty-input');
-      qtyInput.value = val;
-      updateItemTotalCalc();
-    }
-
-    function updateItemTotalCalc() {
-      const qtyInput = document.getElementById('product-qty-input');
-      const priceInput = document.getElementById('price-input');
-      const preview = document.getElementById('item-subtotal-preview');
-
-      const qty = parseFloat(qtyInput.value) || 1;
-      const price = parseFloat(priceInput.value) || 0;
-      const subtotal = qty * price;
-
-      const unitLabel = currentProductUnitType === 'un' ? 'un.' : 'kg';
-      preview.innerText = `Subtotal deste item: R$ ${subtotal.toFixed(2)} (${qty} ${unitLabel})`;
-    }
-
-    // ==========================================
-    // GESTÃO DE ENCARTES 100% FOTO (ZERO DIGITAÇÃO)
-    // ==========================================
-    let currentEncartePhotoBase64 = null;
-
-    function handleEncartePhotoSelect(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const previewBox = document.getElementById('encarte-photo-preview-box');
-      const previewImg = document.getElementById('encarte-photo-preview-img');
-      const info = document.getElementById('encarte-photo-info');
-
-      info.innerText = '⏳ Carregando imagem...';
-      previewBox.classList.remove('hidden');
-
-      // Otimiza imagem para não estourar memória do navegador
-      resizeImageForOCR(file, 1600).then(canvas => {
-        currentEncartePhotoBase64 = canvas.toDataURL('image/jpeg', 0.85);
-        previewImg.src = currentEncartePhotoBase64;
-        info.innerText = `✅ Foto carregada e pronta para publicação!`;
-      }).catch(err => {
-        showToast('Erro ao carregar foto: ' + err.message, 'error');
-      });
-    }
-
-    function publishPhotoEncarte() {
-      const market = document.getElementById('encarte-photo-market').value;
-      const start = document.getElementById('encarte-photo-start').value || new Date().toISOString().split('T')[0];
-      const end = document.getElementById('encarte-photo-end').value;
-      const userCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
-
-      if (!end) {
-        showToast('Informe a data de validade final do encarte.', 'warning');
-        return;
-      }
-      if (!currentEncartePhotoBase64) {
-        showToast('Tire uma foto ou selecione a imagem do encarte.', 'warning');
-        return;
-      }
-
-      showToast('Publicando encarte oficial...', 'info');
-
-      // Salva no banco local do app (infalível e resiliente)
-      const encartesLocais = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
-
-      // Remove encartes anteriores desse mesmo mercado (auto-substituição)
-      const filtered = encartesLocais.filter(e => e.mercado.toLowerCase() !== market.toLowerCase());
-
-      const newEncarte = {
-        id: 'ENC_' + Date.now(),
-        mercado: market,
-        cidade: userCity,
-        data_inicio: start,
-        validade: end,
-        imagem: currentEncartePhotoBase64,
-        criado_em: new Date().toISOString()
-      };
-
-      filtered.unshift(newEncarte);
-      localStorage.setItem('nutri_photo_encartes', JSON.stringify(filtered));
-
-      showToast(`Encarte do ${market} publicado com sucesso!`, 'success');
-
-      // Limpa formulário
-      currentEncartePhotoBase64 = null;
-      document.getElementById('encarte-photo-preview-box').classList.add('hidden');
-      document.getElementById('encarte-photo-file').value = '';
-
-      loadActivePhotoEncartes();
-      renderPublicEncartes();
-    }
-
-    function loadActivePhotoEncartes() {
-      const container = document.getElementById('active-photo-encartes-list');
-      if (!container) return;
-
-      const encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
-      const today = new Date().toISOString().split('T')[0];
-      const valid = encartes.filter(e => e.validade >= today);
-
-      if (valid.length === 0) {
-        container.innerHTML = '<p style="color:#888; font-style:italic;">Nenhum encarte cadastrado ativo no momento.</p>';
-        return;
-      }
-
-      let html = '<ul style="list-style:none; padding:0; margin:0;">';
-      valid.forEach(e => {
-        html += `
-          <li style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px dashed #eee;">
-            <div>
-              <strong>${e.mercado}</strong> (${e.cidade})<br>
-              <small style="color:#2e7d32; font-weight:bold;">Válido até ${formatDateBR(e.validade)}</small>
-            </div>
-            <button onclick="deletePhotoEncarte('${e.id}')" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:bold; cursor:pointer;">
-              🗑️ Excluir
-            </button>
-          </li>
-        `;
-      });
-      html += '</ul>';
-      container.innerHTML = html;
-    }
-
-    function deletePhotoEncarte(id) {
-      let encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
-      encartes = encartes.filter(e => e.id !== id);
-      localStorage.setItem('nutri_photo_encartes', JSON.stringify(encartes));
-      showToast('Encarte excluído!', 'info');
-      loadActivePhotoEncartes();
-      renderPublicEncartes();
-    }
-
-    // ==========================================
-    // RENDERIZAÇÃO DA VITRINE PÚBLICA DE ENCARTES (POR FOTO)
-    // ==========================================
-    function renderPublicEncartes() {
-      const container = document.getElementById('public-encartes-container');
-      if (!container) return;
-
-      const userCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
-      const today = new Date().toISOString().split('T')[0];
-      const encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
-      const valid = encartes.filter(e => e.validade >= today);
-
-      if (valid.length === 0) {
-        container.innerHTML = `
-          <div style="text-align:center; padding:30px 16px; background:#fafafa; border:1px dashed #ccc; border-radius:12px;">
-            <span style="font-size:36px; display:block; margin-bottom:8px;">📰</span>
-            <strong style="color:#333; font-size:14px;">Nenhum encarte cadastrado para ${userCity} no momento.</strong>
-            <p style="font-size:12px; color:#777; margin-top:6px;">Os administradores atualizam os folhetos semanalmente.</p>
-          </div>
-        `;
-        return;
-      }
-
-      let html = '';
-      valid.forEach(e => {
-        html += `
-          <div style="background:#fff; border:1px solid #c8e6c9; border-radius:14px; padding:14px; box-shadow:0 3px 8px rgba(0,0,0,0.06);">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-              <div>
-                <h4 style="font-size:16px; color:#1b5e20; font-weight:bold; margin:0;">🏪 ${e.mercado}</h4>
-                <span style="font-size:11.5px; color:#666;">Cabo Frio e região</span>
-              </div>
-              <span style="background:#e8f5e9; color:#2e7d32; font-size:11px; font-weight:bold; padding:4px 8px; border-radius:12px; border:1px solid #c8e6c9;">
-                Válido até ${formatDateBR(e.validade)}
-              </span>
-            </div>
-
-            <!-- Miniatura da Imagem -->
-            <div style="text-align:center; margin-bottom:10px; cursor:pointer;" onclick="openEncarteViewer('${e.id}')">
-              <img src="${e.imagem}" style="max-width:100%; max-height:260px; border-radius:8px; border:1px solid #ddd; object-fit:contain; box-shadow:0 2px 6px rgba(0,0,0,0.1);">
-            </div>
-
-            <button onclick="openEncarteViewer('${e.id}')" class="save-btn" style="margin:0; background:#1b5e20; font-size:13.5px; padding:11px; display:flex; align-items:center; justify-content:center; gap:6px;">
-              🔍 Abrir Folheto em Tela Cheia (Com Zoom)
-            </button>
-          </div>
-        `;
-      });
-
-      container.innerHTML = html;
-    }
-
-    // ==========================================
-    // VISUALIZADOR DE ENCARTE COM ZOOM
-    // ==========================================
-    let currentViewerZoom = 1.0;
-
-    function openEncarteViewer(encarteId) {
-      const encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
-      const item = encartes.find(e => e.id === encarteId);
-      if (!item) return;
-
-      currentViewerZoom = 1.0;
-      const modal = document.getElementById('encarte-viewer-modal');
-      const title = document.getElementById('viewer-market-title');
-      const val = document.getElementById('viewer-validity-text');
-      const img = document.getElementById('viewer-encarte-img');
-
-      title.innerText = item.mercado;
-      val.innerText = `Válido até ${formatDateBR(item.validade)}`;
-      img.src = item.imagem;
-      img.style.transform = `scale(1.0)`;
-
-      modal.classList.remove('hidden');
-    }
-
-    function closeEncarteViewer() {
-      document.getElementById('encarte-viewer-modal').classList.add('hidden');
-    }
-
-    function zoomEncarte(factor) {
-      const img = document.getElementById('viewer-encarte-img');
-      currentViewerZoom = Math.min(3.0, Math.max(0.6, currentViewerZoom * factor));
-      img.style.transform = `scale(${currentViewerZoom})`;
-    }
-
-      function openLegalTermsModal() {
-      document.getElementById('legal-terms-modal').classList.remove('hidden');
-    }
-    function closeLegalTermsModal() {
-      document.getElementById('legal-terms-modal').classList.add('hidden');
-    }
-
-  </script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
 
 
   <style>
@@ -2714,111 +448,55 @@
       </div>
 
 
-            <!-- SEÇÃO ADMIN: GESTÃO DE ENCARTES 100% FOTO (ZERO DIGITAÇÃO) -->
+            <!-- SEÇÃO ADMIN: GESTÃO DE ENCARTES E OFERTAS (AUTOMATIZADO) -->
       <div style="background:#f9fcf9; border:2px solid #c8e6c9; border-radius:12px; padding:14px; margin-bottom:16px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
           <h4 style="font-size:15px; color:#1b5e20; font-weight:bold; display:flex; align-items:center; gap:6px;">
-            📸 Publicar Novo Encarte Oficial
+            📰 Gestão de Encartes & Promoções
           </h4>
-          <span style="font-size:11px; background:#e8f5e9; color:#2e7d32; padding:3px 8px; border-radius:12px; font-weight:bold;">100% Imagem</span>
+          <span style="font-size:11px; background:#e8f5e9; color:#2e7d32; padding:3px 8px; border-radius:12px; font-weight:bold;">Auto-expiração</span>
         </div>
         <p style="font-size:12px; color:#555; line-height:1.4; margin-bottom:12px;">
-          Selecione a foto ou print do folheto do mercado (<b>Avistão, Princesa, Multimarket, etc.</b>). Ele fica imediatamente disponível na aba pública de encartes com zoom interativo para os clientes!
+          Alimente as promoções do <b>Avistão, Princesa, Multimarket, Supermarket</b> e outros. O sistema cruza os nomes com códigos de barras, atualiza os preços vigentes e <b>desativa os encartes anteriores automaticamente</b> sem você precisar apagar nada na mão.
         </p>
 
-        <label style="font-size:12px; font-weight:bold; color:#333;">1. Supermercado do Encarte:</label>
-        <select id="encarte-photo-market" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc; font-size:13.5px; margin-bottom:10px; background:#fff;">
-          <option value="Supermercado Avistão">Supermercado Avistão</option>
-          <option value="Princesa Supermercados">Princesa Supermercados</option>
+        <label style="font-size:12px; font-weight:bold; color:#333;">1. Supermercado da Promoção:</label>
+        <select id="encarte-market-select" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc; font-size:13px; margin-bottom:10px; background:#fff;">
+          <option value="Avistão">Supermercado Avistão</option>
+          <option value="Princesa">Princesa Supermercados</option>
           <option value="Multimarket">Multimarket</option>
           <option value="Supermarket">Supermarket</option>
           <option value="Atacadão">Atacadão</option>
-          <option value="Assaí Atacadista">Assaí Atacadista</option>
+          <option value="Assaí">Assaí Atacadista</option>
           <option value="Extra">Extra</option>
-          <option value="Outro">Outro Mercado de Bairro</option>
         </select>
 
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:12px;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
           <div>
             <label style="font-size:12px; font-weight:bold; color:#333;">Início das Ofertas:</label>
-            <input type="date" id="encarte-photo-start" style="width:100%; padding:8px; border-radius:8px; border:1px solid #ccc; font-size:13px;">
+            <input type="date" id="encarte-start-date" style="width:100%; padding:8px; border-radius:8px; border:1px solid #ccc; font-size:13px;">
           </div>
           <div>
             <label style="font-size:12px; font-weight:bold; color:#333;">Validade do Encarte:</label>
-            <input type="date" id="encarte-photo-end" style="width:100%; padding:8px; border-radius:8px; border:1px solid #ccc; font-size:13px;">
+            <input type="date" id="encarte-end-date" style="width:100%; padding:8px; border-radius:8px; border:1px solid #ccc; font-size:13px;">
           </div>
         </div>
 
-        <!-- Botão de Tirar Foto / Selecionar Arquivo -->
-        <div style="background:#e8f5e9; border:2px dashed #2e7d32; border-radius:12px; padding:16px; text-align:center; margin-bottom:12px;">
-          <input type="file" id="encarte-photo-file" accept="image/*" onchange="handleEncartePhotoSelect(event)" style="display:none;">
-          <button type="button" onclick="document.getElementById('encarte-photo-file').click()" style="background:#1b5e20; color:#fff; border:none; padding:12px 20px; border-radius:10px; font-size:14px; font-weight:bold; cursor:pointer; display:inline-flex; align-items:center; gap:8px; box-shadow:0 3px 8px rgba(0,0,0,0.15);">
-            📸 Escolher Imagem ou Tirar Foto do Folheto
-          </button>
-          <span style="display:block; font-size:11.5px; color:#555; margin-top:6px;">Aceita foto da câmera ou print do WhatsApp/Instagram</span>
+        <label style="font-size:12px; font-weight:bold; color:#333;">2. Digite ou Cole as Ofertas (1 produto por linha):</label>
+        <textarea id="encarte-raw-text" placeholder="Formato: Nome do Produto - Preço&#10;Exemplo:&#10;Arroz Camil 5kg - 24,90&#10;Feijão Preto Comum 1kg - 6,89&#10;Café Pilão 500g - 16,98&#10;Óleo de Soja Soya 900ml - 5,49" rows="6" style="width:100%; border:1px solid #ccc; border-radius:8px; padding:10px; font-size:12.5px; margin-bottom:10px; font-family:inherit;"></textarea>
 
-          <!-- Preview da foto selecionada -->
-          <div id="encarte-photo-preview-box" class="hidden" style="margin-top:12px;">
-            <img id="encarte-photo-preview-img" style="max-width:100%; max-height:260px; border-radius:8px; border:1px solid #aaa; box-shadow:0 2px 8px rgba(0,0,0,0.15); object-fit:contain;">
-            <div style="font-size:12px; color:#2e7d32; font-weight:bold; margin-top:6px;" id="encarte-photo-info">Foto pronta para publicação</div>
-          </div>
-        </div>
-
-        <button onclick="publishPhotoEncarte()" class="save-btn" style="margin:0; background:#2e7d32; font-size:14px; padding:13px; display:flex; align-items:center; justify-content:center; gap:8px;">
-          🚀 Publicar Encarte na Vitrine de Ofertas
+        <button onclick="publishEncarte()" class="save-btn" style="margin:0; background:#2e7d32; font-size:13.5px; padding:11px; display:flex; align-items:center; justify-content:center; gap:6px;">
+          🚀 Publicar Encarte & Atualizar Preços
         </button>
 
+        <div id="encarte-processing-status" class="hidden" style="margin-top:10px; font-size:12px; color:#2e7d32; font-weight:bold; text-align:center;">
+          ⏳ Cruzando catálogo e atualizando cotações no banco...
+        </div>
+
         <div style="margin-top:16px;">
-          <h5 style="font-size:13px; color:#1b5e20; margin-bottom:6px; font-weight:bold;">Encartes Vigentes Publicados:</h5>
-          <div id="active-photo-encartes-list" style="font-size:12px; color:#666; background:#fff; border:1px solid #e0e0e0; border-radius:8px; padding:8px;">
+          <h5 style="font-size:13px; color:#1b5e20; margin-bottom:6px; font-weight:bold;">Encartes Vigentes Cadastrados:</h5>
+          <div id="active-encartes-list" style="font-size:12px; color:#666; background:#fff; border:1px solid #e0e0e0; border-radius:8px; padding:8px;">
             Carregando encartes ativos...
-          </div>
-        </div>
-      </div>
-
-      <!-- SEÇÃO ADMIN: MODERAÇÃO & EXCLUSÃO DE DADOS (CONTROLE DO ADM) -->
-      <div style="background:#fff7f7; border:2px solid #ffcdd2; border-radius:12px; padding:14px; margin-bottom:16px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-          <h4 style="font-size:15px; color:#b71c1c; font-weight:bold; display:flex; align-items:center; gap:6px;">
-            🛡️ Moderação & Auditoria de Dados
-          </h4>
-          <span style="font-size:11px; background:#ffebee; color:#c62828; padding:3px 8px; border-radius:12px; font-weight:bold;">Apenas ADM</span>
-        </div>
-        <p style="font-size:12px; color:#555; line-height:1.4; margin-bottom:12px;">
-          Exclua encartes desatualizados, remova preços errados/troll informados por usuários ou apague mercados duplicados.
-        </p>
-
-        <!-- Abas de Moderação -->
-        <div style="display:flex; gap:6px; margin-bottom:10px;">
-          <button type="button" onclick="switchAdminModTab('encartes')" id="admin-tab-encartes" style="flex:1; padding:7px; border:1px solid #c62828; background:#b71c1c; color:#fff; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">
-            📰 Encartes
-          </button>
-          <button type="button" onclick="switchAdminModTab('precos')" id="admin-tab-precos" style="flex:1; padding:7px; border:1px solid #ccc; background:#fff; color:#555; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">
-            💰 Preços Recentes
-          </button>
-          <button type="button" onclick="switchAdminModTab('mercados')" id="admin-tab-mercados" style="flex:1; padding:7px; border:1px solid #ccc; background:#fff; color:#555; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">
-            🏪 Mercados
-          </button>
-        </div>
-
-        <!-- Conteúdo 1: Gerenciar Encartes com Exclusão -->
-        <div id="admin-mod-encartes-view">
-          <div id="admin-manage-encartes-list" style="max-height:220px; overflow-y:auto; font-size:12px;">
-            Carregando encartes para moderação...
-          </div>
-        </div>
-
-        <!-- Conteúdo 2: Gerenciar Preços com Exclusão -->
-        <div id="admin-mod-precos-view" class="hidden">
-          <div id="admin-manage-prices-list" style="max-height:220px; overflow-y:auto; font-size:12px;">
-            Carregando cotações recentes...
-          </div>
-        </div>
-
-        <!-- Conteúdo 3: Gerenciar Mercados com Exclusão -->
-        <div id="admin-mod-mercados-view" class="hidden">
-          <div id="admin-manage-markets-list" style="max-height:220px; overflow-y:auto; font-size:12px;">
-            Carregando lista de mercados...
           </div>
         </div>
       </div>
@@ -2902,174 +580,6 @@
     </div>
   </div>
 
-    <!-- ========================================== -->
-  <!-- MODAL: ENCARTES & OFERTAS DA SEMANA (VITRINE PÚBLICA) -->
-  <!-- ========================================== -->
-  <div class="modal hidden" id="public-encartes-modal" style="z-index: 180;">
-    <div class="modal-content" style="max-height: 90vh;">
-      <div class="modal-header">
-        <div>
-          <h3 style="color: #1b5e20; display:flex; align-items:center; gap:8px;">
-            📰 Encartes & Ofertas da Semana
-          </h3>
-          <span style="font-size:12px; color:#555;" id="public-encartes-city-label">
-            📍 Região: <b>Cabo Frio - RJ</b>
-          </span>
-        </div>
-        <button style="border:none; background:none; font-size:24px; cursor:pointer; color:#777;" onclick="closePublicEncartesModal()">&times;</button>
-      </div>
-
-      <p style="font-size:12.5px; color:#666; margin-bottom:12px;">
-        Confira as ofertas dos folhetos vigentes na sua cidade e adicione os produtos diretamente à sua Lista Prévia com 1 toque:
-      </p>
-
-      <!-- Lista de Encartes Disponíveis por Mercado -->
-      <div id="public-encartes-container" style="display:flex; flex-direction:column; gap:12px; margin-bottom:16px;">
-        <div style="text-align:center; padding:25px; color:#888; font-size:13px;">
-          ⏳ Carregando encartes da sua região...
-        </div>
-      </div>
-
-      <button class="reset-btn" onclick="closePublicEncartesModal()">Fechar Encartes</button>
-    </div>
-  </div>
-
-    <!-- ========================================== -->
-  <!-- MODAL: SELETOR DE CIDADE & ESTADO (IBGE + OFFLINE) -->
-  <!-- ========================================== -->
-  <div class="modal hidden" id="city-selector-modal" style="z-index: 190;">
-    <div class="modal-content" style="max-height: 85vh;">
-      <div class="modal-header">
-        <h3 style="color: #1b5e20; display:flex; align-items:center; gap:8px;">
-          📍 Selecionar Sua Cidade
-        </h3>
-        <button style="border:none; background:none; font-size:24px; cursor:pointer; color:#777;" onclick="closeCitySelectorModal()">&times;</button>
-      </div>
-
-      <p style="font-size:12.5px; color:#555; margin-bottom:12px;">
-        Escolha o seu Estado e Município para ver os preços e encartes da sua região:
-      </p>
-
-      <label style="font-size:12px; font-weight:bold;">1. Estado (UF):</label>
-      <select id="select-uf" onchange="onUfChanged()" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc; font-size:13.5px; margin-bottom:12px; background:#fff;">
-        <option value="RJ">Rio de Janeiro (RJ)</option>
-        <option value="SP">São Paulo (SP)</option>
-        <option value="MG">Minas Gerais (MG)</option>
-        <option value="ES">Espírito Santo (ES)</option>
-        <option value="BA">Bahia (BA)</option>
-        <option value="PR">Paraná (PR)</option>
-        <option value="SC">Santa Catarina (SC)</option>
-        <option value="RS">Rio Grande do Sul (RS)</option>
-        <option value="GO">Goiás (GO)</option>
-        <option value="DF">Distrito Federal (DF)</option>
-        <option value="PE">Pernambuco (PE)</option>
-        <option value="CE">Ceará (CE)</option>
-        <option value="PA">Pará (PA)</option>
-        <option value="AM">Amazonas (AM)</option>
-        <option value="MA">Maranhão (MA)</option>
-        <option value="MT">Mato Grosso (MT)</option>
-        <option value="MS">Mato Grosso do Sul (MS)</option>
-        <option value="PB">Paraíba (PB)</option>
-        <option value="RN">Rio Grande do Norte (RN)</option>
-        <option value="AL">Alagoas (AL)</option>
-        <option value="PI">Piauí (PI)</option>
-        <option value="SE">Sergipe (SE)</option>
-        <option value="RO">Rondônia (RO)</option>
-        <option value="TO">Tocantins (TO)</option>
-        <option value="AC">Acre (AC)</option>
-        <option value="AP">Amapá (AP)</option>
-        <option value="RR">Roraima (RR)</option>
-      </select>
-
-      <label style="font-size:12px; font-weight:bold;">2. Município:</label>
-      <div id="city-loading-indicator" class="hidden" style="font-size:11.5px; color:#2e7d32; margin-bottom:4px;">
-        ⏳ Carregando municípios do IBGE...
-      </div>
-      <select id="select-city" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc; font-size:13.5px; margin-bottom:16px; background:#fff;">
-        <option value="Cabo Frio">Cabo Frio</option>
-        <option value="Arraial do Cabo">Arraial do Cabo</option>
-        <option value="Armação dos Búzios">Armação dos Búzios</option>
-        <option value="São Pedro da Aldeia">São Pedro da Aldeia</option>
-        <option value="Araruama">Araruama</option>
-        <option value="Saquarema">Saquarema</option>
-        <option value="Macaé">Macaé</option>
-        <option value="Rio das Ostras">Rio das Ostras</option>
-        <option value="Niterói">Niterói</option>
-        <option value="Rio de Janeiro">Rio de Janeiro</option>
-      </select>
-
-      <button class="save-btn" onclick="saveSelectedCity()" style="margin:0 0 8px 0; background:#2e7d32;">
-        Confirmar Minha Cidade 📍
-      </button>
-      <button class="reset-btn" onclick="closeCitySelectorModal()" style="margin:0;">Cancelar</button>
-    </div>
-  </div>
-
-    <!-- ========================================== -->
-  <!-- MODAL: VISUALIZADOR DE ENCARTE EM TELA CHEIA (ZOOM) -->
-  <!-- ========================================== -->
-  <div class="modal hidden" id="encarte-viewer-modal" style="z-index: 250; background: rgba(0,0,0,0.92); padding: 0;">
-    <div style="width: 100%; height: 100%; display: flex; flex-direction: column;">
-      <!-- Header do Visualizador -->
-      <div style="padding: 14px 16px; background: rgba(0,0,0,0.7); display: flex; justify-content: space-between; align-items: center; color: #fff;">
-        <div>
-          <h4 id="viewer-market-title" style="font-size: 16px; font-weight: bold; margin: 0;">Encarte Oficial</h4>
-          <span id="viewer-validity-text" style="font-size: 11.5px; color: #a5d6a7;">Válido até --/--</span>
-        </div>
-        <div style="display: flex; gap: 10px; align-items: center;">
-          <button onclick="zoomEncarte(1.2)" style="background: rgba(255,255,255,0.2); border: none; color: #fff; width: 34px; height: 34px; border-radius: 50%; font-size: 18px; font-weight: bold; cursor: pointer;">🔍+</button>
-          <button onclick="zoomEncarte(0.8)" style="background: rgba(255,255,255,0.2); border: none; color: #fff; width: 34px; height: 34px; border-radius: 50%; font-size: 18px; font-weight: bold; cursor: pointer;">🔍-</button>
-          <button onclick="closeEncarteViewer()" style="background: #e53935; border: none; color: #fff; width: 34px; height: 34px; border-radius: 50%; font-size: 20px; font-weight: bold; cursor: pointer;">&times;</button>
-        </div>
-      </div>
-
-      <!-- Área da Imagem com Rolagem e Zoom -->
-      <div style="flex: 1; overflow: auto; display: flex; justify-content: center; align-items: center; padding: 10px; -webkit-overflow-scrolling: touch;">
-        <img id="viewer-encarte-img" src="" style="max-width: 100%; height: auto; transition: transform 0.2s ease; transform-origin: center center; border-radius: 6px;">
-      </div>
-
-      <div style="padding: 10px; background: rgba(0,0,0,0.7); text-align: center; color: #ccc; font-size: 11.5px;">
-        💡 Use a pinça de dois dedos ou os botões de lupa no topo para dar zoom nas ofertas.
-      </div>
-    </div>
-  </div>
-
-    <!-- ========================================== -->
-  <!-- MODAL: BASE LEGAL & DIREITOS (ART. 31 DO CDC) -->
-  <!-- ========================================== -->
-  <div class="modal hidden" id="legal-terms-modal" style="z-index: 220;">
-    <div class="modal-content" style="max-height: 85vh;">
-      <div class="modal-header">
-        <h3 style="color: #1b5e20; display:flex; align-items:center; gap:8px;">
-          ⚖️ Base Legal & Transparência
-        </h3>
-        <button style="border:none; background:none; font-size:24px; cursor:pointer; color:#777;" onclick="closeLegalTermsModal()">&times;</button>
-      </div>
-
-      <div style="font-size: 13px; color: #444; line-height: 1.55;">
-        <h4 style="color: #1b5e20; font-size: 14px; margin-bottom: 6px;">1. Direito à Informação Pública (CDC)</h4>
-        <p style="margin-bottom: 12px;">
-          De acordo com o <b>Art. 31 da Lei Federal nº 8.078/1990 (Código de Defesa do Consumidor)</b> e o <b>Decreto nº 5.903/2006</b>, os preços afixados em gôndolas e prateleiras são informações públicas e ostensivas de interesse coletivo. A coleta e comparação colaborativa de preços é um exercício legítimo de cidadania e defesa do poder de compra das famílias.
-        </p>
-
-        <h4 style="color: #1b5e20; font-size: 14px; margin-bottom: 6px;">2. Uso Exclusivo da Câmera (LGPD)</h4>
-        <p style="margin-bottom: 12px;">
-          A câmera do seu aparelho é acionada <b>única e exclusivamente para a decodificação óptica local de códigos de barras (EAN-13)</b>. Nenhuma imagem ou vídeo de pessoas, rostos ou corredores de lojas é filmado, gravado ou transmitido para servidores externos.
-        </p>
-
-        <h4 style="color: #1b5e20; font-size: 14px; margin-bottom: 6px;">3. Autoria e Contato</h4>
-        <p style="margin-bottom: 6px;">
-          O aplicativo <b>NutriPreço</b> é um projeto tecnológico independente, idealizado e desenvolvido por <b>Arthur L. Santos</b> em Cabo Frio — RJ.
-        </p>
-        <p>
-          Canal oficial para dúvidas, parcerias ou exclusão de dados: <b>contato.nutripreco@gmail.com</b>
-        </p>
-      </div>
-
-      <button class="save-btn" onclick="closeLegalTermsModal()" style="margin-top: 16px; background: #2e7d32;">Entendido</button>
-    </div>
-  </div>
-
   <div id="toast-container"></div>
 
 
@@ -3108,21 +618,6 @@
     </div>
   </div>
 
-  <!-- HUD CALCULADORA DE GÔNDOLA NO TOPO (VISOR DE GASTOS) -->
-  <div id="top-calculator-hud" style="background: #ffffff; border-bottom: 2px solid #2e7d32; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 6px rgba(0,0,0,0.06); position: sticky; top: 52px; z-index: 95;">
-    <div>
-      <span style="font-size: 11px; color: #666; display: block; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Meu Pré-Caixa:</span>
-      <div style="display: flex; align-items: baseline; gap: 6px;">
-        <strong id="top-hud-total" style="font-size: 22px; color: #1b5e20; font-weight: 800;">R$ 0,00</strong>
-        <span id="top-hud-count" style="font-size: 12px; color: #666;">(0 itens)</span>
-      </div>
-    </div>
-    <button onclick="openCartModal()" style="background: #2e7d32; color: white; border: none; padding: 9px 15px; border-radius: 20px; font-size: 13px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(46,125,50,0.25);">
-      🛒 Ver Carrinho
-    </button>
-  </div>
-
-
 
 
   <!-- Menu Lateral Deslizante (Drawer) -->
@@ -3153,15 +648,6 @@
         <span class="badge-highlight">Novo</span>
       </button>
 
-      <button class="sidebar-item" onclick="toggleSidebar(false); openPublicEncartesModal();">
-        <span class="sidebar-icon">📰</span>
-        <div class="sidebar-item-text">
-          <strong>Encartes & Ofertas da Semana</strong>
-          <small>Folhetos e promoções da sua cidade</small>
-        </div>
-        <span class="badge-highlight">Ofertas</span>
-      </button>
-
 
       <button class="sidebar-item" onclick="toggleSidebar(false); openHistoryModal();">
         <span class="sidebar-icon">📂</span>
@@ -3172,13 +658,13 @@
       </button>
 
 
-      <button class="sidebar-item" onclick="toggleSidebar(false); openPreListModal();">
+      <button class="sidebar-item" onclick="toggleSidebar(false); showToast('Em breve no Passo 3: Montar Lista Prévia no sofá de casa!', 'info');">
         <span class="sidebar-icon">📝</span>
         <div class="sidebar-item-text">
           <strong>Lista Prévia de Compras</strong>
           <small>Planeje os gastos antes de ir ao mercado</small>
         </div>
-        <span class="badge-highlight">Disponível</span>
+        <span class="badge-step">Passo 3</span>
       </button>
 
 
@@ -3233,12 +719,6 @@
     </div>
 
 
-    <div style="padding: 10px 14px; font-size: 11.5px; color: #666; border-top: 1px solid #f0f0f0; text-align: center; background: #fafafa;">
-      NutriPreço • 🌿 Idealizado por <b>Arthur L. Santos</b> 🌿<br>
-      <span style="font-size: 10.5px; color: #888;">Cabo Frio • Rio de Janeiro</span>
-    </div>
-          
-
     <div class="sidebar-footer">
       <div id="sidebar-user-info" style="font-size:12px; color:#555; margin-bottom:8px;">
         <span id="sidebar-user-text">👤 Modo Visitante</span>
@@ -3256,15 +736,6 @@
         <div id="reader"></div>
       </div>
       <button class="scan-btn" id="start-btn" onclick="startScanner()">📷 Iniciar Câmera</button>
-      <!-- Botões de Apoio na Gôndola (Lanterna & Digitação Manual) -->
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
-        <button type="button" onclick="toggleFlashlight()" id="torch-btn" style="background: #fff; border: 1px solid #ccc; border-radius: 8px; padding: 10px 8px; font-size: 13px; font-weight: bold; color: #333; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-          🔦 Lanterna
-        </button>
-        <button type="button" onclick="openManualBarcodePrompt()" style="background: #fff; border: 1px solid #ccc; border-radius: 8px; padding: 10px 8px; font-size: 13px; font-weight: bold; color: #333; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-          ⌨️ Digitar Código
-        </button>
-      </div>
     </div>
 
 
@@ -3329,38 +800,8 @@
         <input type="text" id="market-input" value="Atacadão" oninput="checkPriceComparison()">
 
 
-        <!-- Seletor de Tipo: Unidade vs Quilo (Kg) -->
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; margin-bottom:4px;">
-          <label style="margin:0; font-weight:bold;">Tipo & Quantidade:</label>
-          <div style="display:flex; gap:4px;">
-            <button type="button" id="type-btn-un" onclick="setProductUnitType('un')" style="background:#2e7d32; color:#fff; border:none; padding:4px 10px; border-radius:6px; font-size:11.5px; font-weight:bold; cursor:pointer;">unidade</button>
-            <button type="button" id="type-btn-kg" onclick="setProductUnitType('kg')" style="background:#eee; color:#444; border:none; padding:4px 10px; border-radius:6px; font-size:11.5px; font-weight:bold; cursor:pointer;">por quilo (kg)</button>
-          </div>
-        </div>
-
-        <!-- Stepper de Quantidade / Peso -->
-        <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
-          <button type="button" onclick="adjustProductQty(-1)" style="width:40px; height:40px; background:#f0f0f0; border:1px solid #ccc; border-radius:8px; font-size:20px; font-weight:bold; cursor:pointer;">-</button>
-          <input type="number" id="product-qty-input" value="1" step="any" min="0.1" oninput="updateItemTotalCalc()" style="text-align:center; font-size:18px; font-weight:bold; flex:1; padding:8px;">
-          <button type="button" onclick="adjustProductQty(1)" style="width:40px; height:40px; background:#f0f0f0; border:1px solid #ccc; border-radius:8px; font-size:20px; font-weight:bold; cursor:pointer;">+</button>
-        </div>
-
-        <!-- Atalhos rápidos de peso/quantidade -->
-        <div id="quick-qty-chips" style="display:flex; gap:6px; margin-bottom:12px; overflow-x:auto;">
-          <button type="button" class="budget-chip" onclick="setQuickQty(1)">1 un</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(2)">2 un</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(3)">3 un</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(6)">6 un</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(12)">12 un</button>
-        </div>
-
-        <label>Preço Unitário na Gôndola (R$):</label>
-        <input type="number" step="0.01" id="price-input" class="price-input" placeholder="0,00" oninput="checkPriceComparison(); updateItemTotalCalc();">
-
-        <!-- Subtotal do Item -->
-        <div id="item-subtotal-preview" style="text-align:right; font-size:13px; color:#1b5e20; font-weight:bold; margin-top:4px;">
-          Subtotal deste item: R$ 0,00
-        </div>
+        <label>Preço deste Produto na Gôndola (R$):</label>
+        <input type="number" step="0.01" id="price-input" class="price-input" placeholder="0,00" oninput="checkPriceComparison()">
 
 
         <div id="compare-alert" class="compare-alert hidden"></div>
@@ -3393,11 +834,145 @@
 
 
     <!-- Rodapé Legal e LGPD -->
-    
+    <footer>
+      <p><b>NutriPreço</b> • Inteligência de Preços & Calculadora de Supermercado em Cabo Frio</p>
+      <p style="margin-top: 6px;">Os preços são colaborativos e informados pelos próprios consumidores no momento da compra (Art. 31 do Código de Defesa do Consumidor). As imagens da câmera são decodificadas localmente apenas para leitura do código de barras.</p>
+      <p style="margin-top: 10px;">
+        <a href="privacidade.html">📄 Política de Privacidade (LGPD)</a> | 
+        <a href="#" onclick="openAuthModal(); return false;">Gerenciar / Excluir Conta</a>
+      </p>
+    </footer>
   </div>
 
 
-  
+  <!-- Barra Fixa do Pré-Caixa -->
+  <div class="cart-bar" id="cart-bar">
+    <div class="cart-bar-budget-line">
+      <div id="cart-bar-budget-fill" class="cart-bar-budget-fill"></div>
+    </div>
+    <div class="cart-info">
+      <span>Meu Pré-Caixa (<span id="cart-count">0</span> itens):</span>
+      <strong id="cart-total">R$ 0,00</strong>
+    </div>
+    <button class="cart-btn" onclick="openCartModal()">Ver Carrinho</button>
+  </div>
+
+
+  <!-- Modal do Radar de Preços & Cesta Básica -->
+  <div class="modal hidden" id="radar-modal">
+    <div class="modal-content" style="max-height: 88vh;">
+      <div class="modal-header">
+        <div>
+          <h3 style="color: #2e7d32; display:flex; align-items:center; gap:6px;">📊 Radar de Preços</h3>
+          <span style="font-size:12px; color:#666;">Cabo Frio • Cotações da Cidade</span>
+        </div>
+        <button style="border:none; background:none; font-size:24px; cursor:pointer;" onclick="closeRadarModal()">&times;</button>
+      </div>
+
+
+      <!-- Abas / Filtros Rápidos -->
+      <div class="radar-tabs">
+        <button class="radar-tab active" id="tab-all-products" onclick="setRadarFilter('all')">🌐 Todos os Produtos</button>
+        <button class="radar-tab" id="tab-cesta-basica" onclick="setRadarFilter('cesta')">🧺 Cesta Básica Oficial</button>
+      </div>
+
+
+      <!-- Campo de Busca em Tempo Real -->
+      <div style="margin: 11px 0;">
+        <input type="text" id="radar-search-input" placeholder="🔍 Buscar produto (ex: café, arroz, leite, carne)..." oninput="renderRadarProducts()" style="padding: 10px 14px; font-size: 14px;">
+      </div>
+
+
+      <!-- Placar da Cesta Básica -->
+      <div id="cesta-summary-box" class="cesta-summary-box hidden">
+        <div style="font-size:13px; font-weight:bold; color:#1b5e20; margin-bottom:6px;">🧺 Placar Cesta Básica em Cabo Frio:</div>
+        <div id="cesta-markets-ranking"></div>
+      </div>
+
+
+      <!-- Lista Comparativa Tipo Planilha -->
+      <div id="radar-loading" class="loading" style="padding: 20px;">🔍 Carregando cotações de Cabo Frio...</div>
+      <div id="radar-products-list" style="margin-bottom: 16px;"></div>
+
+
+      <button class="reset-btn" onclick="closeRadarModal()">Fechar Radar</button>
+    </div>
+  </div>
+
+
+  <!-- Modal do Carrinho Atual -->
+  <div class="modal hidden" id="cart-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 style="color: #2e7d32;">🛒 Meu Pré-Caixa (Carrinho)</h3>
+        <button style="border:none; background:none; font-size:22px; cursor:pointer;" onclick="closeCartModal()">&times;</button>
+      </div>
+      <div id="cart-items-list" style="margin-bottom: 16px;"></div>
+      
+      <div style="display:flex; justify-content:space-between; font-size:18px; font-weight:bold; margin-bottom:15px; padding:10px 0; border-top:1px solid #eee;">
+        <span>Total da Compra:</span>
+        <span id="modal-cart-total" style="color: #2e7d32;">R$ 0,00</span>
+      </div>
+
+
+      <!-- Ações do Carrinho -->
+      <button class="save-btn" style="margin-top:0; margin-bottom:8px; background:#1b5e20;" onclick="finalizeAndSavePurchase()">💾 Finalizar e Salvar no Histórico</button>
+      <button class="whatsapp-btn" onclick="shareCartWhatsApp()">📲 Enviar Lista no WhatsApp</button>
+      <button class="reset-btn" style="background:#ffebee; color:#c62828; margin-top:8px;" onclick="clearCart()">🗑️ Limpar Carrinho</button>
+    </div>
+  </div>
+
+
+  <!-- Modal Minhas Compras Salvas -->
+  <div class="modal hidden" id="history-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 style="color: #2e7d32;">📂 Minhas Compras Salvas</h3>
+        <button style="border:none; background:none; font-size:22px; cursor:pointer;" onclick="closeHistoryModal()">&times;</button>
+      </div>
+
+
+      <!-- Estatísticas do Histórico -->
+      <div class="history-stat-box">
+        <div class="stat-card">
+          <span>Total Acumulado</span>
+          <strong id="stat-month-total">R$ 0,00</strong>
+        </div>
+        <div class="stat-card">
+          <span>Compras Salvas</span>
+          <strong id="stat-purchases-count">0</strong>
+        </div>
+      </div>
+
+
+      <div id="history-items-container" style="margin-bottom: 16px;"></div>
+      <button class="reset-btn" onclick="closeHistoryModal()">Fechar Histórico</button>
+    </div>
+  </div>
+
+
+  <!-- Modal de Login & Conta -->
+  <div class="modal hidden" id="auth-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 style="color: #2e7d32;">👤 Conta & Identificação</h3>
+        <button style="border:none; background:none; font-size:22px; cursor:pointer;" onclick="closeAuthModal()">&times;</button>
+      </div>
+      <div class="auth-box">
+        <div id="auth-logged-in-view" class="hidden">
+          <p style="font-size:14px; margin-bottom:12px;">Conectado como: <strong id="user-email-display"></strong></p>
+          <button class="reset-btn" style="background:#ffebee; color:#c62828; margin-bottom:8px;" onclick="logoutUser()">🚪 Sair da Conta</button>
+          <button class="reset-btn" style="background:#ffebee; color:#b71c1c; font-size:12px;" onclick="deleteUserAccount()">⚠️ Excluir Minha Conta e Meus Dados (LGPD)</button>
+        </div>
+        <div id="auth-form-view">
+          <p style="font-size:13px; color:#666; margin-bottom:12px;">Identifique-se para cadastrar preços confiáveis e sincronizar suas compras.</p>
+          <input type="email" id="auth-email" placeholder="Seu e-mail">
+          <input type="password" id="auth-password" placeholder="Sua senha (mínimo 6 dígitos)">
+          <button class="save-btn" onclick="handleAuth('login')">Entrar na Conta</button>
+          <button class="reset-btn" onclick="handleAuth('signup')">Criar Nova Conta Grátis</button>
+        </div>
+      </div>
+    </div>
   </div>
 
 
@@ -4054,14 +1629,165 @@
     // ==========================================
     // GESTÃO DE ENCARTES & SUBSTITUIÇÃO AUTOMÁTICA
     // ==========================================
-        // ==========================================
-    // LEITURA ÓPTICA DE ENCARTE POR IMAGEM (OCR TESSERACT)
-    // ==========================================
-    
+    async function publishEncarte() {
+      const marketName = document.getElementById('encarte-market-select').value;
+      const startDate = document.getElementById('encarte-start-date').value || new Date().toISOString().split('T')[0];
+      const endDate = document.getElementById('encarte-end-date').value;
+      const rawText = document.getElementById('encarte-raw-text').value.trim();
+      const statusDiv = document.getElementById('encarte-processing-status');
 
-    
+      if (!endDate) {
+        showToast('Informe a data de validade final do encarte.', 'warning');
+        return;
+      }
+      if (!rawText) {
+        showToast('Cole ou digite pelo menos um produto e preço.', 'warning');
+        return;
+      }
 
-    
+      statusDiv.classList.remove('hidden');
+      statusDiv.innerText = '⏳ Processando ofertas e cruzando dados...';
+
+      try {
+        // 1. Localiza ou cria o mercado no Supabase
+        let mercadoId = null;
+        const { data: mkData } = await client.from('mercados').select('id').eq('nome', marketName).limit(1);
+        if (mkData && mkData.length > 0) {
+          mercadoId = mkData[0].id;
+        } else {
+          const { data: newMk } = await client.from('mercados').insert({ nome: marketName, cidade: 'Cabo Frio' }).select();
+          if (newMk && newMk[0]) mercadoId = newMk[0].id;
+        }
+
+        // 2. REGRA DE OURO: Desativa automaticamente ofertas anteriores deste mesmo mercado
+        if (mercadoId) {
+          try {
+            await client.from('registros_precos')
+              .update({ ativo: false })
+              .eq('mercado_id', mercadoId)
+              .eq('is_encarte', true);
+          } catch(e) {
+            console.log('Aviso ao expirar registros anteriores:', e);
+          }
+        }
+
+        // 3. Processa cada linha de texto do encarte
+        const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        let countSaved = 0;
+
+        for (const line of lines) {
+          // Extrai nome e preço da linha (suporta "Arroz Camil 5kg - 24,90" ou "Feijão R$ 7,50")
+          const match = line.match(/(.*?)(?:[-—:]|\bR\$|\$)?\s*(\d+[,.]\d{2})\s*$/i);
+          let prodName = '';
+          let price = 0;
+
+          if (match) {
+            prodName = match[1].replace(/[-—:]/g, '').trim();
+            price = parseFloat(match[2].replace(',', '.'));
+          } else {
+            // Tentativa alternativa caso formato seja livre
+            const numMatch = line.match(/\d+[,.]\d{2}/);
+            if (numMatch) {
+              price = parseFloat(numMatch[0].replace(',', '.'));
+              prodName = line.replace(numMatch[0], '').replace(/[-—:R$]/g, '').trim();
+            }
+          }
+
+          if (!prodName || !price || isNaN(price)) continue;
+
+          // Busca produto correspondente no catálogo por nome (ilike)
+          let prodId = null;
+          const { data: existingProds } = await client.from('produtos')
+            .select('id, nome, codigo_barras')
+            .ilike('nome', `%${prodName.split(' ')[0]}%`)
+            .limit(5);
+
+          if (existingProds && existingProds.length > 0) {
+            // Encontra melhor correspondência
+            const exact = existingProds.find(p => p.nome.toLowerCase().includes(prodName.toLowerCase())) || existingProds[0];
+            prodId = exact.id;
+          } else {
+            // Cria produto novo no catálogo
+            const generatedEan = 'ENC' + Math.floor(1000000000 + Math.random() * 9000000000);
+            const { data: newProd } = await client.from('produtos').insert({
+              nome: prodName,
+              codigo_barras: generatedEan,
+              marca: 'Encarte Oficial'
+            }).select();
+            if (newProd && newProd[0]) prodId = newProd[0].id;
+          }
+
+          // Grava a cotação no registros_precos com tag is_encarte e validade
+          if (prodId && mercadoId) {
+            await client.from('registros_precos').insert({
+              produto_id: prodId,
+              mercado_id: mercadoId,
+              preco: price,
+              data_registro: new Date().toISOString(),
+              validade: endDate,
+              is_encarte: true,
+              ativo: true
+            });
+            countSaved++;
+          }
+        }
+
+        statusDiv.classList.add('hidden');
+        document.getElementById('encarte-raw-text').value = '';
+        showToast(`Encarte do ${marketName} publicado! ${countSaved} ofertas ativas até ${endDate}.`, 'success');
+        loadActiveEncartes();
+      } catch (err) {
+        statusDiv.classList.add('hidden');
+        showToast('Erro ao publicar encarte: ' + err.message, 'error');
+      }
+    }
+
+    async function loadActiveEncartes() {
+      const container = document.getElementById('active-encartes-list');
+      if (!container) return;
+
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        const { data, error } = await client
+          .from('registros_precos')
+          .select('id, preco, validade, data_registro, mercados(nome), produtos(nome)')
+          .eq('is_encarte', true)
+          .gte('validade', today)
+          .order('validade', { ascending: true })
+          .limit(50);
+
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+          container.innerHTML = '<p style="color:#888; font-style:italic;">Nenhum encarte cadastrado ativo no momento. Use o formulário acima para adicionar.</p>';
+          return;
+        }
+
+        // Agrupa por mercado
+        const grouped = {};
+        data.forEach(r => {
+          const mkName = r.mercados?.nome || 'Mercado';
+          if (!grouped[mkName]) {
+            grouped[mkName] = { count: 0, validade: r.validade };
+          }
+          grouped[mkName].count++;
+        });
+
+        let html = '<ul style="list-style:none; padding:0; margin:0;">';
+        for (const [mk, info] of Object.entries(grouped)) {
+          html += `
+            <li style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px dashed #eee;">
+              <span><b>${mk}</b> (${info.count} ofertas vigentes)</span>
+              <span style="color:#2e7d32; font-weight:bold; font-size:11px;">Válido até ${info.validade}</span>
+            </li>
+          `;
+        }
+        html += '</ul>';
+        container.innerHTML = html;
+      } catch (e) {
+        container.innerHTML = '<p style="color:#999;">Histórico de encartes pronto para novos cadastros.</p>';
+      }
+    }
 
 
     async function openAdminModal() {
@@ -4075,7 +1801,7 @@
         document.getElementById('admin-count-prods').innerText = prodCount ?? '--';
         document.getElementById('admin-count-precos').innerText = precoCount ?? '--';
         document.getElementById('admin-count-markets').innerText = marketCount ?? '--';
-        loadActiveEncartes(); loadActivePhotoEncartes();
+        loadActiveEncartes();
       } catch (e) {
         showToast('Erro ao carregar métricas de administrador.', 'error');
       }
@@ -5250,761 +2976,6 @@
         navigator.serviceWorker.register('./sw.js').catch(() => {});
       });
     }
-      // ==========================================
-    // SISTEMA DE CIDADES (IBGE + CACHE OFFLINE LOCAL-FIRST)
-    // ==========================================
-    const OFFLINE_CITIES_BACKUP = {
-      'RJ': ['Cabo Frio', 'Arraial do Cabo', 'Armação dos Búzios', 'São Pedro da Aldeia', 'Araruama', 'Saquarema', 'Macaé', 'Rio das Ostras', 'Niterói', 'Rio de Janeiro', 'Campos dos Goytacazes', 'Petrópolis', 'Volta Redonda', 'Nova Friburgo'],
-      'SP': ['São Paulo', 'Campinas', 'Santos', 'São José dos Campos', 'Ribeirão Preto', 'Sorocaba', 'Santo André', 'São Bernardo do Campo'],
-      'MG': ['Belo Horizonte', 'Juiz de Fora', 'Uberlândia', 'Contagem', 'Betim', 'Montes Claros'],
-      'ES': ['Vitória', 'Vila Velha', 'Serra', 'Cariacica', 'Guarapari', 'Linhares']
-    };
-
-    function openCitySelectorModal() {
-      const modal = document.getElementById('city-selector-modal');
-      const savedCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
-      const savedUf = localStorage.getItem('nutri_user_state') || 'RJ';
-
-      document.getElementById('select-uf').value = savedUf;
-      onUfChanged(savedCity);
-      if (modal) modal.classList.remove('hidden');
-    }
-
-    function closeCitySelectorModal() {
-      const modal = document.getElementById('city-selector-modal');
-      if (modal) modal.classList.add('hidden');
-    }
-
-    async function onUfChanged(preselectedCity = null) {
-      const uf = document.getElementById('select-uf').value;
-      const citySelect = document.getElementById('select-city');
-      const loader = document.getElementById('city-loading-indicator');
-
-      citySelect.innerHTML = '';
-
-      // 1. Tenta carregar do Cache Local do celular
-      const cacheKey = 'nutri_cities_' + uf;
-      const cached = localStorage.getItem(cacheKey);
-
-      if (cached) {
-        try {
-          const list = JSON.parse(cached);
-          populateCityDropdown(list, preselectedCity);
-          return;
-        } catch(e){}
-      }
-
-      // 2. Se offline, usa backup pré-embarcado
-      if (!navigator.onLine && OFFLINE_CITIES_BACKUP[uf]) {
-        populateCityDropdown(OFFLINE_CITIES_BACKUP[uf], preselectedCity);
-        return;
-      }
-
-      // 3. Se online, busca na API oficial do IBGE
-      if (loader) loader.classList.remove('hidden');
-      try {
-        const res = await fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios?orderBy=nome`);
-        const data = await res.json();
-        const cityNames = data.map(c => c.nome);
-
-        // Salva no cache local do celular para sempre funcionar offline
-        localStorage.setItem(cacheKey, JSON.stringify(cityNames));
-
-        populateCityDropdown(cityNames, preselectedCity);
-      } catch (err) {
-        // Fallback emergencial offline
-        const backup = OFFLINE_CITIES_BACKUP[uf] || ['Capital', 'Interior'];
-        populateCityDropdown(backup, preselectedCity);
-      } finally {
-        if (loader) loader.classList.add('hidden');
-      }
-    }
-
-    function populateCityDropdown(cityList, preselectedCity) {
-      const citySelect = document.getElementById('select-city');
-      citySelect.innerHTML = '';
-      cityList.forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c;
-        opt.innerText = c;
-        if (preselectedCity && c.toLowerCase() === preselectedCity.toLowerCase()) {
-          opt.selected = true;
-        }
-        citySelect.appendChild(opt);
-      });
-    }
-
-    function saveSelectedCity() {
-      const uf = document.getElementById('select-uf').value;
-      const city = document.getElementById('select-city').value;
-
-      if (!city) {
-        showToast('Selecione uma cidade.', 'warning');
-        return;
-      }
-
-      const formatted = `${city} - ${uf}`;
-      localStorage.setItem('nutri_user_city', city);
-      localStorage.setItem('nutri_user_state', uf);
-
-      const bannerCity = document.getElementById('banner-user-city');
-      if (bannerCity) bannerCity.innerText = formatted;
-
-      closeCitySelectorModal();
-      showToast(`Região atualizada para: ${formatted}`, 'success');
-      loadActiveEncartes(); loadActivePhotoEncartes();
-    }
-
-    // Altera editUserCity para abrir o modal do IBGE
-    function editUserCity() {
-      openCitySelectorModal();
-    }
-
-    // ==========================================
-    // VITRINE PÚBLICA DE ENCARTES (POR REGIÃO)
-    // ==========================================
-    async function openPublicEncartesModal() {
-      const modal = document.getElementById('public-encartes-modal');
-      const cityLabel = document.getElementById('public-encartes-city-label');
-      const userCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
-      const userState = localStorage.getItem('nutri_user_state') || 'RJ';
-
-      const cleanCity = userCity.replace(/\s*-\s*[A-Z]{2}$/i, '').trim();
-      if (cityLabel) cityLabel.innerHTML = `📍 Região: <b>${cleanCity} - ${userState}</b>`;
-      if (modal) modal.classList.remove('hidden');
-
-      renderPublicEncartes();
-    }
-
-    function closePublicEncartesModal() {
-      const modal = document.getElementById('public-encartes-modal');
-      if (modal) modal.classList.add('hidden');
-    }
-
-    async function renderPublicEncartes() {
-      const container = document.getElementById('public-encartes-container');
-      const userCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
-      const today = new Date().toISOString().split('T')[0];
-
-      container.innerHTML = '<div style="text-align:center; padding:25px; color:#888;">⏳ Buscando encartes vigentes da sua região...</div>';
-
-      try {
-        const { data, error } = await client
-          .from('registros_precos')
-          .select('id, preco, validade, data_registro, mercados(id, nome, cidade), produtos(id, nome, marca, codigo_barras)')
-          .eq('is_encarte', true)
-          .gte('validade', today)
-          .order('validade', { ascending: true })
-          .limit(100);
-
-        if (error) throw error;
-
-        if (!data || data.length === 0) {
-          container.innerHTML = `
-            <div style="text-align:center; padding:30px 16px; background:#fafafa; border:1px dashed #ccc; border-radius:12px;">
-              <span style="font-size:32px; display:block; margin-bottom:8px;">📰</span>
-              <strong style="color:#444;">Nenhum encarte cadastrado para ${userCity} no momento.</strong>
-              <p style="font-size:12px; color:#777; margin-top:6px;">Os administradores e mercados parceiros atualizam os folhetos semanalmente.</p>
-            </div>
-          `;
-          return;
-        }
-
-        // Agrupa por mercado
-        const grouped = {};
-        data.forEach(item => {
-          const mkName = item.mercados?.nome || 'Supermercado';
-          if (!grouped[mkName]) {
-            grouped[mkName] = {
-              validade: item.validade,
-              produtos: []
-            };
-          }
-          grouped[mkName].produtos.push({
-            id: item.id,
-            nome: item.produtos?.nome || 'Produto',
-            preco: parseFloat(item.preco).toFixed(2),
-            marca: item.produtos?.marca || ''
-          });
-        });
-
-        let html = '';
-        for (const [marketName, info] of Object.entries(grouped)) {
-          html += `
-            <div style="background:#fff; border:1px solid #c8e6c9; border-radius:14px; padding:14px; box-shadow:0 2px 6px rgba(0,0,0,0.05);">
-              <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; border-bottom:1px solid #f0f0f0; padding-bottom:8px;">
-                <div>
-                  <h4 style="font-size:16px; color:#1b5e20; font-weight:bold; margin-bottom:2px;">🏪 ${marketName}</h4>
-                  <span style="font-size:11.5px; color:#666;">${info.produtos.length} ofertas vigentes</span>
-                </div>
-                <span style="background:#e8f5e9; color:#2e7d32; font-size:11px; font-weight:bold; padding:3px 8px; border-radius:12px; border:1px solid #c8e6c9;">
-                  Válido até ${formatDateBR(info.validade)}
-                </span>
-              </div>
-              <div style="display:flex; flex-direction:column; gap:8px;">
-          `;
-
-          info.produtos.forEach(p => {
-            const safeName = p.nome.replace(/'/g, "\\'");
-            html += `
-              <div style="display:flex; justify-content:space-between; align-items:center; background:#fafafa; border-radius:8px; padding:8px 10px; border:1px solid #eee;">
-                <div>
-                  <strong style="font-size:13px; color:#222; display:block;">${p.nome}</strong>
-                  <span style="font-size:14px; color:#1b5e20; font-weight:bold;">R$ ${p.preco}</span>
-                </div>
-                <button onclick="addEncarteItemToPrelist('${safeName}')" style="background:#e8f5e9; border:1px solid #a5d6a7; color:#1b5e20; padding:6px 10px; border-radius:8px; font-size:11.5px; font-weight:bold; cursor:pointer;">
-                  + Na Lista
-                </button>
-              </div>
-            `;
-          });
-
-          html += `
-              </div>
-            </div>
-          `;
-        }
-
-        container.innerHTML = html;
-      } catch (err) {
-        container.innerHTML = '<div style="color:#c62828; text-align:center; padding:20px;">Erro ao carregar encartes da nuvem.</div>';
-      }
-    }
-
-    function addEncarteItemToPrelist(prodName) {
-      preShoppingList.push({ id: Date.now(), name: prodName, done: false });
-      savePrelist();
-      showToast(`"${prodName}" adicionado à sua Lista Prévia!`, 'success');
-    }
-
-    function formatDateBR(dateStr) {
-      if (!dateStr) return '';
-      const parts = dateStr.split('-');
-      if (parts.length === 3) return `${parts[2]}/${parts[1]}`;
-      return dateStr;
-    }
-
-    // ==========================================
-    // MODERAÇÃO DO ADMINISTRADOR (EXCLUIR DADOS)
-    // ==========================================
-    function switchAdminModTab(tab) {
-      document.getElementById('admin-tab-encartes').style.background = tab === 'encartes' ? '#b71c1c' : '#fff';
-      document.getElementById('admin-tab-encartes').style.color = tab === 'encartes' ? '#fff' : '#555';
-      document.getElementById('admin-tab-precos').style.background = tab === 'precos' ? '#b71c1c' : '#fff';
-      document.getElementById('admin-tab-precos').style.color = tab === 'precos' ? '#fff' : '#555';
-      document.getElementById('admin-tab-mercados').style.background = tab === 'mercados' ? '#b71c1c' : '#fff';
-      document.getElementById('admin-tab-mercados').style.color = tab === 'mercados' ? '#fff' : '#555';
-
-      document.getElementById('admin-mod-encartes-view').classList.toggle('hidden', tab !== 'encartes');
-      document.getElementById('admin-mod-precos-view').classList.toggle('hidden', tab !== 'precos');
-      document.getElementById('admin-mod-mercados-view').classList.toggle('hidden', tab !== 'mercados');
-
-      if (tab === 'encartes') loadAdminEncartesModeration();
-      if (tab === 'precos') loadAdminPricesModeration();
-      if (tab === 'mercados') loadAdminMarketsModeration();
-    }
-
-    async function loadAdminEncartesModeration() {
-      const container = document.getElementById('admin-manage-encartes-list');
-      container.innerHTML = '<div style="padding:10px; color:#888;">Carregando encartes para moderação...</div>';
-
-      try {
-        const { data, error } = await client
-          .from('registros_precos')
-          .select('id, mercado_id, validade, data_registro, mercados(id, nome)')
-          .eq('is_encarte', true)
-          .order('validade', { ascending: false })
-          .limit(100);
-
-        if (error) throw error;
-        if (!data || data.length === 0) {
-          container.innerHTML = '<div style="padding:10px; color:#888;">Nenhum encarte cadastrado no momento.</div>';
-          return;
-        }
-
-        // Agrupa por mercado + validade
-        const groups = {};
-        data.forEach(r => {
-          const key = (r.mercados?.nome || 'Mercado') + '_' + (r.validade || '');
-          if (!groups[key]) {
-            groups[key] = {
-              marketId: r.mercado_id,
-              marketName: r.mercados?.nome || 'Mercado',
-              validade: r.validade,
-              ids: []
-            };
-          }
-          groups[key].ids.push(r.id);
-        });
-
-        let html = '';
-        for (const [k, item] of Object.entries(groups)) {
-          html += `
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border-bottom:1px dashed #eee; background:#fff; margin-bottom:4px; border-radius:6px;">
-              <div>
-                <strong>${item.marketName}</strong> (${item.ids.length} itens)<br>
-                <small style="color:#666;">Validade: ${item.validade || 'N/A'}</small>
-              </div>
-              <button onclick="adminDeleteEncarteBatch('${item.marketId}', '${item.validade}')" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:5px 8px; font-weight:bold; font-size:11px; cursor:pointer;">
-                🗑️ Excluir Encarte
-              </button>
-            </div>
-          `;
-        }
-        container.innerHTML = html;
-      } catch (e) {
-        container.innerHTML = '<div style="color:#c62828;">Erro ao carregar moderação de encartes.</div>';
-      }
-    }
-
-    async function adminDeleteEncarteBatch(marketId, validade) {
-      const conf = await showConfirmDialog({
-        title: 'Excluir Encarte',
-        message: 'Deseja realmente apagar todas as ofertas deste encarte?',
-        icon: '🗑️',
-        okText: 'Excluir',
-        isDestructive: true
-      });
-      if (!conf) return;
-
-      try {
-        showToast('Excluindo encarte...', 'info');
-        const { error } = await client
-          .from('registros_precos')
-          .delete()
-          .eq('mercado_id', marketId)
-          .eq('validade', validade)
-          .eq('is_encarte', true);
-
-        if (error) throw error;
-        showToast('Encarte excluído com sucesso!', 'success');
-        loadAdminEncartesModeration();
-        loadActiveEncartes(); loadActivePhotoEncartes();
-      } catch (err) {
-        showToast('Erro ao excluir: ' + err.message, 'error');
-      }
-    }
-
-    async function loadAdminPricesModeration() {
-      const container = document.getElementById('admin-manage-prices-list');
-      container.innerHTML = '<div style="padding:10px; color:#888;">Carregando últimas cotações...</div>';
-
-      try {
-        const { data, error } = await client
-          .from('registros_precos')
-          .select('id, preco, data_registro, mercados(nome), produtos(nome)')
-          .order('data_registro', { ascending: false })
-          .limit(30);
-
-        if (error) throw error;
-        if (!data || data.length === 0) {
-          container.innerHTML = '<div style="padding:10px; color:#888;">Nenhuma cotação recente.</div>';
-          return;
-        }
-
-        let html = '';
-        data.forEach(r => {
-          const prod = r.produtos?.nome || 'Produto';
-          const mk = r.mercados?.nome || 'Mercado';
-          const p = parseFloat(r.preco).toFixed(2);
-
-          html += `
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:7px; border-bottom:1px dashed #eee; background:#fff; margin-bottom:4px; border-radius:6px;">
-              <div>
-                <strong>${prod}</strong> - R$ ${p}<br>
-                <small style="color:#666;">${mk}</small>
-              </div>
-              <button onclick="adminDeletePrice('${r.id}')" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:4px 7px; font-weight:bold; font-size:11px; cursor:pointer;">
-                🗑️ Excluir
-              </button>
-            </div>
-          `;
-        });
-        container.innerHTML = html;
-      } catch (e) {
-        container.innerHTML = '<div style="color:#c62828;">Erro ao carregar cotações.</div>';
-      }
-    }
-
-    async function adminDeletePrice(id) {
-      try {
-        const { error } = await client.from('registros_precos').delete().eq('id', id);
-        if (error) throw error;
-        showToast('Cotação excluída!', 'success');
-        loadAdminPricesModeration();
-      } catch (err) {
-        showToast('Erro: ' + err.message, 'error');
-      }
-    }
-
-    async function loadAdminMarketsModeration() {
-      const container = document.getElementById('admin-manage-markets-list');
-      container.innerHTML = '<div style="padding:10px; color:#888;">Carregando mercados...</div>';
-
-      try {
-        const { data, error } = await client.from('mercados').select('id, nome, cidade').order('nome');
-        if (error) throw error;
-        if (!data || data.length === 0) {
-          container.innerHTML = '<div style="padding:10px; color:#888;">Nenhum mercado cadastrado.</div>';
-          return;
-        }
-
-        let html = '';
-        data.forEach(m => {
-          html += `
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:7px; border-bottom:1px dashed #eee; background:#fff; margin-bottom:4px; border-radius:6px;">
-              <div>
-                <strong>${m.nome}</strong><br>
-                <small style="color:#666;">${m.cidade || 'Cabo Frio'}</small>
-              </div>
-              <button onclick="adminDeleteMarket('${m.id}')" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:4px 7px; font-weight:bold; font-size:11px; cursor:pointer;">
-                🗑️ Excluir
-              </button>
-            </div>
-          `;
-        });
-        container.innerHTML = html;
-      } catch (e) {
-        container.innerHTML = '<div style="color:#c62828;">Erro ao carregar mercados.</div>';
-      }
-    }
-
-    async function adminDeleteMarket(id) {
-      const conf = await showConfirmDialog({
-        title: 'Excluir Mercado',
-        message: 'Deseja excluir este estabelecimento do cadastro?',
-        icon: '🗑️',
-        okText: 'Excluir',
-        isDestructive: true
-      });
-      if (!conf) return;
-
-      try {
-        const { error } = await client.from('mercados').delete().eq('id', id);
-        if (error) throw error;
-        showToast('Mercado excluído!', 'success');
-        loadAdminMarketsModeration();
-      } catch (err) {
-        showToast('Erro ao excluir: ' + err.message, 'error');
-      }
-    }
-
-      // ==========================================
-    // CONTROLES DE GÔNDOLA: LANTERNA & CÓDIGO MANUAL
-    // ==========================================
-    let isFlashOn = false;
-
-    async function toggleFlashlight() {
-      try {
-        const videoElem = document.querySelector('#reader video');
-        if (!videoElem || !videoElem.srcObject) {
-          showToast('Inicie a câmera primeiro para ligar a lanterna.', 'info');
-          return;
-        }
-        const stream = videoElem.srcObject;
-        const track = stream.getVideoTracks()[0];
-        const caps = track.getCapabilities ? track.getCapabilities() : {};
-
-        if (caps.torch) {
-          isFlashOn = !isFlashOn;
-          await track.applyConstraints({ advanced: [{ torch: isFlashOn }] });
-          document.getElementById('torch-btn').innerHTML = isFlashOn ? '🔦 Desligar Flash' : '🔦 Lanterna';
-          showToast(isFlashOn ? '🔦 Lanterna ligada!' : '🔦 Lanterna desligada', 'info');
-        } else {
-          showToast('A lanterna não é suportada por esta câmera.', 'warning');
-        }
-      } catch (err) {
-        showToast('Não foi possível acionar a lanterna: ' + err.message, 'warning');
-      }
-    }
-
-    function openManualBarcodePrompt() {
-      const code = prompt('Digite os números do código de barras (EAN):');
-      if (code && code.trim().length >= 6) {
-        onCodeScanned(code.trim());
-      } else if (code) {
-        showToast('Código de barras inválido (muito curto).', 'warning');
-      }
-    }
-
-    // ==========================================
-    // QUANTIDADE, PESO (UNIDADE vs KG) & CÁLCULOS
-    // ==========================================
-    let currentProductUnitType = 'un';
-
-    function setProductUnitType(type) {
-      currentProductUnitType = type;
-      const btnUn = document.getElementById('type-btn-un');
-      const btnKg = document.getElementById('type-btn-kg');
-      const chips = document.getElementById('quick-qty-chips');
-      const qtyInput = document.getElementById('product-qty-input');
-
-      if (type === 'un') {
-        btnUn.style.background = '#2e7d32';
-        btnUn.style.color = '#fff';
-        btnKg.style.background = '#eee';
-        btnKg.style.color = '#444';
-        qtyInput.value = '1';
-        chips.innerHTML = `
-          <button type="button" class="budget-chip" onclick="setQuickQty(1)">1 un</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(2)">2 un</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(3)">3 un</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(6)">6 un</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(12)">12 un</button>
-        `;
-      } else {
-        btnKg.style.background = '#2e7d32';
-        btnKg.style.color = '#fff';
-        btnUn.style.background = '#eee';
-        btnUn.style.color = '#444';
-        qtyInput.value = '1.0';
-        chips.innerHTML = `
-          <button type="button" class="budget-chip" onclick="setQuickQty(0.5)">0.5 kg</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(1.0)">1.0 kg</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(1.5)">1.5 kg</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(2.0)">2.0 kg</button>
-        `;
-      }
-      updateItemTotalCalc();
-    }
-
-    function adjustProductQty(delta) {
-      const qtyInput = document.getElementById('product-qty-input');
-      let val = parseFloat(qtyInput.value) || 1;
-      if (currentProductUnitType === 'un') {
-        val = Math.max(1, Math.round(val + delta));
-      } else {
-        val = Math.max(0.1, parseFloat((val + (delta * 0.5)).toFixed(2)));
-      }
-      qtyInput.value = val;
-      updateItemTotalCalc();
-    }
-
-    function setQuickQty(val) {
-      const qtyInput = document.getElementById('product-qty-input');
-      qtyInput.value = val;
-      updateItemTotalCalc();
-    }
-
-    function updateItemTotalCalc() {
-      const qtyInput = document.getElementById('product-qty-input');
-      const priceInput = document.getElementById('price-input');
-      const preview = document.getElementById('item-subtotal-preview');
-
-      const qty = parseFloat(qtyInput.value) || 1;
-      const price = parseFloat(priceInput.value) || 0;
-      const subtotal = qty * price;
-
-      const unitLabel = currentProductUnitType === 'un' ? 'un.' : 'kg';
-      preview.innerText = `Subtotal deste item: R$ ${subtotal.toFixed(2)} (${qty} ${unitLabel})`;
-    }
-
-    // ==========================================
-    // GESTÃO DE ENCARTES 100% FOTO (ZERO DIGITAÇÃO)
-    // ==========================================
-    let currentEncartePhotoBase64 = null;
-
-    function handleEncartePhotoSelect(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const previewBox = document.getElementById('encarte-photo-preview-box');
-      const previewImg = document.getElementById('encarte-photo-preview-img');
-      const info = document.getElementById('encarte-photo-info');
-
-      info.innerText = '⏳ Carregando imagem...';
-      previewBox.classList.remove('hidden');
-
-      // Otimiza imagem para não estourar memória do navegador
-      resizeImageForOCR(file, 1600).then(canvas => {
-        currentEncartePhotoBase64 = canvas.toDataURL('image/jpeg', 0.85);
-        previewImg.src = currentEncartePhotoBase64;
-        info.innerText = `✅ Foto carregada e pronta para publicação!`;
-      }).catch(err => {
-        showToast('Erro ao carregar foto: ' + err.message, 'error');
-      });
-    }
-
-    function publishPhotoEncarte() {
-      const market = document.getElementById('encarte-photo-market').value;
-      const start = document.getElementById('encarte-photo-start').value || new Date().toISOString().split('T')[0];
-      const end = document.getElementById('encarte-photo-end').value;
-      const userCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
-
-      if (!end) {
-        showToast('Informe a data de validade final do encarte.', 'warning');
-        return;
-      }
-      if (!currentEncartePhotoBase64) {
-        showToast('Tire uma foto ou selecione a imagem do encarte.', 'warning');
-        return;
-      }
-
-      showToast('Publicando encarte oficial...', 'info');
-
-      // Salva no banco local do app (infalível e resiliente)
-      const encartesLocais = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
-
-      // Remove encartes anteriores desse mesmo mercado (auto-substituição)
-      const filtered = encartesLocais.filter(e => e.mercado.toLowerCase() !== market.toLowerCase());
-
-      const newEncarte = {
-        id: 'ENC_' + Date.now(),
-        mercado: market,
-        cidade: userCity,
-        data_inicio: start,
-        validade: end,
-        imagem: currentEncartePhotoBase64,
-        criado_em: new Date().toISOString()
-      };
-
-      filtered.unshift(newEncarte);
-      localStorage.setItem('nutri_photo_encartes', JSON.stringify(filtered));
-
-      showToast(`Encarte do ${market} publicado com sucesso!`, 'success');
-
-      // Limpa formulário
-      currentEncartePhotoBase64 = null;
-      document.getElementById('encarte-photo-preview-box').classList.add('hidden');
-      document.getElementById('encarte-photo-file').value = '';
-
-      loadActivePhotoEncartes();
-      renderPublicEncartes();
-    }
-
-    function loadActivePhotoEncartes() {
-      const container = document.getElementById('active-photo-encartes-list');
-      if (!container) return;
-
-      const encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
-      const today = new Date().toISOString().split('T')[0];
-      const valid = encartes.filter(e => e.validade >= today);
-
-      if (valid.length === 0) {
-        container.innerHTML = '<p style="color:#888; font-style:italic;">Nenhum encarte cadastrado ativo no momento.</p>';
-        return;
-      }
-
-      let html = '<ul style="list-style:none; padding:0; margin:0;">';
-      valid.forEach(e => {
-        html += `
-          <li style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px dashed #eee;">
-            <div>
-              <strong>${e.mercado}</strong> (${e.cidade})<br>
-              <small style="color:#2e7d32; font-weight:bold;">Válido até ${formatDateBR(e.validade)}</small>
-            </div>
-            <button onclick="deletePhotoEncarte('${e.id}')" style="background:#ffebee; color:#c62828; border:1px solid #ef9a9a; border-radius:6px; padding:4px 8px; font-size:11px; font-weight:bold; cursor:pointer;">
-              🗑️ Excluir
-            </button>
-          </li>
-        `;
-      });
-      html += '</ul>';
-      container.innerHTML = html;
-    }
-
-    function deletePhotoEncarte(id) {
-      let encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
-      encartes = encartes.filter(e => e.id !== id);
-      localStorage.setItem('nutri_photo_encartes', JSON.stringify(encartes));
-      showToast('Encarte excluído!', 'info');
-      loadActivePhotoEncartes();
-      renderPublicEncartes();
-    }
-
-    // ==========================================
-    // RENDERIZAÇÃO DA VITRINE PÚBLICA DE ENCARTES (POR FOTO)
-    // ==========================================
-    function renderPublicEncartes() {
-      const container = document.getElementById('public-encartes-container');
-      if (!container) return;
-
-      const userCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
-      const today = new Date().toISOString().split('T')[0];
-      const encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
-      const valid = encartes.filter(e => e.validade >= today);
-
-      if (valid.length === 0) {
-        container.innerHTML = `
-          <div style="text-align:center; padding:30px 16px; background:#fafafa; border:1px dashed #ccc; border-radius:12px;">
-            <span style="font-size:36px; display:block; margin-bottom:8px;">📰</span>
-            <strong style="color:#333; font-size:14px;">Nenhum encarte cadastrado para ${userCity} no momento.</strong>
-            <p style="font-size:12px; color:#777; margin-top:6px;">Os administradores atualizam os folhetos semanalmente.</p>
-          </div>
-        `;
-        return;
-      }
-
-      let html = '';
-      valid.forEach(e => {
-        html += `
-          <div style="background:#fff; border:1px solid #c8e6c9; border-radius:14px; padding:14px; box-shadow:0 3px 8px rgba(0,0,0,0.06);">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-              <div>
-                <h4 style="font-size:16px; color:#1b5e20; font-weight:bold; margin:0;">🏪 ${e.mercado}</h4>
-                <span style="font-size:11.5px; color:#666;">Cabo Frio e região</span>
-              </div>
-              <span style="background:#e8f5e9; color:#2e7d32; font-size:11px; font-weight:bold; padding:4px 8px; border-radius:12px; border:1px solid #c8e6c9;">
-                Válido até ${formatDateBR(e.validade)}
-              </span>
-            </div>
-
-            <!-- Miniatura da Imagem -->
-            <div style="text-align:center; margin-bottom:10px; cursor:pointer;" onclick="openEncarteViewer('${e.id}')">
-              <img src="${e.imagem}" style="max-width:100%; max-height:260px; border-radius:8px; border:1px solid #ddd; object-fit:contain; box-shadow:0 2px 6px rgba(0,0,0,0.1);">
-            </div>
-
-            <button onclick="openEncarteViewer('${e.id}')" class="save-btn" style="margin:0; background:#1b5e20; font-size:13.5px; padding:11px; display:flex; align-items:center; justify-content:center; gap:6px;">
-              🔍 Abrir Folheto em Tela Cheia (Com Zoom)
-            </button>
-          </div>
-        `;
-      });
-
-      container.innerHTML = html;
-    }
-
-    // ==========================================
-    // VISUALIZADOR DE ENCARTE COM ZOOM
-    // ==========================================
-    let currentViewerZoom = 1.0;
-
-    function openEncarteViewer(encarteId) {
-      const encartes = JSON.parse(localStorage.getItem('nutri_photo_encartes') || '[]');
-      const item = encartes.find(e => e.id === encarteId);
-      if (!item) return;
-
-      currentViewerZoom = 1.0;
-      const modal = document.getElementById('encarte-viewer-modal');
-      const title = document.getElementById('viewer-market-title');
-      const val = document.getElementById('viewer-validity-text');
-      const img = document.getElementById('viewer-encarte-img');
-
-      title.innerText = item.mercado;
-      val.innerText = `Válido até ${formatDateBR(item.validade)}`;
-      img.src = item.imagem;
-      img.style.transform = `scale(1.0)`;
-
-      modal.classList.remove('hidden');
-    }
-
-    function closeEncarteViewer() {
-      document.getElementById('encarte-viewer-modal').classList.add('hidden');
-    }
-
-    function zoomEncarte(factor) {
-      const img = document.getElementById('viewer-encarte-img');
-      currentViewerZoom = Math.min(3.0, Math.max(0.6, currentViewerZoom * factor));
-      img.style.transform = `scale(${currentViewerZoom})`;
-    }
-
-      function openLegalTermsModal() {
-      document.getElementById('legal-terms-modal').classList.remove('hidden');
-    }
-    function closeLegalTermsModal() {
-      document.getElementById('legal-terms-modal').classList.add('hidden');
-    }
-
   </script>
 
 
