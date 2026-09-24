@@ -963,6 +963,17 @@
         <div id="reader"></div>
       </div>
       <button class="scan-btn" id="start-btn" onclick="startScanner()">📷 Iniciar Câmera</button>
+
+      <!-- Botões de Apoio na Gôndola (Lanterna & Digitação Manual) -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
+        <button type="button" onclick="toggleFlashlight()" id="torch-btn" style="background: #fff; border: 1px solid #ccc; border-radius: 8px; padding: 10px 8px; font-size: 13px; font-weight: bold; color: #333; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+          🔦 Lanterna
+        </button>
+        <button type="button" onclick="openManualBarcodePrompt()" style="background: #fff; border: 1px solid #ccc; border-radius: 8px; padding: 10px 8px; font-size: 13px; font-weight: bold; color: #333; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+          ⌨️ Digitar Código
+        </button>
+      </div>
+
     </div>
 
 
@@ -1043,8 +1054,40 @@
         <input type="text" id="market-input" value="Atacadão" oninput="checkPriceComparison()">
 
 
+        
+        <!-- Seletor de Tipo: Unidade vs Quilo (Kg) -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; margin-bottom:4px;">
+          <label style="margin:0; font-weight:bold;">Tipo & Quantidade:</label>
+          <div style="display:flex; gap:4px;">
+            <button type="button" id="type-btn-un" onclick="setProductUnitType('un')" style="background:#2e7d32; color:#fff; border:none; padding:4px 10px; border-radius:6px; font-size:11.5px; font-weight:bold; cursor:pointer;">unidade</button>
+            <button type="button" id="type-btn-kg" onclick="setProductUnitType('kg')" style="background:#eee; color:#444; border:none; padding:4px 10px; border-radius:6px; font-size:11.5px; font-weight:bold; cursor:pointer;">por quilo (kg)</button>
+          </div>
+        </div>
+
+        <!-- Stepper de Quantidade / Peso -->
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+          <button type="button" onclick="adjustProductQty(-1)" style="width:40px; height:40px; background:#f0f0f0; border:1px solid #ccc; border-radius:8px; font-size:20px; font-weight:bold; cursor:pointer;">-</button>
+          <input type="number" id="product-qty-input" value="1" step="any" min="0.1" oninput="updateItemTotalCalc()" style="text-align:center; font-size:18px; font-weight:bold; flex:1; padding:8px;">
+          <button type="button" onclick="adjustProductQty(1)" style="width:40px; height:40px; background:#f0f0f0; border:1px solid #ccc; border-radius:8px; font-size:20px; font-weight:bold; cursor:pointer;">+</button>
+        </div>
+
+        <!-- Atalhos rápidos de peso/quantidade -->
+        <div id="quick-qty-chips" style="display:flex; gap:6px; margin-bottom:12px; overflow-x:auto;">
+          <button type="button" class="budget-chip" onclick="setQuickQty(1)">1 un</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(2)">2 un</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(3)">3 un</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(6)">6 un</button>
+          <button type="button" class="budget-chip" onclick="setQuickQty(12)">12 un</button>
+        </div>
+
         <label>Preço deste Produto na Gôndola (R$):</label>
-        <input type="number" step="0.01" id="price-input" class="price-input" placeholder="0,00" oninput="checkPriceComparison()">
+        <input type="number" step="0.01" id="price-input" class="price-input" placeholder="0,00" oninput="checkPriceComparison(); updateItemTotalCalc();">
+
+        <!-- Subtotal do Item -->
+        <div id="item-subtotal-preview" style="text-align:right; font-size:13px; color:#1b5e20; font-weight:bold; margin-top:4px;">
+          Subtotal deste item: R$ 0,00
+        </div>
+
 
 
         <div id="compare-alert" class="compare-alert hidden"></div>
@@ -1163,6 +1206,178 @@
       </button>
     </div>
   </div>
+
+
+    <!-- Barra Fixa do Pré-Caixa -->
+  <div class="cart-bar" id="cart-bar">
+    <div class="cart-bar-budget-line">
+      <div id="cart-bar-budget-fill" class="cart-bar-budget-fill"></div>
+    </div>
+    <div class="cart-info">
+      <span>Meu Pré-Caixa (<span id="cart-count">0</span> itens):</span>
+      <strong id="cart-total">R$ 0,00</strong>
+    </div>
+    <button class="cart-btn" onclick="openCartModal()">Ver Carrinho</button>
+  </div>
+
+
+
+
+  <!-- Modal do Radar de Preços & Cesta Básica -->
+  <div class="modal hidden" id="radar-modal">
+    <div class="modal-content" style="max-height: 88vh;">
+      <div class="modal-header">
+        <div>
+          <h3 style="color: #2e7d32; display:flex; align-items:center; gap:6px;">📊 Radar de Preços</h3>
+          <span style="font-size:12px; color:#666;">Cabo Frio • Cotações da Cidade</span>
+        </div>
+        <button style="border:none; background:none; font-size:24px; cursor:pointer;" onclick="closeRadarModal()">&times;</button>
+      </div>
+
+
+
+
+      <!-- Abas / Filtros Rápidos -->
+      <div class="radar-tabs">
+        <button class="radar-tab active" id="tab-all-products" onclick="setRadarFilter('all')">🌐 Todos os Produtos</button>
+        <button class="radar-tab" id="tab-cesta-basica" onclick="setRadarFilter('cesta')">🧺 Cesta Básica Oficial</button>
+      </div>
+
+
+
+
+      <!-- Campo de Busca em Tempo Real -->
+      <div style="margin: 11px 0;">
+        <input type="text" id="radar-search-input" placeholder="🔍 Buscar produto (ex: café, arroz, leite, carne)..." oninput="renderRadarProducts()" style="padding: 10px 14px; font-size: 14px;">
+      </div>
+
+
+
+
+      <!-- Placar da Cesta Básica -->
+      <div id="cesta-summary-box" class="cesta-summary-box hidden">
+        <div style="font-size:13px; font-weight:bold; color:#1b5e20; margin-bottom:6px;">🧺 Placar Cesta Básica em Cabo Frio:</div>
+        <div id="cesta-markets-ranking"></div>
+      </div>
+
+
+
+
+      <!-- Lista Comparativa Tipo Planilha -->
+      <div id="radar-loading" class="loading" style="padding: 20px;">🔍 Carregando cotações de Cabo Frio...</div>
+      <div id="radar-products-list" style="margin-bottom: 16px;"></div>
+
+
+
+
+      <button class="reset-btn" onclick="closeRadarModal()">Fechar Radar</button>
+    </div>
+  </div>
+
+
+
+
+  <!-- Modal do Carrinho Atual -->
+  <div class="modal hidden" id="cart-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 style="color: #2e7d32;">🛒 Meu Pré-Caixa (Carrinho)</h3>
+        <button style="border:none; background:none; font-size:22px; cursor:pointer;" onclick="closeCartModal()">&times;</button>
+      </div>
+      
+      <!-- Orçamento & Trava Anti-Sufoco -->
+      <div style="background:#f1f8e9; border:1px solid #c8e6c9; border-radius:12px; padding:12px; margin-bottom:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; font-size:12.5px; font-weight:bold; color:#1b5e20; margin-bottom:6px;">
+          <span>🎯 Teto de Gastos:</span>
+          <span id="budget-current-label">R$ 0,00</span>
+        </div>
+        <div style="background:#e0e0e0; border-radius:6px; height:8px; overflow:hidden; margin-bottom:6px;">
+          <div id="budget-progress-bar" style="width:0%; height:100%; background:#2e7d32; transition:width 0.3s ease;"></div>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:11px; color:#666;">
+          <span id="budget-status-alert">Dentro do planejado</span>
+          <span id="budget-percent-label">0%</span>
+        </div>
+      </div>
+
+      <div id="cart-items-list" style="margin-bottom: 16px;"></div>
+      
+      <div style="display:flex; justify-content:space-between; font-size:18px; font-weight:bold; margin-bottom:15px; padding:10px 0; border-top:1px solid #eee;">
+        <span>Total da Compra:</span>
+        <span id="modal-cart-total" style="color: #2e7d32;">R$ 0,00</span>
+      </div>
+
+
+
+
+      <!-- Ações do Carrinho -->
+      <button class="save-btn" style="margin-top:0; margin-bottom:8px; background:#1b5e20;" onclick="finalizeAndSavePurchase()">💾 Finalizar e Salvar no Histórico</button>
+      <button class="whatsapp-btn" onclick="shareCartWhatsApp()">📲 Enviar Lista no WhatsApp</button>
+      <button class="reset-btn" style="background:#ffebee; color:#c62828; margin-top:8px;" onclick="clearCart()">🗑️ Limpar Carrinho</button>
+    </div>
+  </div>
+
+
+
+
+  <!-- Modal Minhas Compras Salvas -->
+  <div class="modal hidden" id="history-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 style="color: #2e7d32;">📂 Minhas Compras Salvas</h3>
+        <button style="border:none; background:none; font-size:22px; cursor:pointer;" onclick="closeHistoryModal()">&times;</button>
+      </div>
+
+
+
+
+      <!-- Estatísticas do Histórico -->
+      <div class="history-stat-box">
+        <div class="stat-card">
+          <span>Total Acumulado</span>
+          <strong id="stat-month-total">R$ 0,00</strong>
+        </div>
+        <div class="stat-card">
+          <span>Compras Salvas</span>
+          <strong id="stat-purchases-count">0</strong>
+        </div>
+      </div>
+
+
+
+
+      <div id="history-items-container" style="margin-bottom: 16px;"></div>
+      <button class="reset-btn" onclick="closeHistoryModal()">Fechar Histórico</button>
+    </div>
+  </div>
+
+
+
+
+  <!-- Modal de Login & Conta -->
+  <div class="modal hidden" id="auth-modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 style="color: #2e7d32;">👤 Conta & Identificação</h3>
+        <button style="border:none; background:none; font-size:22px; cursor:pointer;" onclick="closeAuthModal()">&times;</button>
+      </div>
+      <div class="auth-box">
+        <div id="auth-logged-in-view" class="hidden">
+          <p style="font-size:14px; margin-bottom:12px;">Conectado como: <strong id="user-email-display"></strong></p>
+          <button class="reset-btn" style="background:#ffebee; color:#c62828; margin-bottom:8px;" onclick="logoutUser()">🚪 Sair da Conta</button>
+          <button class="reset-btn" style="background:#ffebee; color:#b71c1c; font-size:12px;" onclick="deleteUserAccount()">⚠️ Excluir Minha Conta e Meus Dados (LGPD)</button>
+        </div>
+        <div id="auth-form-view">
+          <p style="font-size:13px; color:#666; margin-bottom:12px;">Identifique-se para cadastrar preços confiáveis e sincronizar suas compras.</p>
+          <input type="email" id="auth-email" placeholder="Seu e-mail">
+          <input type="password" id="auth-password" placeholder="Sua senha (mínimo 6 dígitos)">
+          <button class="save-btn" onclick="handleAuth('login')">Entrar na Conta</button>
+          <button class="reset-btn" onclick="handleAuth('signup')">Criar Nova Conta Grátis</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 
 
   <script>
