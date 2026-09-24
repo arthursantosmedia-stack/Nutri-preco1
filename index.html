@@ -572,13 +572,13 @@
         <button style="border:none; background:none; font-size:24px; cursor:pointer; color:#777;" onclick="closeNewMarketModal()">&times;</button>
       </div>
       <p style="font-size:13px; color:#555; margin-bottom:12px;">
-        Cadastre mercadinhos de bairro, açougues, hortifrutis ou padarias de Cabo Frio para salvar preços e ofertas.
+        Cadastre supermercados, atacarejos, mercadinhos de bairro ou açougues da sua cidade para salvar preços e ofertas.
       </p>
       <label style="font-size:12px; font-weight:bold;">Nome do Estabelecimento:</label>
       <input type="text" id="new-market-name" placeholder="Ex: Mercado e Açougue São Pedro" style="margin-bottom:10px;">
 
       <label style="font-size:12px; font-weight:bold;">Bairro em Cabo Frio:</label>
-      <input type="text" id="new-market-neighborhood" placeholder="Ex: São Cristóvão, Jardim Esperança, Braga" style="margin-bottom:10px;">
+      <input type="text" id="new-market-neighborhood" placeholder="Ex: Boa Viagem, Centro, São Cristóvão, etc." style="margin-bottom:10px;">
 
       <div style="background:#f1f8e9; border:1px solid #c8e6c9; border-radius:10px; padding:10px; margin:10px 0; font-size:12px; color:#2e7d32;">
         📍 O app vai associar as coordenadas GPS atuais para sugerir este mercado automaticamente aos clientes próximos.
@@ -893,11 +893,11 @@
       </button>
 
 
-      <button class="sidebar-item" onclick="toggleSidebar(false); openSupportWhatsApp();">
+      <button class="sidebar-item" onclick="toggleSidebar(false); openSupportEmail();">
         <span class="sidebar-icon">💡</span>
         <div class="sidebar-item-text">
           <strong>Sugerir Melhoria / Suporte</strong>
-          <small>Falar direto no WhatsApp</small>
+          <small>Enviar e-mail para contato.nutripreco@gmail.com</small>
         </div>
       </button>
 
@@ -1525,9 +1525,10 @@
           if (mkData && mkData.length > 0) {
             mercadoId = mkData[0].id;
           } else {
+            const currentCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
             const { data: newMk } = await client.from('mercados').insert({
               nome: item.mercado || 'Supermercado Local',
-              cidade: 'Cabo Frio'
+              cidade: currentCity
             }).select();
             if (newMk && newMk[0]) mercadoId = newMk[0].id;
           }
@@ -2079,9 +2080,13 @@
       showToast('Cadastrando mercado...', 'info');
 
       try {
+        const currentCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
         const marketObj = {
           nome: name,
-          cidade: 'Cabo Frio'
+          cidade: currentCity,
+          bairro: neighborhood || '',
+          latitude: userCurrentCoords ? userCurrentCoords.lat : null,
+          longitude: userCurrentCoords ? userCurrentCoords.lon : null
         };
 
         const { data, error } = await client.from('mercados').insert(marketObj).select();
@@ -2147,15 +2152,22 @@
         const { count: marketCount } = await client.from('mercados').select('*', { count: 'exact', head: true });
 
 
-        document.getElementById('admin-count-prods').innerText = prodCount ?? '--';
-        document.getElementById('admin-count-precos').innerText = precoCount ?? '--';
-        document.getElementById('admin-count-markets').innerText = marketCount ?? '--';
-        loadActiveEncartes();
+        document.getElementById('admin-count-prods').innerText = prodCount ?? '0';
+        document.getElementById('admin-count-precos').innerText = precoCount ?? '0';
+        document.getElementById('admin-count-markets').innerText = marketCount ?? '0';
+        if (typeof loadActivePhotoEncartes === 'function') {
+          loadActivePhotoEncartes();
+        }
       } catch (e) {
-        showToast('Erro ao carregar métricas de administrador.', 'error');
+        console.warn('Falha pontual ao carregar métricas em tempo real:', e);
       }
     }
 
+
+    
+    function loadActiveEncartes() {
+      if (typeof loadActivePhotoEncartes === 'function') loadActivePhotoEncartes();
+    }
 
     function closeAdminModal() {
       document.getElementById('admin-modal').classList.add('hidden');
@@ -3098,9 +3110,12 @@
         if (mkData && mkData.length > 0) {
           mercadoId = mkData[0].id;
         } else {
+          const currentCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
           const { data: newMk } = await client.from('mercados').insert({
             nome: marketName,
-            cidade: 'Cabo Frio'
+            cidade: currentCity,
+            latitude: userCurrentCoords ? userCurrentCoords.lat : null,
+            longitude: userCurrentCoords ? userCurrentCoords.lon : null
           }).select();
           if (newMk && newMk[0]) mercadoId = newMk[0].id;
         }
@@ -3380,10 +3395,16 @@
     }
 
 
+    function openSupportEmail() {
+      const email = 'contato.nutripreco@gmail.com';
+      const subject = encodeURIComponent('Sugestão / Suporte - NutriPreço');
+      const body = encodeURIComponent('Olá, Arthur!\n\nGostaria de enviar a seguinte sugestão ou mensagem para o NutriPreço:\n\n[Escreva sua mensagem aqui]');
+      showToast('✉️ Abrindo seu aplicativo de e-mail...', 'info');
+      window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+    }
+
     function openSupportWhatsApp() {
-      const msg = `Olá! Gostaria de enviar uma sugestão para o NutriPreço:`;
-      const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
-      window.open(url, '_blank');
+      openSupportEmail();
     }
 
 
