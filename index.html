@@ -13,7 +13,6 @@
   <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2424/2424444.png">
 
   <!-- Bibliotecas externas -->
-    <!-- Bibliotecas externas -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -380,148 +379,179 @@
         <button style="border:none; background:none; font-size:24px; cursor:pointer; color:#777;" onclick="closeAdminModal()">&times;</button>
       </div>
 
-      <!-- Métricas de Usuários e Downloads / Instalações -->
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:10px;">
-        <div class="admin-stat-card" style="background: linear-gradient(135deg, #e8f5e9, #ffffff); border: 1px solid #c8e6c9;">
-          <div class="admin-stat-num" id="admin-count-installs" style="color: #1b5e20;">--</div>
-          <div class="admin-stat-label" style="color: #2e7d32; font-weight: bold;">📲 Instalações PWA</div>
-          <div style="font-size: 10px; color: #666; margin-top: 2px;">Downloads tela inicial</div>
-        </div>
-        <div class="admin-stat-card" style="background: linear-gradient(135deg, #e3f2fd, #ffffff); border: 1px solid #bbdefb;">
-          <div class="admin-stat-num" id="admin-count-users" style="color: #0d47a1;">--</div>
-          <div class="admin-stat-label" style="color: #1565c0; font-weight: bold;">👥 Usuários / Acessos</div>
-          <div style="font-size: 10px; color: #666; margin-top: 2px;">Dispositivos ativos</div>
-        </div>
-      </div>
-
-      <!-- Métricas do Catálogo da Cidade -->
-      <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-bottom:16px;">
-        <div class="admin-stat-card">
-          <div class="admin-stat-num" id="admin-count-prods">--</div>
-          <div class="admin-stat-label">Produtos</div>
-        </div>
-        <div class="admin-stat-card">
-          <div class="admin-stat-num" id="admin-count-precos">--</div>
-          <div class="admin-stat-label">Cotações</div>
-        </div>
-        <div class="admin-stat-card">
-          <div class="admin-stat-num" id="admin-count-markets">--</div>
-          <div class="admin-stat-label">Mercados</div>
-        </div>
-      </div>
-
-      <div style="background:#fafafa; border:1px solid #e0e0e0; border-radius:12px; padding:14px; margin-bottom:16px;">
-        <h4 style="font-size:14px; color:#1b5e20; margin-bottom:6px; font-weight:bold;">📥 Exportação de Dados em Planilha (CSV)</h4>
-        <p style="font-size:12.5px; color:#555; line-height:1.4; margin-bottom:12px;">
-          Baixe toda a base de dados de preços registrados em Cabo Frio para análise de inteligência competitiva no Excel ou Google Planilhas.
-        </p>
-        <button onclick="exportPricesCSV()" class="save-btn" style="margin:0; background:#1b5e20; font-size:14px; padding:12px; display:flex; align-items:center; justify-content:center; gap:8px;">
-          📊 Baixar Planilha de Preços (.CSV)
+      <!-- Abas Principais do Painel Admin -->
+      <div style="display:flex; gap:6px; margin-bottom:14px; position:sticky; top:0; z-index:10; background:#fff; padding-bottom:6px;">
+        <button type="button" id="admin-main-tab-metrics" onclick="switchAdminMainTab('metrics')" style="flex:1; padding:9px 6px; border:1px solid #1b5e20; background:#1b5e20; color:#fff; border-radius:8px; font-size:12.5px; font-weight:bold; cursor:pointer;">
+          📊 Métricas & Dados
+        </button>
+        <button type="button" id="admin-main-tab-encartes" onclick="switchAdminMainTab('encartes')" style="flex:1; padding:9px 6px; border:1px solid #ccc; background:#fff; color:#555; border-radius:8px; font-size:12.5px; font-weight:bold; cursor:pointer;">
+          📸 Encartes
+        </button>
+        <button type="button" id="admin-main-tab-mod" onclick="switchAdminMainTab('mod')" style="flex:1; padding:9px 6px; border:1px solid #ccc; background:#fff; color:#555; border-radius:8px; font-size:12.5px; font-weight:bold; cursor:pointer;">
+          🛡️ Moderação
         </button>
       </div>
 
-            <!-- SEÇÃO ADMIN: GESTÃO DE ENCARTES 100% FOTO (ZERO DIGITAÇÃO) -->
-      <div style="background:#f9fcf9; border:2px solid #c8e6c9; border-radius:12px; padding:14px; margin-bottom:16px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-          <h4 style="font-size:15px; color:#1b5e20; font-weight:bold; display:flex; align-items:center; gap:6px;">
-            📸 Publicar Novo Encarte Oficial
-          </h4>
-          <span style="font-size:11px; background:#e8f5e9; color:#2e7d32; padding:3px 8px; border-radius:12px; font-weight:bold;">100% Imagem</span>
-        </div>
-        <p style="font-size:12px; color:#555; line-height:1.4; margin-bottom:12px;">
-          Selecione a foto ou print do folheto do mercado (<b>Avistão, Princesa, Multimarket, etc.</b>). Ele fica imediatamente disponível na aba pública de encartes com zoom interativo para os clientes!
-        </p>
-
-        <label style="font-size:12px; font-weight:bold; color:#333;">1. Supermercado do Encarte:</label>
-        <select id="encarte-photo-market" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc; font-size:13.5px; margin-bottom:10px; background:#fff;">
-          <option value="Supermercado Avistão">Supermercado Avistão</option>
-          <option value="Princesa Supermercados">Princesa Supermercados</option>
-          <option value="Multimarket">Multimarket</option>
-          <option value="Supermarket">Supermarket</option>
-          <option value="Atacadão">Atacadão</option>
-          <option value="Assaí Atacadista">Assaí Atacadista</option>
-          <option value="Extra">Extra</option>
-          <option value="Outro">Outro Mercado de Bairro</option>
-        </select>
-
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:12px;">
-          <div>
-            <label style="font-size:12px; font-weight:bold; color:#333;">Início das Ofertas:</label>
-            <input type="date" id="encarte-photo-start" style="width:100%; padding:8px; border-radius:8px; border:1px solid #ccc; font-size:13px;">
+      <!-- ABA 1: MÉTRICAS, USUÁRIOS, DOWNLOADS E PLANILHA CSV -->
+      <div id="admin-main-view-metrics">
+        <!-- Métricas de Usuários e Downloads / Instalações -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:10px;">
+          <div class="admin-stat-card" style="background: linear-gradient(135deg, #e8f5e9, #ffffff); border: 1px solid #c8e6c9;">
+            <div class="admin-stat-num" id="admin-count-installs" style="color: #1b5e20;">--</div>
+            <div class="admin-stat-label" style="color: #2e7d32; font-weight: bold;">📲 Instalações PWA</div>
+            <div style="font-size: 10px; color: #666; margin-top: 2px;">Downloads tela inicial</div>
           </div>
-          <div>
-            <label style="font-size:12px; font-weight:bold; color:#333;">Validade do Encarte:</label>
-            <input type="date" id="encarte-photo-end" style="width:100%; padding:8px; border-radius:8px; border:1px solid #ccc; font-size:13px;">
+          <div class="admin-stat-card" style="background: linear-gradient(135deg, #e3f2fd, #ffffff); border: 1px solid #bbdefb;">
+            <div class="admin-stat-num" id="admin-count-users" style="color: #0d47a1;">--</div>
+            <div class="admin-stat-label" style="color: #1565c0; font-weight: bold;">👥 Usuários / Acessos</div>
+            <div style="font-size: 10px; color: #666; margin-top: 2px;">Dispositivos ativos</div>
           </div>
         </div>
 
-        <!-- Botão de Tirar Foto / Selecionar Arquivo -->
-        <div style="background:#e8f5e9; border:2px dashed #2e7d32; border-radius:12px; padding:16px; text-align:center; margin-bottom:12px;">
-          <input type="file" id="encarte-photo-file" accept="image/*" onchange="handleEncartePhotoSelect(event)" style="display:none;">
-          <button type="button" onclick="document.getElementById('encarte-photo-file').click()" style="background:#1b5e20; color:#fff; border:none; padding:12px 20px; border-radius:10px; font-size:14px; font-weight:bold; cursor:pointer; display:inline-flex; align-items:center; gap:8px; box-shadow:0 3px 8px rgba(0,0,0,0.15);">
-            📸 Escolher Imagem ou Tirar Foto do Folheto
+        <!-- Métricas do Catálogo da Cidade -->
+        <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-bottom:16px;">
+          <div class="admin-stat-card">
+            <div class="admin-stat-num" id="admin-count-prods">--</div>
+            <div class="admin-stat-label">Produtos</div>
+          </div>
+          <div class="admin-stat-card">
+            <div class="admin-stat-num" id="admin-count-precos">--</div>
+            <div class="admin-stat-label">Cotações</div>
+          </div>
+          <div class="admin-stat-card">
+            <div class="admin-stat-num" id="admin-count-markets">--</div>
+            <div class="admin-stat-label">Mercados</div>
+          </div>
+        </div>
+
+        <div style="background:#fafafa; border:1px solid #e0e0e0; border-radius:12px; padding:14px; margin-bottom:16px;">
+          <h4 style="font-size:14px; color:#1b5e20; margin-bottom:6px; font-weight:bold;">📥 Exportação de Dados em Planilha (CSV)</h4>
+          <p style="font-size:12.5px; color:#555; line-height:1.4; margin-bottom:12px;">
+            Baixe toda a base de dados de preços registrados em Cabo Frio para análise de inteligência competitiva no Excel ou Google Planilhas.
+          </p>
+          <button onclick="exportPricesCSV()" class="save-btn" style="margin:0; background:#1b5e20; font-size:14px; padding:12px; display:flex; align-items:center; justify-content:center; gap:8px;">
+            📊 Baixar Planilha de Preços (.CSV)
           </button>
-          <span style="display:block; font-size:11.5px; color:#555; margin-top:6px;">Aceita foto da câmera ou print do WhatsApp/Instagram</span>
-
-          <!-- Preview da foto selecionada -->
-          <div id="encarte-photo-preview-box" class="hidden" style="margin-top:12px;">
-            <img id="encarte-photo-preview-img" style="max-width:100%; max-height:260px; border-radius:8px; border:1px solid #aaa; box-shadow:0 2px 8px rgba(0,0,0,0.15); object-fit:contain;">
-            <div style="font-size:12px; color:#2e7d32; font-weight:bold; margin-top:6px;" id="encarte-photo-info">Foto pronta para publicação</div>
-          </div>
         </div>
+      </div>
 
-        <button onclick="publishPhotoEncarte()" class="save-btn" style="margin:0; background:#2e7d32; font-size:14px; padding:13px; display:flex; align-items:center; justify-content:center; gap:8px;">
-          🚀 Publicar Encarte na Vitrine de Ofertas
-        </button>
+      <!-- ABA 2: GESTÃO DE ENCARTES (FOTO) -->
+      <div id="admin-main-view-encartes" class="hidden">
+        <div style="background:#f9fcf9; border:2px solid #c8e6c9; border-radius:12px; padding:14px; margin-bottom:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <h4 style="font-size:15px; color:#1b5e20; font-weight:bold; display:flex; align-items:center; gap:6px;">
+              📸 Publicar Novo Encarte Oficial
+            </h4>
+            <span style="font-size:11px; background:#e8f5e9; color:#2e7d32; padding:3px 8px; border-radius:12px; font-weight:bold;">100% Imagem</span>
+          </div>
+          <p style="font-size:12px; color:#555; line-height:1.4; margin-bottom:12px;">
+            Selecione a foto ou print do folheto do mercado (<b>Avistão, Princesa, Multimarket, etc.</b>). Ele fica imediatamente disponível na aba pública de encartes com zoom interativo para os clientes!
+          </p>
 
-        <div style="margin-top:16px;">
-          <h5 style="font-size:13px; color:#1b5e20; margin-bottom:6px; font-weight:bold;">Encartes Vigentes Publicados:</h5>
-          <div id="active-photo-encartes-list" style="font-size:12px; color:#666; background:#fff; border:1px solid #e0e0e0; border-radius:8px; padding:8px;">
-            Carregando encartes ativos...
+          <label style="font-size:12px; font-weight:bold; color:#333;">1. Supermercado do Encarte:</label>
+          <select id="encarte-photo-market" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc; font-size:13.5px; margin-bottom:10px; background:#fff;">
+            <option value="Supermercado Avistão">Supermercado Avistão</option>
+            <option value="Princesa Supermercados">Princesa Supermercados</option>
+            <option value="Multimarket">Multimarket</option>
+            <option value="Supermarket">Supermarket</option>
+            <option value="Atacadão">Atacadão</option>
+            <option value="Assaí Atacadista">Assaí Atacadista</option>
+            <option value="Extra">Extra</option>
+            <option value="Outro">Outro Mercado de Bairro</option>
+          </select>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:12px;">
+            <div>
+              <label style="font-size:12px; font-weight:bold; color:#333;">Início das Ofertas:</label>
+              <input type="date" id="encarte-photo-start" style="width:100%; padding:8px; border-radius:8px; border:1px solid #ccc; font-size:13px;">
+            </div>
+            <div>
+              <label style="font-size:12px; font-weight:bold; color:#333;">Validade do Encarte:</label>
+              <input type="date" id="encarte-photo-end" style="width:100%; padding:8px; border-radius:8px; border:1px solid #ccc; font-size:13px;">
+            </div>
+          </div>
+
+          <!-- Botão de Tirar Foto / Selecionar Arquivo -->
+          <div style="background:#e8f5e9; border:2px dashed #2e7d32; border-radius:12px; padding:16px; text-align:center; margin-bottom:12px;">
+            <input type="file" id="encarte-photo-file" accept="image/*" onchange="handleEncartePhotoSelect(event)" style="display:none;">
+            <button type="button" onclick="document.getElementById('encarte-photo-file').click()" style="background:#1b5e20; color:#fff; border:none; padding:12px 20px; border-radius:10px; font-size:14px; font-weight:bold; cursor:pointer; display:inline-flex; align-items:center; gap:8px; box-shadow:0 3px 8px rgba(0,0,0,0.15);">
+              📸 Escolher Imagem ou Tirar Foto do Folheto
+            </button>
+            <span style="display:block; font-size:11.5px; color:#555; margin-top:6px;">Aceita foto da câmera ou print do WhatsApp/Instagram</span>
+
+            <!-- Preview da foto selecionada -->
+            <div id="encarte-photo-preview-box" class="hidden" style="margin-top:12px;">
+              <img id="encarte-photo-preview-img" style="max-width:100%; max-height:260px; border-radius:8px; border:1px solid #aaa; box-shadow:0 2px 8px rgba(0,0,0,0.15); object-fit:contain;">
+              <div style="font-size:12px; color:#2e7d32; font-weight:bold; margin-top:6px;" id="encarte-photo-info">Foto pronta para publicação</div>
+            </div>
+          </div>
+
+          <button onclick="publishPhotoEncarte()" class="save-btn" style="margin:0; background:#2e7d32; font-size:14px; padding:13px; display:flex; align-items:center; justify-content:center; gap:8px;">
+            🚀 Publicar Encarte na Vitrine de Ofertas
+          </button>
+
+          <div style="margin-top:16px;">
+            <h5 style="font-size:13px; color:#1b5e20; margin-bottom:6px; font-weight:bold;">Encartes Vigentes Publicados:</h5>
+            <div id="active-photo-encartes-list" style="font-size:12px; color:#666; background:#fff; border:1px solid #e0e0e0; border-radius:8px; padding:8px;">
+              Carregando encartes ativos...
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- SEÇÃO ADMIN: MODERAÇÃO & EXCLUSÃO DE DADOS (CONTROLE DO ADM) -->
-      <div style="background:#fff7f7; border:2px solid #ffcdd2; border-radius:12px; padding:14px; margin-bottom:16px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-          <h4 style="font-size:15px; color:#b71c1c; font-weight:bold; display:flex; align-items:center; gap:6px;">
-            🛡️ Moderação & Auditoria de Dados
-          </h4>
-          <span style="font-size:11px; background:#ffebee; color:#c62828; padding:3px 8px; border-radius:12px; font-weight:bold;">Apenas ADM</span>
-        </div>
-        <p style="font-size:12px; color:#555; line-height:1.4; margin-bottom:12px;">
-          Exclua encartes desatualizados, remova preços errados/troll informados por usuários ou apague mercados duplicados.
-        </p>
-
-        <!-- Abas de Moderação -->
-        <div style="display:flex; gap:6px; margin-bottom:10px;">
-          <button type="button" onclick="switchAdminModTab('encartes')" id="admin-tab-encartes" style="flex:1; padding:7px; border:1px solid #c62828; background:#b71c1c; color:#fff; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">
-            📰 Encartes
-          </button>
-          <button type="button" onclick="switchAdminModTab('precos')" id="admin-tab-precos" style="flex:1; padding:7px; border:1px solid #ccc; background:#fff; color:#555; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">
-            💰 Preços Recentes
-          </button>
-          <button type="button" onclick="switchAdminModTab('mercados')" id="admin-tab-mercados" style="flex:1; padding:7px; border:1px solid #ccc; background:#fff; color:#555; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">
-            🏪 Mercados
-          </button>
-        </div>
-
-        <div id="admin-mod-encartes-view">
-          <div id="admin-manage-encartes-list" style="max-height:220px; overflow-y:auto; font-size:12px;">
-            Carregando encartes para moderação...
+      <!-- ABA 3: MODERAÇÃO & LIMPEZA DE DADOS -->
+      <div id="admin-main-view-mod" class="hidden">
+        <div style="background:#fff7f7; border:2px solid #ffcdd2; border-radius:12px; padding:14px; margin-bottom:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <h4 style="font-size:15px; color:#b71c1c; font-weight:bold; display:flex; align-items:center; gap:6px;">
+              🛡️ Moderação & Auditoria de Dados
+            </h4>
+            <span style="font-size:11px; background:#ffebee; color:#c62828; padding:3px 8px; border-radius:12px; font-weight:bold;">Apenas ADM</span>
           </div>
-        </div>
+          <p style="font-size:12px; color:#555; line-height:1.4; margin-bottom:12px;">
+            Exclua encartes desatualizados, remova preços errados/troll informados por usuários ou apague mercados duplicados.
+          </p>
 
-        <div id="admin-mod-precos-view" class="hidden">
-          <div id="admin-manage-prices-list" style="max-height:220px; overflow-y:auto; font-size:12px;">
-            Carregando cotações recentes...
+          <!-- Botão Especial: Limpeza de Produtos Sem Nome -->
+          <div style="margin-bottom:14px; background:#fff; border:1px dashed #ef9a9a; border-radius:8px; padding:10px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <strong style="font-size:12.5px; color:#c62828; display:block;">🧹 Catálogo de Produtos</strong>
+              <small style="color:#666;">Remover "Produto sem nome" ou itens de teste do Supabase</small>
+            </div>
+            <button type="button" onclick="cleanInvalidProducts()" style="background:#c62828; color:#fff; border:none; padding:7px 12px; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">
+              Limpar Testes
+            </button>
           </div>
-        </div>
 
-        <div id="admin-mod-mercados-view" class="hidden">
-          <div id="admin-manage-markets-list" style="max-height:220px; overflow-y:auto; font-size:12px;">
-            Carregando lista de mercados...
+          <!-- Sub-abas de Moderação -->
+          <div style="display:flex; gap:6px; margin-bottom:10px;">
+            <button type="button" onclick="switchAdminModTab('encartes')" id="admin-tab-encartes" style="flex:1; padding:7px; border:1px solid #c62828; background:#b71c1c; color:#fff; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">
+              📰 Encartes
+            </button>
+            <button type="button" onclick="switchAdminModTab('precos')" id="admin-tab-precos" style="flex:1; padding:7px; border:1px solid #ccc; background:#fff; color:#555; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">
+              💰 Preços Recentes
+            </button>
+            <button type="button" onclick="switchAdminModTab('mercados')" id="admin-tab-mercados" style="flex:1; padding:7px; border:1px solid #ccc; background:#fff; color:#555; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer;">
+              🏪 Mercados
+            </button>
+          </div>
+
+          <div id="admin-mod-encartes-view">
+            <div id="admin-manage-encartes-list" style="max-height:220px; overflow-y:auto; font-size:12px;">
+              Carregando encartes para moderação...
+            </div>
+          </div>
+
+          <div id="admin-mod-precos-view" class="hidden">
+            <div id="admin-manage-prices-list" style="max-height:220px; overflow-y:auto; font-size:12px;">
+              Carregando cotações recentes...
+            </div>
+          </div>
+
+          <div id="admin-mod-mercados-view" class="hidden">
+            <div id="admin-manage-markets-list" style="max-height:220px; overflow-y:auto; font-size:12px;">
+              Carregando lista de mercados...
+            </div>
           </div>
         </div>
       </div>
@@ -1691,14 +1721,25 @@
       }
     }
 
+    function isValidProductName(name) {
+      if (!name || typeof name !== 'string') return false;
+      const clean = name.trim().toLowerCase();
+      if (clean.length < 2) return false;
+      if (clean === 'produto sem nome' || clean === 'produto novo' || clean === 'sem nome' || clean.startsWith('produto sem')) {
+        return false;
+      }
+      return true;
+    }
+
     function renderDbCatalogGrid(prods) {
       const grid = document.getElementById('catalog-db-grid');
       grid.innerHTML = '';
-      if (prods.length === 0) {
-        grid.innerHTML = '<div style="grid-column:1/-1; color:#888; text-align:center; padding:15px;">Nenhum produto correspondente.</div>';
+      const validProds = (prods || []).filter(p => isValidProductName(p.nome));
+      if (validProds.length === 0) {
+        grid.innerHTML = '<div style="grid-column:1/-1; color:#888; text-align:center; padding:15px;">Nenhum produto correspondente cadastrado.</div>';
         return;
       }
-      prods.forEach(p => {
+      validProds.forEach(p => {
         const card = document.createElement('div');
         card.className = 'quick-item-card';
         card.onclick = () => addPrelistItem(p.nome);
@@ -1712,7 +1753,7 @@
 
     function filterCatalogSearch() {
       const q = document.getElementById('catalog-search-input').value.toLowerCase().trim();
-      const filtered = cachedDbProducts.filter(p => p.nome.toLowerCase().includes(q));
+      const filtered = cachedDbProducts.filter(p => isValidProductName(p.nome) && p.nome.toLowerCase().includes(q));
       renderDbCatalogGrid(filtered);
     }
 
@@ -2071,7 +2112,11 @@
     
 
     async function openAdminModal() {
-      document.getElementById('admin-modal').classList.remove('hidden');
+      const modalEl = document.getElementById('admin-modal');
+      modalEl.classList.remove('hidden');
+      const modalContent = modalEl.querySelector('.modal-content');
+      if (modalContent) modalContent.scrollTop = 0;
+      switchAdminMainTab('metrics');
       try {
         const { count: prodCount } = await client.from('produtos').select('*', { count: 'exact', head: true });
         const { count: precoCount } = await client.from('registros_precos').select('*', { count: 'exact', head: true });
@@ -2126,7 +2171,75 @@
       document.getElementById('admin-modal').classList.add('hidden');
     }
 
-    async function exportPricesCSV() {
+    
+    function switchAdminMainTab(tab) {
+      const tabMetricsBtn = document.getElementById('admin-main-tab-metrics');
+      const tabEncartesBtn = document.getElementById('admin-main-tab-encartes');
+      const tabModBtn = document.getElementById('admin-main-tab-mod');
+      const viewMetrics = document.getElementById('admin-main-view-metrics');
+      const viewEncartes = document.getElementById('admin-main-view-encartes');
+      const viewMod = document.getElementById('admin-main-view-mod');
+
+      if (!viewMetrics || !viewEncartes || !viewMod) return;
+
+      [tabMetricsBtn, tabEncartesBtn, tabModBtn].forEach(b => {
+        if (b) {
+          b.style.background = '#fff';
+          b.style.color = '#555';
+          b.style.borderColor = '#ccc';
+        }
+      });
+      [viewMetrics, viewEncartes, viewMod].forEach(v => v.classList.add('hidden'));
+
+      if (tab === 'metrics') {
+        if (tabMetricsBtn) {
+          tabMetricsBtn.style.background = '#1b5e20';
+          tabMetricsBtn.style.color = '#fff';
+          tabMetricsBtn.style.borderColor = '#1b5e20';
+        }
+        viewMetrics.classList.remove('hidden');
+      } else if (tab === 'encartes') {
+        if (tabEncartesBtn) {
+          tabEncartesBtn.style.background = '#1b5e20';
+          tabEncartesBtn.style.color = '#fff';
+          tabEncartesBtn.style.borderColor = '#1b5e20';
+        }
+        viewEncartes.classList.remove('hidden');
+        if (typeof loadActivePhotoEncartes === 'function') loadActivePhotoEncartes();
+      } else if (tab === 'mod') {
+        if (tabModBtn) {
+          tabModBtn.style.background = '#b71c1c';
+          tabModBtn.style.color = '#fff';
+          tabModBtn.style.borderColor = '#b71c1c';
+        }
+        viewMod.classList.remove('hidden');
+      }
+
+      const modalContent = document.querySelector('#admin-modal .modal-content');
+      if (modalContent) modalContent.scrollTop = 0;
+    }
+
+    async function cleanInvalidProducts() {
+      const confirmed = await showConfirmDialog({
+        title: 'Limpar Produtos de Teste',
+        message: 'Deseja remover do catálogo todos os itens gravados como "Produto sem nome" ou "Produto Novo" no Supabase?',
+        icon: '🧹',
+        okText: 'Sim, Limpar',
+        cancelText: 'Cancelar',
+        isDestructive: true
+      });
+      if (!confirmed) return;
+      try {
+        showToast('Limpando produtos de teste...', 'info');
+        await client.from('produtos').delete().ilike('nome', '%sem nome%');
+        await client.from('produtos').delete().ilike('nome', '%produto novo%');
+        showToast('Produtos de teste removidos com sucesso!', 'success');
+        openAdminModal();
+      } catch (err) {
+        showToast('Erro ao remover produtos: ' + err.message, 'error');
+      }
+    }
+async function exportPricesCSV() {
       try {
         showToast('Gerando planilha CSV...', 'info');
         const { data, error } = await client
@@ -2817,19 +2930,26 @@
           console.warn('Busca remota offline ou lenta, seguindo com dados locais.');
         }
 
+        // CONSULTA APENAS LEITURA (NUNCA grava no banco antes do usuário confirmar o preço e adicionar ao carrinho)
         try {
-          const { data: prodData } = await client.from('produtos').upsert({
-            codigo_barras: currentBarcode,
-            nome: currentName || 'Produto sem nome',
-            marca: currentBrand
-          }, { onConflict: 'codigo_barras' }).select();
+          const { data: existingProd } = await client.from('produtos')
+            .select('id, nome, marca')
+            .eq('codigo_barras', currentBarcode)
+            .maybeSingle();
 
-          if (prodData && prodData[0]) {
-            currentProdDbId = prodData[0].id;
+          if (existingProd) {
+            currentProdDbId = existingProd.id;
+            if (!currentName && existingProd.nome && isValidProductName(existingProd.nome)) {
+              currentName = existingProd.nome;
+              currentBrand = existingProd.marca || currentBrand;
+              document.getElementById('prod-name').innerText = currentName;
+              document.getElementById('prod-brand').innerText = `${currentBrand} | EAN: ${currentBarcode}`;
+              document.getElementById('unnamed-box').classList.add('hidden');
+            }
             await loadPriceHistory(currentProdDbId);
           }
         } catch(e) {
-          console.warn('Banco offline no momento.');
+          console.warn('Erro ao consultar histórico de produto:', e);
         }
       } else {
         showToast('⚡ Modo Offline ativo: sem internet no momento.', 'info');
@@ -2951,22 +3071,51 @@
 
     async function confirmExistingPrice() {
       if (!existingPriceForCurrentMarket) return;
+      if (!currentName || !isValidProductName(currentName)) {
+        const unnamedBox = document.getElementById('unnamed-box');
+        if (unnamedBox) unnamedBox.classList.remove('hidden');
+        const manualNameInput = document.getElementById('manual-name-input');
+        if (manualNameInput) {
+          manualNameInput.focus();
+          manualNameInput.style.borderColor = '#c62828';
+        }
+        showToast('⚠️ Digite o nome do produto para poder confirmar.', 'warning');
+        return;
+      }
       await recordPriceInDb(existingPriceForCurrentMarket);
-      addToCart(currentName || 'Produto', existingPriceForCurrentMarket);
+      addToCart(currentName, existingPriceForCurrentMarket);
       resetScan();
     }
 
     async function saveAndAddToCart() {
       const priceVal = parseFloat(document.getElementById('price-input').value);
-      const manualName = document.getElementById('manual-name-input').value.trim();
+      const manualNameInput = document.getElementById('manual-name-input');
+      const manualName = (manualNameInput ? manualNameInput.value : '').trim();
 
-      if (!currentName && manualName) {
+      if (manualName) {
         currentName = manualName;
         document.getElementById('prod-name').innerText = currentName;
         saveProductToLocalCache(currentBarcode, currentName, currentBrand);
         if (navigator.onLine && currentProdDbId) {
           client.from('produtos').update({ nome: currentName }).eq('id', currentProdDbId).catch(()=>{});
         }
+      }
+
+      // EXIGÊNCIA OBRIGATÓRIA: Se o produto não tiver nome no catálogo nem digitado, BLOQUEIA e pede para digitar
+      if (!currentName || !isValidProductName(currentName)) {
+        const unnamedBox = document.getElementById('unnamed-box');
+        if (unnamedBox) unnamedBox.classList.remove('hidden');
+        if (manualNameInput) {
+          manualNameInput.focus();
+          manualNameInput.style.borderColor = '#c62828';
+          manualNameInput.style.boxShadow = '0 0 8px rgba(198,40,40,0.35)';
+          setTimeout(() => {
+            manualNameInput.style.borderColor = '#ccc';
+            manualNameInput.style.boxShadow = 'none';
+          }, 3500);
+        }
+        showToast('⚠️ Digite o nome do produto para poder salvar.', 'warning');
+        return; // Interrompe a gravação! Não permite salvar sem nome.
       }
 
       // Trava de sanidade e segurança anti-fraude / anti-troll
@@ -3039,8 +3188,8 @@
         if (!prodId) {
           const { data: pData } = await client.from('produtos').upsert({
             codigo_barras: currentBarcode,
-            nome: currentName || 'Produto sem nome',
-            marca: currentBrand
+            nome: currentName,
+            marca: currentBrand || ''
           }, { onConflict: 'codigo_barras' }).select();
           if (pData && pData[0]) prodId = pData[0].id;
         }
