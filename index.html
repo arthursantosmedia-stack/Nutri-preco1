@@ -1204,14 +1204,31 @@
       <div style="background:#f1f8e9; border:1px solid #c8e6c9; border-radius:12px; padding:12px; margin-bottom:14px;">
         <div style="display:flex; justify-content:space-between; align-items:center; font-size:12.5px; font-weight:bold; color:#1b5e20; margin-bottom:6px;">
           <span>🎯 Teto de Gastos:</span>
-          <span id="budget-current-label">R$ 0,00</span>
+          <button type="button" onclick="promptCustomBudget()" style="background:none; border:none; color:#1b5e20; font-size:13px; font-weight:bold; cursor:pointer; text-decoration:underline; display:flex; align-items:center; gap:4px;">
+            <span id="budget-current-label">Não definido</span> ✏️
+          </button>
         </div>
         <div style="background:#e0e0e0; border-radius:6px; height:8px; overflow:hidden; margin-bottom:6px;">
           <div id="budget-progress-bar" style="width:0%; height:100%; background:#2e7d32; transition:width 0.3s ease;"></div>
         </div>
-        <div style="display:flex; justify-content:space-between; font-size:11px; color:#666;">
-          <span id="budget-status-alert">Dentro do planejado</span>
-          <span id="budget-percent-label">0%</span>
+        <div style="display:flex; justify-content:space-between; font-size:11px; color:#666; margin-bottom:10px;">
+          <span id="budget-status-alert">Defina um teto para acompanhar os gastos em tempo real</span>
+          <span id="budget-percent-label">--</span>
+        </div>
+
+        <!-- Chips de Seleção Rápida de Teto -->
+        <div style="border-top:1px dashed #c8e6c9; padding-top:8px;">
+          <div style="font-size:11px; font-weight:600; color:#555; margin-bottom:6px;">Toque para definir o limite desta compra:</div>
+          <div id="budget-chips-container" style="display:flex; flex-wrap:wrap; gap:6px;">
+            <button type="button" class="budget-chip" data-budget="0" onclick="setBudgetLimit(0, this)">Sem Teto</button>
+            <button type="button" class="budget-chip" data-budget="50" onclick="setBudgetLimit(50, this)">R$ 50</button>
+            <button type="button" class="budget-chip" data-budget="100" onclick="setBudgetLimit(100, this)">R$ 100</button>
+            <button type="button" class="budget-chip" data-budget="150" onclick="setBudgetLimit(150, this)">R$ 150</button>
+            <button type="button" class="budget-chip" data-budget="200" onclick="setBudgetLimit(200, this)">R$ 200</button>
+            <button type="button" class="budget-chip" data-budget="300" onclick="setBudgetLimit(300, this)">R$ 300</button>
+            <button type="button" class="budget-chip" data-budget="500" onclick="setBudgetLimit(500, this)">R$ 500</button>
+            <button type="button" class="budget-chip" id="budget-custom-chip" onclick="promptCustomBudget(this)">✏️ Outro valor</button>
+          </div>
         </div>
       </div>
 
@@ -1469,25 +1486,46 @@
     function setBudgetLimit(val, chipEl = null) {
       budgetLimit = val;
       localStorage.setItem('nutri_budget_limit', budgetLimit);
-
-      if (chipEl) {
-        document.querySelectorAll('.budget-chip').forEach(c => c.classList.remove('active'));
-        chipEl.classList.add('active');
-      }
-
+      highlightActiveBudgetChip();
       updateBudgetDisplay();
       if (val > 0) {
         showToast(`Teto de gastos definido em R$ ${val.toFixed(2).replace('.', ',')}`, 'info');
       } else {
-        showToast('Teto de gastos desativado.', 'info');
+        showToast('Teto de gastos desativado (Sem Teto).', 'info');
       }
     }
 
-    async function promptCustomBudget(chipEl) {
-      const valStr = prompt('Digite o teto máximo de gastos para hoje em R$:');
-      if (valStr) {
+    function highlightActiveBudgetChip() {
+      const container = document.getElementById('budget-chips-container');
+      if (!container) return;
+      const chips = container.querySelectorAll('.budget-chip');
+      let matched = false;
+      chips.forEach(chip => {
+        chip.classList.remove('active');
+        const bVal = parseFloat(chip.getAttribute('data-budget'));
+        if (!isNaN(bVal) && bVal === budgetLimit) {
+          chip.classList.add('active');
+          matched = true;
+        }
+      });
+      const customChip = document.getElementById('budget-custom-chip');
+      if (customChip) {
+        if (!matched && budgetLimit > 0) {
+          customChip.classList.add('active');
+          customChip.innerText = `✏️ R$ ${budgetLimit.toFixed(2).replace('.', ',')}`;
+        } else {
+          customChip.classList.remove('active');
+          customChip.innerText = '✏️ Outro valor';
+        }
+      }
+    }
+
+    async function promptCustomBudget(chipEl = null) {
+      const current = budgetLimit > 0 ? budgetLimit.toFixed(2).replace('.', ',') : '';
+      const valStr = prompt('Digite o teto máximo de gastos em R$ (ex: 80 ou 250):', current);
+      if (valStr !== null && valStr.trim() !== '') {
         const val = parseFloat(valStr.replace(',', '.'));
-        if (!isNaN(val) && val > 0) {
+        if (!isNaN(val) && val >= 0) {
           setBudgetLimit(val, chipEl);
         } else {
           showToast('Valor de orçamento inválido.', 'warning');
@@ -1496,13 +1534,12 @@
     }
 
     function updateBudgetDisplay() {
+      highlightActiveBudgetChip();
       const total = cart.reduce((acc, i) => acc + (i.price * i.qty), 0);
       const label = document.getElementById('budget-current-label');
       const percLabel = document.getElementById('budget-percent-label');
       const bar = document.getElementById('budget-progress-bar');
       const alertText = document.getElementById('budget-status-alert');
-      const lineFill = document.getElementById('cart-bar-budget-fill');
-
       if (!label || !bar) return;
 
       if (!budgetLimit || budgetLimit <= 0) {
@@ -1512,7 +1549,6 @@
         bar.style.backgroundColor = '#2e7d32';
         alertText.innerText = 'Defina um teto para acompanhar os gastos em tempo real';
         alertText.style.color = '#777';
-        if (lineFill) lineFill.style.width = '0%';
         return;
       }
 
@@ -1520,21 +1556,17 @@
       const pct = Math.round((total / budgetLimit) * 100);
       percLabel.innerText = pct + '%';
       bar.style.width = Math.min(pct, 100) + '%';
-      if (lineFill) lineFill.style.width = Math.min(pct, 100) + '%';
 
       if (pct < 80) {
         bar.style.backgroundColor = '#2e7d32';
-        if (lineFill) lineFill.style.backgroundColor = '#2e7d32';
         alertText.innerText = `Gastos sob controle (R$ ${(budgetLimit - total).toFixed(2).replace('.', ',')} restantes)`;
         alertText.style.color = '#2e7d32';
       } else if (pct <= 100) {
         bar.style.backgroundColor = '#f57f17';
-        if (lineFill) lineFill.style.backgroundColor = '#f57f17';
         alertText.innerText = `⚠️ Atenção: Você já utilizou ${pct}% do teto definido!`;
         alertText.style.color = '#f57f17';
       } else {
         bar.style.backgroundColor = '#c62828';
-        if (lineFill) lineFill.style.backgroundColor = '#c62828';
         alertText.innerText = `🚨 Alerta: Teto ultrapassado em R$ ${(total - budgetLimit).toFixed(2).replace('.', ',')}! Revise itens supérfluos.`;
         alertText.style.color = '#c62828';
       }
@@ -1960,7 +1992,7 @@
         }
 
         // Adiciona à lista do select do painel admin
-        const select = document.getElementById('encarte-market-select');
+        const select = document.getElementById('encarte-photo-market');
         if (select) {
           const opt = document.createElement('option');
           opt.value = name;
@@ -2973,11 +3005,6 @@
       const total = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
       const count = cart.reduce((acc, item) => acc + item.qty, 0);
 
-      const cartCountEl = document.getElementById('cart-count');
-      if (cartCountEl) cartCountEl.innerText = count;
-      const cartTotalEl = document.getElementById('cart-total');
-      if (cartTotalEl) cartTotalEl.innerText = `R$ ${total.toFixed(2).replace('.', ',')}`;
-
       const topHudTotal = document.getElementById('top-hud-total');
       if (topHudTotal) topHudTotal.innerText = `R$ ${total.toFixed(2).replace('.', ',')}`;
       const topHudCount = document.getElementById('top-hud-count');
@@ -3032,6 +3059,7 @@
     }
 
     function openCartModal() {
+      updateBudgetDisplay();
       const list = document.getElementById('cart-items-list');
       list.innerHTML = '';
 
