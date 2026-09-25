@@ -2108,7 +2108,7 @@ const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
       msg += `\n────────────────────────────\n`;
       msg += `💡 *Relatório gerado via NutriPreço Cabo Frio*\n`;
-      msg += `👉 https://arthursantosmedia-stack.github.io/Nutri-preco1/`;
+      msg += `👉 https://nutripreco-oficial.github.io/`;
 
       window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
     }
@@ -3634,7 +3634,7 @@ async function exportPricesCSV() {
     }
 
     function shareAppWhatsApp() {
-      const msg = `Oi! Estou usando o *NutriPreço* para somar minhas compras no mercado e ver onde tá mais barato em Cabo Frio (Atacadão, Assaí, etc). É muito bom para não passar sufoco no caixa! Testa aí também: https://arthursantosmedia-stack.github.io/Nutri-preco1/`;
+      const msg = `Oi! Estou usando o *NutriPreço* para somar minhas compras no mercado e ver onde tá mais barato em Cabo Frio (Atacadão, Assaí, etc). É muito bom para não passar sufoco no caixa! Testa aí também: https://nutripreco-oficial.github.io/`;
       const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
       window.open(url, '_blank');
     }
