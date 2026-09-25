@@ -380,6 +380,21 @@
         <button style="border:none; background:none; font-size:24px; cursor:pointer; color:#777;" onclick="closeAdminModal()">&times;</button>
       </div>
 
+      <!-- Métricas de Usuários e Downloads / Instalações -->
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:10px;">
+        <div class="admin-stat-card" style="background: linear-gradient(135deg, #e8f5e9, #ffffff); border: 1px solid #c8e6c9;">
+          <div class="admin-stat-num" id="admin-count-installs" style="color: #1b5e20;">--</div>
+          <div class="admin-stat-label" style="color: #2e7d32; font-weight: bold;">📲 Instalações PWA</div>
+          <div style="font-size: 10px; color: #666; margin-top: 2px;">Downloads tela inicial</div>
+        </div>
+        <div class="admin-stat-card" style="background: linear-gradient(135deg, #e3f2fd, #ffffff); border: 1px solid #bbdefb;">
+          <div class="admin-stat-num" id="admin-count-users" style="color: #0d47a1;">--</div>
+          <div class="admin-stat-label" style="color: #1565c0; font-weight: bold;">👥 Usuários / Acessos</div>
+          <div style="font-size: 10px; color: #666; margin-top: 2px;">Dispositivos ativos</div>
+        </div>
+      </div>
+
+      <!-- Métricas do Catálogo da Cidade -->
       <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-bottom:16px;">
         <div class="admin-stat-card">
           <div class="admin-stat-num" id="admin-count-prods">--</div>
@@ -1299,6 +1314,31 @@
     const SUPABASE_URL = 'https://fzoyldcfyiigwyxxhosd.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_asGr3f2xfay96fUJAkIHBg_L5vfLYvv';
     const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    // ==========================================
+    // SISTEMA DE TELEMETRIA & AUDITORIA PWA (DOWNLOADS E USUÁRIOS)
+    // ==========================================
+    async function trackAppEvent(eventType, metadata = {}) {
+      try {
+        let deviceId = localStorage.getItem('nutri_device_id');
+        if (!deviceId) {
+          deviceId = 'dev_' + Math.random().toString(36).substring(2, 10) + '_' + Date.now();
+          localStorage.setItem('nutri_device_id', deviceId);
+        }
+        const city = localStorage.getItem('nutri_user_city') || 'Cabo Frio';
+        const userEmail = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.email : null;
+
+        await client.from('app_telemetria').insert([{
+          evento: eventType,
+          device_id: deviceId,
+          cidade: city,
+          email: userEmail,
+          metadata: metadata
+        }]);
+      } catch (err) {
+        // Silencioso para não interromper navegação do usuário
+      }
+    }
+
 
     // ==========================================
     // LEITOR DE BALANÇA & MINI-CATÁLOGO OFFLINE
@@ -2040,6 +2080,35 @@
         document.getElementById('admin-count-prods').innerText = prodCount ?? '0';
         document.getElementById('admin-count-precos').innerText = precoCount ?? '0';
         document.getElementById('admin-count-markets').innerText = marketCount ?? '0';
+
+        // Consultas de Telemetria (Downloads e Usuários Únicos)
+        try {
+          const { count: installCount } = await client.from('app_telemetria')
+            .select('*', { count: 'exact', head: true })
+            .eq('evento', 'pwa_installed');
+          const elInstall = document.getElementById('admin-count-installs');
+          if (elInstall) elInstall.innerText = installCount ?? '0';
+        } catch (e) {
+          const elInstall = document.getElementById('admin-count-installs');
+          if (elInstall) elInstall.innerText = '0';
+        }
+
+        try {
+          const { data: usersData } = await client.from('app_telemetria')
+            .select('device_id');
+          const elUsers = document.getElementById('admin-count-users');
+          if (elUsers) {
+            if (usersData && usersData.length > 0) {
+              const uniqueDevices = new Set(usersData.map(d => d.device_id).filter(Boolean));
+              elUsers.innerText = uniqueDevices.size || usersData.length;
+            } else {
+              elUsers.innerText = '0';
+            }
+          }
+        } catch (e) {
+          const elUsers = document.getElementById('admin-count-users');
+          if (elUsers) elUsers.innerText = '0';
+        }
         if (typeof loadActivePhotoEncartes === 'function') {
           loadActivePhotoEncartes();
         }
@@ -2256,6 +2325,7 @@
 
 
     window.addEventListener('DOMContentLoaded', () => {
+      trackAppEvent('app_access');
       checkFirstAccessOnboarding();
       updateCartDisplay();
       updateBudgetDisplay();
@@ -2483,6 +2553,7 @@
         deferredPrompt.prompt();
         deferredPrompt.userChoice.then((choiceResult) => {
           if (choiceResult.outcome === 'accepted') {
+            trackAppEvent('pwa_installed', { method: 'prompt' });
             const btn = document.getElementById('install-pwa-btn');
             if (btn) btn.classList.add('hidden');
             closeInstallModal();
@@ -2547,6 +2618,7 @@
 
     // Executa verificação PWA no carregamento
     window.addEventListener('DOMContentLoaded', () => {
+      trackAppEvent('app_access');
       setTimeout(checkUniversalPWA, 800);
     });
 
