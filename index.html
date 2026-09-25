@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -8,11 +8,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>NutriPreço - Cabo Frio</title>
 
-
   <!-- Manifesto PWA para instalação no Android -->
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2424/2424444.png">
-
 
   <!-- Bibliotecas externas -->
     <!-- Bibliotecas externas -->
@@ -22,8 +20,7 @@
 
 <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background-color: #f4f6f8; color: #222; padding-bottom: 95px; }
-
+    body { background-color: #f4f6f8; color: #222; padding-bottom: 25px; }
 
     /* Cabeçalho */
     header { background-color: #2e7d32; color: white; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100; }
@@ -34,7 +31,6 @@
     .auth-btn { background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.4); padding: 6px 11px; border-radius: 20px; font-size: 12px; cursor: pointer; font-weight: bold; }
     .install-pwa-btn { background: #ffd600; color: #1b5e20; border: none; padding: 6px 12px; border-radius: 20px; font-size: 12px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2); animation: pulse 2s infinite; }
     @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.04); } 100% { transform: scale(1); } }
-
 
     /* Menu Lateral Deslizante (Drawer) */
     .sidebar-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 150; backdrop-filter: blur(2px); transition: opacity 0.25s ease; }
@@ -55,22 +51,18 @@
     .sidebar-footer { padding: 14px 16px; border-top: 1px solid #eee; background: #fafafa; }
     .sidebar-login-btn { width: 100%; background: #2e7d32; color: #fff; border: none; padding: 10px; border-radius: 8px; font-weight: bold; font-size: 13px; cursor: pointer; }
 
-
     /* Conteúdo Principal (Câmera e Leitor em Destaque) */
     .container { max-width: 480px; margin: 0 auto; padding: 14px 16px; }
-
 
     /* Scanner / Câmera */
     #scanner-container { background: #000; border-radius: 14px; overflow: hidden; position: relative; margin-bottom: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
     #reader { width: 100%; min-height: 240px; }
     .scan-btn { width: 100%; background: #2e7d32; color: #fff; border: none; padding: 15px; font-size: 16px; font-weight: bold; border-radius: 10px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; box-shadow: 0 4px 10px rgba(46,125,50,0.25); }
 
-
     /* Cartões */
     .card { background: #fff; border-radius: 14px; padding: 16px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
     .card-title { font-size: 15px; font-weight: bold; color: #2e7d32; margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
     .card-title-price { color: #1b5e20; font-size: 16px; }
-
 
     /* Preço e Comparativo */
     .best-price-badge { background: #e8f5e9; color: #2e7d32; padding: 10px 12px; border-radius: 8px; font-weight: bold; margin-bottom: 12px; font-size: 14px; text-align: center; border: 1px solid #c8e6c9; }
@@ -79,45 +71,37 @@
     .compare-alert.expensive { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
     .compare-alert.equal { background: #e3f2fd; color: #1565c0; border: 1px solid #bbdefb; }
 
-
     /* Atalho Preço Confere */
     .confirm-price-box { background: #f1f8e9; border: 1.5px dashed #2e7d32; border-radius: 10px; padding: 12px; margin-bottom: 14px; text-align: center; }
     .confirm-price-btn { background: #2e7d32; color: #fff; border: none; padding: 11px 16px; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; margin-top: 8px; width: 100%; box-shadow: 0 2px 6px rgba(46,125,50,0.2); }
-
 
     /* Seletor de Mercados */
     .market-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
     .chip { padding: 6px 11px; background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; }
     .chip.active { background: #2e7d32; color: #fff; border-color: #2e7d32; }
 
-
     label { font-size: 13px; color: #555; display: block; margin-top: 10px; margin-bottom: 4px; font-weight: 500; }
     input { width: 100%; padding: 11px; border: 1px solid #ccc; border-radius: 8px; font-size: 15px; }
     .price-input { font-size: 28px; font-weight: bold; text-align: center; color: #2e7d32; border: 2px solid #2e7d32; margin-top: 4px; background: #fafafa; }
-
 
     /* Histórico */
     .history-item { display: flex; justify-content: space-between; align-items: center; padding: 9px; background: #fafafa; border-radius: 8px; margin-bottom: 7px; border-left: 4px solid #2e7d32; }
     .time-badge { font-size: 11px; color: #666; display: inline-block; background: #eee; padding: 2px 6px; border-radius: 4px; margin-top: 3px; }
 
-
     /* Nutrição */
     .nutri-row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px dashed #f0f0f0; font-size: 14px; }
     .nutri-val { font-weight: bold; }
-
 
     /* Botões Principais */
     .save-btn { width: 100%; background: #2e7d32; color: white; border: none; padding: 15px; font-size: 16px; font-weight: bold; border-radius: 10px; margin-top: 14px; cursor: pointer; box-shadow: 0 4px 10px rgba(46,125,50,0.25); }
     .reset-btn { width: 100%; background: #eceff1; color: #444; border: none; padding: 11px; font-size: 14px; font-weight: 600; border-radius: 10px; margin-top: 8px; cursor: pointer; }
     .whatsapp-btn { background: #25d366; color: white; border: none; padding: 12px 14px; border-radius: 10px; font-weight: bold; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 10px; }
 
-
     /* Barra Fixa Pré-Caixa */
     .cart-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 2px solid #2e7d32; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 -3px 10px rgba(0,0,0,0.08); z-index: 99; }
     .cart-info strong { font-size: 19px; color: #2e7d32; display: block; }
     .cart-info span { font-size: 12px; color: #666; }
     .cart-btn { background: #2e7d32; color: #fff; border: none; padding: 10px 16px; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; }
-
 
     
     /* Sistema de Feedback Profissional (Toasts & Confirm Dialog) */
@@ -160,19 +144,16 @@
     .toast-warning { background: #e65100; border-left: 5px solid #ffa726; }
     .toast-info { background: #1565c0; border-left: 5px solid #42a5f5; }
 
-
     @keyframes toastSlideDown {
       from { opacity: 0; transform: translateY(-20px) scale(0.95); }
       to { opacity: 1; transform: translateY(0) scale(1); }
     }
-
 
     
     /* Abas Secundárias (Tabs Elegantes) */
     .tab-bar { display: flex; background: #e8f5e9; border-radius: 12px; padding: 4px; margin-bottom: 14px; gap: 4px; }
     .tab-btn { flex: 1; padding: 9px 8px; border: none; background: none; border-radius: 9px; font-size: 13px; font-weight: 600; color: #2e7d32; cursor: pointer; text-align: center; transition: all 0.2s ease; }
     .tab-btn.active { background: #2e7d32; color: #ffffff; box-shadow: 0 2px 6px rgba(46,125,50,0.25); }
-
 
     /* Barra de Progresso do Teto de Gastos */
     .budget-progress-box { background: #f9fbf9; border-radius: 12px; padding: 12px; margin-bottom: 14px; border: 1px solid #e0e0e0; }
@@ -181,17 +162,14 @@
     .budget-progress-fill { height: 100%; width: 0%; transition: width 0.35s ease, background-color 0.35s ease; border-radius: 10px; }
     .budget-status-text { font-size: 12px; font-weight: 600; margin-top: 5px; text-align: right; }
 
-
     /* Mini Barra de Teto na Barra Fixa Inferior */
     .cart-bar-budget-line { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: #e0e0e0; }
     .cart-bar-budget-fill { height: 100%; width: 0%; transition: width 0.3s ease; }
-
 
     /* Chips de Seleção Rápida de Orçamento */
     .budget-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
     .budget-chip { padding: 6px 10px; background: #fff; border: 1px solid #ccc; border-radius: 16px; font-size: 12px; font-weight: 600; cursor: pointer; color: #444; }
     .budget-chip.active { background: #2e7d32; color: #fff; border-color: #2e7d32; }
-
 
     /* Grade de Seleção Rápida na Lista Prévia (1 Toque) */
     .quick-catalog-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; max-height: 38vh; overflow-y: auto; padding: 2px; }
@@ -200,13 +178,11 @@
     .quick-item-icon { font-size: 22px; width: 28px; text-align: center; }
     .quick-item-name { font-size: 13px; font-weight: 600; color: #222; line-height: 1.2; }
 
-
     /* Lista Prévia - Itens */
     .prelist-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #fff; border: 1px solid #eee; border-radius: 10px; margin-bottom: 6px; }
     .prelist-item.done { opacity: 0.55; text-decoration: line-through; background: #f9f9f9; }
     .prelist-item input[type="checkbox"] { width: 20px; height: 20px; accent-color: #2e7d32; cursor: pointer; }
     .prelist-text { flex: 1; font-size: 14px; font-weight: 500; }
-
 
     /* Relatório Executivo B2B / Administrativo */
     .report-sheet { background: #fff; border: 1px solid #ddd; border-radius: 12px; padding: 16px; margin-bottom: 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); font-family: monospace, sans-serif; }
@@ -215,12 +191,10 @@
     .report-kpi-val { font-size: 17px; font-weight: bold; color: #1b5e20; }
     .report-kpi-lbl { font-size: 11px; color: #666; text-transform: uppercase; margin-top: 2px; }
 
-
     /* Painel do Administrador */
     .admin-stat-card { background: #f1f8e9; border: 1px solid #c8e6c9; border-radius: 12px; padding: 12px; text-align: center; margin-bottom: 10px; }
     .admin-stat-num { font-size: 26px; font-weight: bold; color: #1b5e20; }
     .admin-stat-label { font-size: 12px; color: #444; font-weight: 600; }
-
 
     /* Modais */
     .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: flex-end; z-index: 200; }
@@ -229,17 +203,14 @@
     .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
     .qty-btn { background: #eee; border: none; width: 26px; height: 26px; border-radius: 50%; font-weight: bold; cursor: pointer; }
 
-
     /* Radar de Preços & Cesta Básica */
     .radar-tabs { display: flex; gap: 8px; border-bottom: 2px solid #e8f5e9; padding-bottom: 8px; margin-top: 4px; }
     .radar-tab { flex: 1; background: #f1f8e9; border: 1px solid #c8e6c9; color: #2e7d32; padding: 9px 8px; border-radius: 8px; font-weight: bold; font-size: 13px; cursor: pointer; text-align: center; }
     .radar-tab.active { background: #2e7d32; color: #fff; border-color: #2e7d32; }
 
-
     .cesta-summary-box { background: #e8f5e9; border: 1.5px solid #a5d6a7; border-radius: 10px; padding: 12px; margin-bottom: 12px; }
     .cesta-ranking-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px dashed #c8e6c9; font-size: 13px; }
     .cesta-ranking-row:last-child { border-bottom: none; }
-
 
     .radar-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 14px; margin-bottom: 11px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
     .radar-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
@@ -247,12 +218,10 @@
     .radar-prod-meta { font-size: 11.5px; color: #666; }
     .cesta-badge { background: #fff3e0; color: #e65100; font-size: 10.5px; font-weight: bold; padding: 2px 7px; border-radius: 12px; border: 1px solid #ffe0b2; white-space: nowrap; }
 
-
     .radar-price-comparison { background: #fbfbfb; border-radius: 8px; padding: 8px 10px; margin-top: 8px; border: 1px solid #f0f0f0; }
     .best-market-row { display: flex; justify-content: space-between; align-items: center; color: #1b5e20; font-size: 13.5px; font-weight: bold; margin-bottom: 4px; }
     .other-market-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #555; padding-top: 4px; border-top: 1px dashed #eee; }
     .diff-bad { color: #c62828; font-weight: bold; }
-
 
     /* Estatísticas do Histórico */
     .history-stat-box { display: flex; gap: 10px; margin-bottom: 16px; }
@@ -260,25 +229,27 @@
     .stat-card span { font-size: 11px; color: #555; text-transform: uppercase; font-weight: bold; }
     .stat-card strong { font-size: 18px; color: #2e7d32; display: block; margin-top: 4px; }
 
-
     .saved-purchase-card { background: #fafafa; border: 1px solid #e0e0e0; border-radius: 10px; padding: 12px; margin-bottom: 12px; }
     .purchase-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
     .purchase-date { font-size: 12px; color: #666; }
     .purchase-market { font-weight: bold; color: #1b5e20; font-size: 14px; }
     .purchase-items-detail { font-size: 12.5px; color: #444; margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ddd; }
 
-
     /* Rodapé & Legal */
     footer { text-align: center; padding: 25px 16px 20px 16px; font-size: 11.5px; color: #777; line-height: 1.5; border-top: 1px solid #e0e0e0; margin-top: 25px; }
     footer a { color: #2e7d32; text-decoration: none; font-weight: bold; }
 
-
     .loading { text-align: center; padding: 30px 20px; font-weight: bold; color: #2e7d32; }
     .hidden { display: none !important; }
+  
+    @keyframes mascotWalk {
+      0% { transform: translateY(0px) rotate(-3deg); }
+      100% { transform: translateY(-3px) rotate(3deg); }
+    }
+
   </style>
 </head>
 <body>
-
 
   <!-- Cabeçalho com Botão do Menu Hambúrguer -->
   
@@ -295,14 +266,12 @@
         <button style="border:none; background:none; font-size:24px; cursor:pointer; color:#777;" onclick="closePreListModal()">&times;</button>
       </div>
 
-
       <!-- Abas Secundárias de Organização -->
       <div class="tab-bar">
         <button class="tab-btn active" id="tab-btn-quick" onclick="switchPrelistTab('quick')">🧺 Cesta & Populares</button>
         <button class="tab-btn" id="tab-btn-catalog" onclick="switchPrelistTab('catalog')">🔍 Catálogo da Cidade</button>
         <button class="tab-btn" id="tab-btn-mylist" onclick="switchPrelistTab('mylist')">📋 Minha Lista (<span id="prelist-count-badge">0</span>)</button>
       </div>
-
 
       <!-- CONTEÚDO DA ABA 1: CESTA BÁSICA & POPULARES (1 TOQUE) -->
       <div id="prelist-tab-quick-content">
@@ -312,7 +281,6 @@
         </div>
       </div>
 
-
       <!-- CONTEÚDO DA ABA 2: CATÁLOGO GERAL DA CIDADE (DO SUPABASE) -->
       <div id="prelist-tab-catalog-content" class="hidden">
         <input type="text" id="catalog-search-input" placeholder="🔍 Filtrar produtos cadastrados na cidade..." oninput="filterCatalogSearch()" style="margin-bottom: 10px;">
@@ -320,7 +288,6 @@
           <div style="grid-column: 1 / -1; text-align:center; padding:20px; color:#888;">Carregando produtos cadastrados...</div>
         </div>
       </div>
-
 
       <!-- CONTEÚDO DA ABA 3: MINHA LISTA ATIVA -->
       <div id="prelist-tab-mylist-content" class="hidden">
@@ -337,14 +304,12 @@
         </div>
       </div>
 
-
       <div style="display:flex; gap:8px; margin-top:16px; border-top:1px solid #eee; padding-top:12px;">
         <button onclick="clearAllPrelist()" class="reset-btn" style="flex:1; background:#ffebee; color:#c62828; margin:0;">🗑️ Limpar Lista</button>
         <button onclick="closePreListModal()" class="save-btn" style="flex:1; margin:0;">Concluir</button>
       </div>
     </div>
   </div>
-
 
   <!-- ========================================== -->
   <!-- MODAL: RELATÓRIO EXECUTIVO (B2C & B2B) -->
@@ -357,7 +322,6 @@
         </h3>
         <button style="border:none; background:none; font-size:24px; cursor:pointer; color:#777;" onclick="closeReportModal()">&times;</button>
       </div>
-
 
       <div class="report-kpi-grid">
         <div class="report-kpi-card">
@@ -378,7 +342,6 @@
         </div>
       </div>
 
-
       <div class="report-sheet">
         <div style="text-align:center; margin-bottom:12px; border-bottom:1px dashed #bbb; padding-bottom:8px;">
           <strong>🥗 NUTRIPREÇO • COMPROVANTE EXECUTIVO</strong><br>
@@ -386,18 +349,15 @@
           <span style="font-size:11px; color:#666;" id="rep-date-time"></span>
         </div>
 
-
         <div id="rep-items-table" style="font-size:12px; margin-bottom:12px;">
           <!-- Linhas formatadas de produtos -->
         </div>
-
 
         <div style="border-top:1px dashed #bbb; padding-top:8px; display:flex; justify-content:space-between; font-weight:bold; font-size:14px;">
           <span>TOTAL GERAL:</span>
           <span id="rep-footer-total">R$ 0,00</span>
         </div>
       </div>
-
 
       <div style="display:flex; flex-direction:column; gap:8px;">
         <button onclick="shareExecutiveReportWhatsApp()" style="width:100%; background:#25D366; color:white; border:none; padding:13px; border-radius:10px; font-weight:bold; font-size:14px; cursor:pointer; display:flex; justify-content:center; align-items:center; gap:8px;">
@@ -407,7 +367,6 @@
       </div>
     </div>
   </div>
-
 
   <!-- ========================================== -->
   <!-- MODAL: PAINEL DO ADMINISTRADOR (ADMIN & CSV) -->
@@ -420,7 +379,6 @@
         </h3>
         <button style="border:none; background:none; font-size:24px; cursor:pointer; color:#777;" onclick="closeAdminModal()">&times;</button>
       </div>
-
 
       <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; margin-bottom:16px;">
         <div class="admin-stat-card">
@@ -437,7 +395,6 @@
         </div>
       </div>
 
-
       <div style="background:#fafafa; border:1px solid #e0e0e0; border-radius:12px; padding:14px; margin-bottom:16px;">
         <h4 style="font-size:14px; color:#1b5e20; margin-bottom:6px; font-weight:bold;">📥 Exportação de Dados em Planilha (CSV)</h4>
         <p style="font-size:12.5px; color:#555; line-height:1.4; margin-bottom:12px;">
@@ -447,7 +404,6 @@
           📊 Baixar Planilha de Preços (.CSV)
         </button>
       </div>
-
 
             <!-- SEÇÃO ADMIN: GESTÃO DE ENCARTES 100% FOTO (ZERO DIGITAÇÃO) -->
       <div style="background:#f9fcf9; border:2px solid #c8e6c9; border-radius:12px; padding:14px; margin-bottom:16px;">
@@ -558,7 +514,6 @@
       <button onclick="closeAdminModal()" class="reset-btn" style="margin:0;">Fechar Painel</button>
     </div>
   </div>
-
 
   <!-- Container de Toasts (Notificações Flutuantes) -->
   
@@ -772,7 +727,6 @@
 
   <div id="toast-container"></div>
 
-
   <!-- Modal de Confirmação Customizado (Substitui confirm nativo) -->
   <div class="modal hidden" id="confirm-modal" style="z-index: 10000;">
     <div class="modal-content" style="max-width: 400px; text-align: center; padding: 24px 20px; border-radius: 20px;">
@@ -785,7 +739,6 @@
       </div>
     </div>
   </div>
-
 
   <header>
     <div class="header-left">
@@ -822,8 +775,6 @@
     </button>
   </div>
 
-
-
   <!-- Menu Lateral Deslizante (Drawer) -->
   <div id="sidebar-overlay" class="sidebar-overlay hidden" onclick="toggleSidebar(false)"></div>
   <div id="sidebar-drawer" class="sidebar-drawer">
@@ -837,7 +788,6 @@
       </div>
       <button class="close-sidebar-btn" onclick="toggleSidebar(false)">&times;</button>
     </div>
-
 
     <div class="sidebar-body">
       <div class="sidebar-section-title">Menu Principal</div>
@@ -861,7 +811,6 @@
         <span class="badge-highlight">Ofertas</span>
       </button>
 
-
       <button class="sidebar-item" onclick="toggleSidebar(false); openHistoryModal();">
         <span class="sidebar-icon">📂</span>
         <div class="sidebar-item-text">
@@ -869,7 +818,6 @@
           <small>Histórico e total acumulado do mês</small>
         </div>
       </button>
-
 
       <button class="sidebar-item" onclick="toggleSidebar(false); openPreListModal();">
         <span class="sidebar-icon">📝</span>
@@ -880,9 +828,7 @@
         <span class="badge-highlight">Disponível</span>
       </button>
 
-
       <div class="sidebar-section-title">Comunidade & Ajuda</div>
-
 
       <button class="sidebar-item" onclick="toggleSidebar(false); shareAppWhatsApp();">
         <span class="sidebar-icon">📲</span>
@@ -892,7 +838,6 @@
         </div>
       </button>
 
-
       <button class="sidebar-item" onclick="toggleSidebar(false); openSupportEmail();">
         <span class="sidebar-icon">💡</span>
         <div class="sidebar-item-text">
@@ -901,7 +846,6 @@
         </div>
       </button>
 
-
       <button class="sidebar-item" onclick="toggleSidebar(false); installPWA();">
         <span class="sidebar-icon">📲</span>
         <div class="sidebar-item-text">
@@ -909,7 +853,6 @@
           <small>Adicionar à tela inicial do Android</small>
         </div>
       </button>
-
 
                   <!-- SEÇÃO EXCLUSIVA DO ADMINISTRADOR (SÓ APARECE PARA O ARTHUR LOGADO) -->
       <div id="sidebar-admin-section" class="hidden">
@@ -954,7 +897,6 @@
     </div>
   </div>
 
-
   <!-- Tela Principal com Câmera e Leitor (100% Limpa) -->
   <div class="container">
     <!-- Seção Scanner -->
@@ -974,11 +916,42 @@
         </button>
       </div>
 
+      <!-- Mascote Andante & Barra de Progresso de Economia (Gamificação) -->
+      <div id="mascot-progress-section" style="margin-top: 14px; background: #fff; border-radius: 14px; padding: 12px 14px; border: 1px solid #c8e6c9; box-shadow: 0 2px 8px rgba(46,125,50,0.08); position: relative;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 13px; font-weight: 700; color: #1b5e20;">🐷 Mascote da Economia</span>
+            <span id="mascot-level-badge" style="background: #e8f5e9; color: #2e7d32; font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 10px; border: 1px solid #a5d6a7;">Nível 1</span>
+          </div>
+          <span id="mascot-bips-label" style="font-size: 11.5px; color: #555; font-weight: 600;">0 itens somados</span>
+        </div>
+        
+        <!-- Trilha do Mascote Andante -->
+        <div style="position: relative; height: 38px; display: flex; align-items: flex-end; margin-bottom: 4px;">
+          <div id="walking-mascot" style="position: absolute; bottom: 7px; left: 0%; transform: translateX(-50%); transition: left 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); z-index: 2;">
+            <div id="mascot-bubble" style="background: #2e7d32; color: #fff; font-size: 9.5px; font-weight: bold; padding: 2px 6px; border-radius: 6px; white-space: nowrap; margin-bottom: 2px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.15);">
+              Bipe um item! 🛒
+            </div>
+            <div id="mascot-avatar" style="width: 28px; height: 28px; background: #4caf50; border: 2px solid #1b5e20; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); animation: mascotWalk 1.2s infinite alternate ease-in-out;">
+              🐷
+            </div>
+          </div>
+          
+          <div style="width: 100%; height: 9px; background: #e8f5e9; border-radius: 6px; overflow: hidden; border: 1px solid #c8e6c9;">
+            <div id="mascot-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #43a047, #1b5e20); transition: width 0.5s ease; border-radius: 6px;"></div>
+          </div>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; font-size: 10px; color: #777;">
+          <span>Início</span>
+          <span id="mascot-status-hint">Alimente o mascote bipando suas compras</span>
+          <span>Meta: 15 itens 🎯</span>
+        </div>
+      </div>
+
     </div>
 
-
     <div id="loading" class="loading hidden">🔍 Consultando preços em Cabo Frio e produto...</div>
-
 
     <!-- Seção Resultado -->
     <div id="result-section" class="hidden">
@@ -1004,14 +977,12 @@
         <h2 id="prod-name" style="font-size: 20px; color: #1a1a1a; margin-bottom: 3px;">Nome do Produto</h2>
         <p id="prod-brand" style="color: #666; font-size: 13px; margin-bottom: 0;">Marca | EAN</p>
 
-
         <!-- Campo para dar nome caso produto não exista no catálogo -->
         <div id="unnamed-box" class="hidden" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee;">
           <label style="color:#2e7d32; font-weight:bold;">📝 Produto sem nome no catálogo. Digite o nome dele:</label>
           <input type="text" id="manual-name-input" placeholder="Ex: Biscoito Recheado 130g">
         </div>
       </div>
-
 
       <!-- 1º LUGAR: PREÇO & ECONOMIA -->
       <div class="card" style="border: 2px solid #c8e6c9;">
@@ -1020,15 +991,12 @@
           <span style="font-size: 12px; color: #666; font-weight: normal;">Cabo Frio</span>
         </div>
 
-
         <div id="best-price-box" class="best-price-badge hidden"></div>
-
 
         <div id="quick-confirm-box" class="confirm-price-box hidden">
           <div>Preço visto recentemente aqui: <strong id="quick-confirm-val">R$ 0,00</strong></div>
           <button class="confirm-price-btn" onclick="confirmExistingPrice()">👍 Preço Confere (+ Colocar no Carrinho)</button>
         </div>
-
 
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
           <label style="margin-bottom:0; font-weight:bold;">Supermercado onde você está:</label>
@@ -1050,9 +1018,7 @@
           <div class="chip" onclick="openNewMarketModal()" style="border: 1px dashed #2e7d32; color: #2e7d32; font-weight:bold;">+ Cadastrar Mercado</div>
         </div>
 
-
         <input type="text" id="market-input" value="Atacadão" oninput="checkPriceComparison()">
-
 
         
         <!-- Seletor de Tipo: Unidade vs Quilo (Kg) -->
@@ -1088,14 +1054,10 @@
           Subtotal deste item: R$ 0,00
         </div>
 
-
-
         <div id="compare-alert" class="compare-alert hidden"></div>
-
 
         <button class="save-btn" onclick="saveAndAddToCart()">➕ Gravar e Colocar no Meu Pré-Caixa</button>
       </div>
-
 
       <!-- Histórico de Outros Mercados -->
       <div class="card">
@@ -1105,7 +1067,6 @@
         <div id="history-list"></div>
       </div>
 
-
       <!-- 2º LUGAR: SAÚDE & NUTRIÇÃO -->
       <div class="card">
         <div class="card-title">🥗 Informações Nutricionais (por 100g)</div>
@@ -1114,23 +1075,15 @@
         <div class="nutri-row"><span>🧂 Sódio</span><span class="nutri-val" id="prod-sodium">0 g</span></div>
       </div>
 
-
       <button class="reset-btn" onclick="resetScan()" style="margin-bottom: 20px;">📷 Escanear Outro Produto</button>
     </div>
-
 
     <!-- Rodapé Legal e LGPD -->
     
   </div>
 
-
   
   </div>
-
-
-
-
-
 
   <!-- Modal de Instalação PWA Profissional -->
   <div class="modal hidden" id="install-modal">
@@ -1142,13 +1095,11 @@
         <button style="border:none; background:none; font-size:24px; cursor:pointer; color:#777;" onclick="closeInstallModal()">&times;</button>
       </div>
 
-
       <div style="text-align: center; margin-bottom: 16px; padding: 6px 0;">
         <img src="https://cdn-icons-png.flaticon.com/512/2424/2424444.png" alt="NutriPreço" style="width: 68px; height: 68px; border-radius: 16px; box-shadow: 0 4px 12px rgba(46,125,50,0.2); margin-bottom: 8px;">
         <h4 style="font-size: 17px; color: #1b5e20; margin-bottom: 4px; font-weight: bold;">NutriPreço no seu Celular</h4>
         <p style="font-size: 13px; color: #555; line-height: 1.4;">Adicione o app à sua tela inicial para calcular o carrinho na gôndola e consultar preços mais rápido, mesmo sem internet.</p>
       </div>
-
 
       <!-- Vantagens do App -->
       <div style="display: flex; justify-content: space-around; background: #f1f8e9; border-radius: 12px; padding: 12px 6px; margin-bottom: 16px; border: 1px solid #c8e6c9;">
@@ -1166,14 +1117,12 @@
         </div>
       </div>
 
-
       <!-- Botão Direto (se suportado pelo navegador) -->
       <div id="install-native-box" class="hidden" style="margin-bottom: 14px;">
         <button onclick="triggerNativeInstall()" style="width: 100%; background: #2e7d32; color: white; border: none; padding: 13px; border-radius: 10px; font-weight: bold; font-size: 15px; cursor: pointer; box-shadow: 0 4px 10px rgba(46,125,50,0.25); display: flex; justify-content: center; align-items: center; gap: 8px;">
           ⬇️ Instalar Agora com 1 Toque
         </button>
       </div>
-
 
       <!-- Passo a passo visual Android -->
       <div style="background: #fafafa; border-radius: 12px; padding: 14px; border: 1px solid #e0e0e0; margin-bottom: 14px;">
@@ -1194,12 +1143,10 @@
         </div>
       </div>
 
-
       <!-- Guia rápido iOS/iPhone -->
       <div style="background: #fafafa; border-radius: 12px; padding: 12px 14px; border: 1px solid #e0e0e0; margin-bottom: 16px; font-size: 12px; color: #666;">
         <strong style="color: #222;">🍎 No iPhone (Safari):</strong> Toque no ícone de <strong>Compartilhar (quadrado com seta ⎋)</strong> e selecione <strong>'Adicionar à Tela de Início'</strong>.
       </div>
-
 
       <button class="save-btn" onclick="closeInstallModal()" style="margin-top: 0; background: #2e7d32;">
         Entendi
@@ -1207,21 +1154,7 @@
     </div>
   </div>
 
-
-    <!-- Barra Fixa do Pré-Caixa -->
-  <div class="cart-bar" id="cart-bar">
-    <div class="cart-bar-budget-line">
-      <div id="cart-bar-budget-fill" class="cart-bar-budget-fill"></div>
-    </div>
-    <div class="cart-info">
-      <span>Meu Pré-Caixa (<span id="cart-count">0</span> itens):</span>
-      <strong id="cart-total">R$ 0,00</strong>
-    </div>
-    <button class="cart-btn" onclick="openCartModal()">Ver Carrinho</button>
-  </div>
-
-
-
+  <!-- Barra fixa inferior duplicada removida: o HUD no topo já exibe o total e botão do carrinho -->
 
   <!-- Modal do Radar de Preços & Cesta Básica -->
   <div class="modal hidden" id="radar-modal">
@@ -1234,25 +1167,16 @@
         <button style="border:none; background:none; font-size:24px; cursor:pointer;" onclick="closeRadarModal()">&times;</button>
       </div>
 
-
-
-
       <!-- Abas / Filtros Rápidos -->
       <div class="radar-tabs">
         <button class="radar-tab active" id="tab-all-products" onclick="setRadarFilter('all')">🌐 Todos os Produtos</button>
         <button class="radar-tab" id="tab-cesta-basica" onclick="setRadarFilter('cesta')">🧺 Cesta Básica Oficial</button>
       </div>
 
-
-
-
       <!-- Campo de Busca em Tempo Real -->
       <div style="margin: 11px 0;">
         <input type="text" id="radar-search-input" placeholder="🔍 Buscar produto (ex: café, arroz, leite, carne)..." oninput="renderRadarProducts()" style="padding: 10px 14px; font-size: 14px;">
       </div>
-
-
-
 
       <!-- Placar da Cesta Básica -->
       <div id="cesta-summary-box" class="cesta-summary-box hidden">
@@ -1260,22 +1184,13 @@
         <div id="cesta-markets-ranking"></div>
       </div>
 
-
-
-
       <!-- Lista Comparativa Tipo Planilha -->
       <div id="radar-loading" class="loading" style="padding: 20px;">🔍 Carregando cotações de Cabo Frio...</div>
       <div id="radar-products-list" style="margin-bottom: 16px;"></div>
 
-
-
-
       <button class="reset-btn" onclick="closeRadarModal()">Fechar Radar</button>
     </div>
   </div>
-
-
-
 
   <!-- Modal do Carrinho Atual -->
   <div class="modal hidden" id="cart-modal">
@@ -1307,18 +1222,12 @@
         <span id="modal-cart-total" style="color: #2e7d32;">R$ 0,00</span>
       </div>
 
-
-
-
       <!-- Ações do Carrinho -->
       <button class="save-btn" style="margin-top:0; margin-bottom:8px; background:#1b5e20;" onclick="finalizeAndSavePurchase()">💾 Finalizar e Salvar no Histórico</button>
       <button class="whatsapp-btn" onclick="shareCartWhatsApp()">📲 Enviar Lista no WhatsApp</button>
       <button class="reset-btn" style="background:#ffebee; color:#c62828; margin-top:8px;" onclick="clearCart()">🗑️ Limpar Carrinho</button>
     </div>
   </div>
-
-
-
 
   <!-- Modal Minhas Compras Salvas -->
   <div class="modal hidden" id="history-modal">
@@ -1327,9 +1236,6 @@
         <h3 style="color: #2e7d32;">📂 Minhas Compras Salvas</h3>
         <button style="border:none; background:none; font-size:22px; cursor:pointer;" onclick="closeHistoryModal()">&times;</button>
       </div>
-
-
-
 
       <!-- Estatísticas do Histórico -->
       <div class="history-stat-box">
@@ -1343,16 +1249,10 @@
         </div>
       </div>
 
-
-
-
       <div id="history-items-container" style="margin-bottom: 16px;"></div>
       <button class="reset-btn" onclick="closeHistoryModal()">Fechar Histórico</button>
     </div>
   </div>
-
-
-
 
   <!-- Modal de Login & Conta -->
   <div class="modal hidden" id="auth-modal">
@@ -1367,18 +1267,16 @@
           <button class="reset-btn" style="background:#ffebee; color:#c62828; margin-bottom:8px;" onclick="logoutUser()">🚪 Sair da Conta</button>
           <button class="reset-btn" style="background:#ffebee; color:#b71c1c; font-size:12px;" onclick="deleteUserAccount()">⚠️ Excluir Minha Conta e Meus Dados (LGPD)</button>
         </div>
-        <div id="auth-form-view">
+        <form id="auth-form-view" onsubmit="event.preventDefault(); handleAuth('login');">
           <p style="font-size:13px; color:#666; margin-bottom:12px;">Identifique-se para cadastrar preços confiáveis e sincronizar suas compras.</p>
-          <input type="email" id="auth-email" placeholder="Seu e-mail">
-          <input type="password" id="auth-password" placeholder="Sua senha (mínimo 6 dígitos)">
-          <button class="save-btn" onclick="handleAuth('login')">Entrar na Conta</button>
-          <button class="reset-btn" onclick="handleAuth('signup')">Criar Nova Conta Grátis</button>
-        </div>
+          <input type="email" id="auth-email" name="username" autocomplete="email" placeholder="Seu e-mail" required style="width:100%; padding:11px; border:1px solid #ccc; border-radius:8px; font-size:15px; margin-bottom:10px;">
+          <input type="password" id="auth-password" name="password" autocomplete="current-password" placeholder="Sua senha (mínimo 6 dígitos)" required style="width:100%; padding:11px; border:1px solid #ccc; border-radius:8px; font-size:15px; margin-bottom:12px;">
+          <button type="submit" class="save-btn">Entrar na Conta</button>
+          <button type="button" class="reset-btn" onclick="handleAuth('signup')">Criar Nova Conta Grátis</button>
+        </form>
       </div>
     </div>
   </div>
-
-
 
   <script>
     const SUPABASE_URL = 'https://fzoyldcfyiigwyxxhosd.supabase.co';
@@ -1561,8 +1459,6 @@
 
     setTimeout(syncOfflineQueue, 2500);
 
-
-
     // ==========================================
     
     // ==========================================
@@ -1570,17 +1466,14 @@
     // ==========================================
     let budgetLimit = parseFloat(localStorage.getItem('nutri_budget_limit') || '0');
 
-
     function setBudgetLimit(val, chipEl = null) {
       budgetLimit = val;
       localStorage.setItem('nutri_budget_limit', budgetLimit);
-
 
       if (chipEl) {
         document.querySelectorAll('.budget-chip').forEach(c => c.classList.remove('active'));
         chipEl.classList.add('active');
       }
-
 
       updateBudgetDisplay();
       if (val > 0) {
@@ -1589,7 +1482,6 @@
         showToast('Teto de gastos desativado.', 'info');
       }
     }
-
 
     async function promptCustomBudget(chipEl) {
       const valStr = prompt('Digite o teto máximo de gastos para hoje em R$:');
@@ -1603,7 +1495,6 @@
       }
     }
 
-
     function updateBudgetDisplay() {
       const total = cart.reduce((acc, i) => acc + (i.price * i.qty), 0);
       const label = document.getElementById('budget-current-label');
@@ -1612,9 +1503,7 @@
       const alertText = document.getElementById('budget-status-alert');
       const lineFill = document.getElementById('cart-bar-budget-fill');
 
-
       if (!label || !bar) return;
-
 
       if (!budgetLimit || budgetLimit <= 0) {
         label.innerText = 'Não definido';
@@ -1627,13 +1516,11 @@
         return;
       }
 
-
       label.innerText = 'R$ ' + budgetLimit.toFixed(2).replace('.', ',');
       const pct = Math.round((total / budgetLimit) * 100);
       percLabel.innerText = pct + '%';
       bar.style.width = Math.min(pct, 100) + '%';
       if (lineFill) lineFill.style.width = Math.min(pct, 100) + '%';
-
 
       if (pct < 80) {
         bar.style.backgroundColor = '#2e7d32';
@@ -1652,7 +1539,6 @@
         alertText.style.color = '#c62828';
       }
     }
-
 
     // ==========================================
     // 2. LISTA PRÉVIA DINÂMICA (MONTAR NO SOFÁ)
@@ -1675,9 +1561,7 @@
       { name: 'Papel Higiênico', icon: '🧻' }
     ];
 
-
     let cachedDbProducts = [];
-
 
     function openPreListModal() {
       renderPrelistTabQuick();
@@ -1686,18 +1570,15 @@
       document.getElementById('prelist-modal').classList.remove('hidden');
     }
 
-
     function closePreListModal() {
       document.getElementById('prelist-modal').classList.add('hidden');
     }
-
 
     function switchPrelistTab(tab) {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       document.getElementById('prelist-tab-quick-content').classList.add('hidden');
       document.getElementById('prelist-tab-catalog-content').classList.add('hidden');
       document.getElementById('prelist-tab-mylist-content').classList.add('hidden');
-
 
       if (tab === 'quick') {
         document.getElementById('tab-btn-quick').classList.add('active');
@@ -1710,7 +1591,6 @@
         document.getElementById('prelist-tab-mylist-content').classList.remove('hidden');
       }
     }
-
 
     function renderPrelistTabQuick() {
       const grid = document.getElementById('quick-cesta-grid');
@@ -1727,7 +1607,6 @@
       });
     }
 
-
     async function loadDbCatalogForPrelist() {
       const grid = document.getElementById('catalog-db-grid');
       try {
@@ -1739,7 +1618,6 @@
         grid.innerHTML = '<div style="grid-column:1/-1; color:#888; text-align:center; padding:15px;">Use a busca acima ou a aba Cesta Básica.</div>';
       }
     }
-
 
     function renderDbCatalogGrid(prods) {
       const grid = document.getElementById('catalog-db-grid');
@@ -1760,13 +1638,11 @@
       });
     }
 
-
     function filterCatalogSearch() {
       const q = document.getElementById('catalog-search-input').value.toLowerCase().trim();
       const filtered = cachedDbProducts.filter(p => p.nome.toLowerCase().includes(q));
       renderDbCatalogGrid(filtered);
     }
-
 
     function addPrelistItem(name) {
       if (!name || name.trim() === '') return;
@@ -1781,7 +1657,6 @@
       showToast(`+ '${name}' adicionado à sua lista!`, 'success');
     }
 
-
     function addManualPrelistItem() {
       const input = document.getElementById('manual-prelist-input');
       const val = input.value.trim();
@@ -1789,7 +1664,6 @@
       addPrelistItem(val);
       input.value = '';
     }
-
 
     function togglePrelistItemDone(id) {
       const item = preShoppingList.find(i => i.id === id);
@@ -1800,25 +1674,21 @@
       }
     }
 
-
     function removePrelistItem(id) {
       preShoppingList = preShoppingList.filter(i => i.id !== id);
       savePrelist();
       renderMyPrelistItems();
     }
 
-
     function renderMyPrelistItems() {
       const container = document.getElementById('prelist-items-container');
       const badge = document.getElementById('prelist-count-badge');
       badge.innerText = preShoppingList.length;
 
-
       if (preShoppingList.length === 0) {
         container.innerHTML = '<div style="text-align:center; color:#888; padding:25px; font-size:13px;">Sua lista de compras está vazia.<br>Toque nos produtos das outras abas para adicionar.</div>';
         return;
       }
-
 
       container.innerHTML = '';
       preShoppingList.forEach(item => {
@@ -1833,14 +1703,12 @@
       });
     }
 
-
     function clearCompletedPrelist() {
       preShoppingList = preShoppingList.filter(i => !i.done);
       savePrelist();
       renderMyPrelistItems();
       showToast('Itens marcados removidos.', 'info');
     }
-
 
     async function clearAllPrelist() {
       if (preShoppingList.length === 0) return;
@@ -1859,11 +1727,9 @@
       }
     }
 
-
     function savePrelist() {
       localStorage.setItem('nutri_pre_shopping_list', JSON.stringify(preShoppingList));
     }
-
 
     // ==========================================
     // 3. RELATÓRIO EXECUTIVO (B2C & B2B / PRESTAÇÃO DE CONTAS)
@@ -1874,13 +1740,11 @@
         return;
       }
 
-
       const total = cart.reduce((acc, i) => acc + (i.price * i.qty), 0);
       const itemsCount = cart.reduce((acc, i) => acc + i.qty, 0);
       const avg = itemsCount > 0 ? (total / itemsCount) : 0;
       const marketName = document.getElementById('market-input').value.trim() || 'Supermercado em Cabo Frio';
       const nowStr = new Date().toLocaleDateString('pt-BR') + ' às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-
 
       document.getElementById('rep-kpi-total').innerText = 'R$ ' + total.toFixed(2).replace('.', ',');
       document.getElementById('rep-kpi-items').innerText = itemsCount + ' un.';
@@ -1888,7 +1752,6 @@
       document.getElementById('rep-kpi-market').innerText = marketName;
       document.getElementById('rep-date-time').innerText = 'Data: ' + nowStr + ' | Estabelecimento: ' + marketName;
       document.getElementById('rep-footer-total').innerText = 'R$ ' + total.toFixed(2).replace('.', ',');
-
 
       const table = document.getElementById('rep-items-table');
       table.innerHTML = '';
@@ -1903,15 +1766,12 @@
         table.appendChild(row);
       });
 
-
       document.getElementById('report-modal').classList.remove('hidden');
     }
-
 
     function closeReportModal() {
       document.getElementById('report-modal').classList.add('hidden');
     }
-
 
     function shareExecutiveReportWhatsApp() {
       if (!cart || cart.length === 0) return;
@@ -1920,7 +1780,6 @@
       const avg = itemsCount > 0 ? (total / itemsCount) : 0;
       const marketName = document.getElementById('market-input').value.trim() || 'Supermercado em Cabo Frio';
       const nowStr = new Date().toLocaleDateString('pt-BR') + ' às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-
 
       let msg = `📊 *NUTRIPREÇO • RELATÓRIO EXECUTIVO DE COMPRA*\n`;
       msg += `📍 *Estabelecimento:* ${marketName}\n`;
@@ -1932,21 +1791,17 @@
       msg += `────────────────────────────\n`;
       msg += `📋 *DISCRIMINAÇÃO DE ITENS:*\n\n`;
 
-
       cart.forEach((item, idx) => {
         const sub = item.price * item.qty;
         msg += `${idx + 1}. *${item.name}*\n   ${item.qty}x un. × R$ ${item.price.toFixed(2).replace('.', ',')} = R$ ${sub.toFixed(2).replace('.', ',')}\n`;
       });
 
-
       msg += `\n────────────────────────────\n`;
       msg += `💡 *Relatório gerado via NutriPreço Cabo Frio*\n`;
       msg += `👉 https://arthursantosmedia-stack.github.io/Nutri-preco1/`;
 
-
       window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
     }
-
 
     // ==========================================
     // 4. PAINEL DO ADMINISTRADOR (ADMIN & CSV)
@@ -2143,14 +1998,12 @@
 
     
 
-
     async function openAdminModal() {
       document.getElementById('admin-modal').classList.remove('hidden');
       try {
         const { count: prodCount } = await client.from('produtos').select('*', { count: 'exact', head: true });
         const { count: precoCount } = await client.from('registros_precos').select('*', { count: 'exact', head: true });
         const { count: marketCount } = await client.from('mercados').select('*', { count: 'exact', head: true });
-
 
         document.getElementById('admin-count-prods').innerText = prodCount ?? '0';
         document.getElementById('admin-count-precos').innerText = precoCount ?? '0';
@@ -2163,7 +2016,6 @@
       }
     }
 
-
     
     function loadActiveEncartes() {
       if (typeof loadActivePhotoEncartes === 'function') loadActivePhotoEncartes();
@@ -2173,7 +2025,6 @@
       document.getElementById('admin-modal').classList.add('hidden');
     }
 
-
     async function exportPricesCSV() {
       try {
         showToast('Gerando planilha CSV...', 'info');
@@ -2182,13 +2033,11 @@
           .select('id, preco, data_registro, produtos(nome, codigo_barras, marca), mercados(nome, cidade)')
           .order('data_registro', { ascending: false });
 
-
         if (error) throw error;
         if (!data || data.length === 0) {
           showToast('Nenhum dado registrado para exportar.', 'warning');
           return;
         }
-
 
         let csv = 'ID,Produto,Marca,Codigo_Barras,Preco_R$,Supermercado,Cidade,Data_Registro\n';
         data.forEach(r => {
@@ -2201,7 +2050,6 @@
           const dataReg = r.data_registro || '';
           csv += `${r.id},"${prodNome}","${marca}","${ean}",${preco},"${mercado}","${cidade}","${dataReg}"\n`;
         });
-
 
         const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
@@ -2218,27 +2066,22 @@
       }
     }
 
-
     // SISTEMA DE FEEDBACK PROFISSIONAL (TOASTS & CONFIRM)
     // ==========================================
     function showToast(message, type = 'info', duration = 3800) {
       const container = document.getElementById('toast-container');
       if (!container) return;
 
-
       const toast = document.createElement('div');
       toast.className = `toast-box toast-${type}`;
-
 
       let icon = 'ℹ️';
       if (type === 'success') icon = '✅';
       else if (type === 'error') icon = '❌';
       else if (type === 'warning') icon = '⚠️';
 
-
       toast.innerHTML = `<span style="font-size:18px; line-height:1;">${icon}</span><span style="flex:1;">${message}</span>`;
       container.appendChild(toast);
-
 
       setTimeout(() => {
         toast.classList.add('hiding');
@@ -2247,7 +2090,6 @@
         }, 300);
       }, duration);
     }
-
 
     function showConfirmDialog({ title = 'Confirmação', message = '', icon = '⚠️', okText = 'Confirmar', cancelText = 'Cancelar', isDestructive = false }) {
       return new Promise((resolve) => {
@@ -2260,16 +2102,13 @@
         okBtn.innerText = okText;
         cancelBtn.innerText = cancelText;
 
-
         if (isDestructive) {
           okBtn.style.background = '#c62828';
         } else {
           okBtn.style.background = '#2e7d32';
         }
 
-
         modal.classList.remove('hidden');
-
 
         const cleanup = () => {
           modal.classList.add('hidden');
@@ -2277,14 +2116,10 @@
           cancelBtn.onclick = null;
         };
 
-
         okBtn.onclick = () => { cleanup(); resolve(true); };
         cancelBtn.onclick = () => { cleanup(); resolve(false); };
       });
     }
-
-
-
 
     let html5QrCode;
     let currentBarcode = '';
@@ -2295,21 +2130,17 @@
     let existingPriceForCurrentMarket = null;
     let deferredPrompt = null;
 
-
     let cart = JSON.parse(localStorage.getItem('nutri_cart') || '[]');
     let purchaseHistory = JSON.parse(localStorage.getItem('nutri_purchases_history') || '[]');
     let currentUser = null;
         checkAdminAccess(null);
 
-
     // Estado do Radar de Preços & Cesta Básica
     let radarData = [];
     let currentRadarFilter = 'all';
 
-
     // Termos que qualificam a Cesta Básica Oficial (DIEESE / Governo)
     const CESTA_TERMS = ['arroz', 'feijão', 'feijao', 'café', 'cafe', 'leite', 'óleo', 'oleo', 'açúcar', 'acucar', 'farinha', 'carne', 'frango', 'pão', 'pao', 'manteiga', 'margarina', 'tomate', 'banana', 'batata'];
-
 
         // ==========================================
     // ONBOARDING DE BOAS-VINDAS & SAUDAÇÃO PERSONALIZADA
@@ -2390,15 +2221,7 @@
       showToast(`Tudo pronto, ${name}! Boas compras em ${city}.`, 'success');
     }
 
-    async function editUserCity() {
-      const currentCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio - RJ';
-      const novaCidade = prompt('Digite sua cidade e estado:', currentCity);
-      if (novaCidade && novaCidade.trim()) {
-        const cleanCity = novaCidade.trim();
-        localStorage.setItem('nutri_user_city', cleanCity);
-        const bannerCity = document.getElementById('banner-user-city');
-        if (bannerCity) bannerCity.innerText = cleanCity;
-        showToast(`Cidade atualizada para: ${cleanCity}`, 'success');
+    async // editUserCity consolidada abaixo`, 'success');
       }
     }
 
@@ -2408,7 +2231,6 @@
       updateBudgetDisplay();
       checkAuthSession();
     });
-
 
     // Controle do Menu Lateral Deslizante (Drawer)
     function toggleSidebar(show) {
@@ -2423,18 +2245,15 @@
       }
     }
 
-
     // Modal do Radar de Preços & Cesta Básica
     function openRadarModal() {
       document.getElementById('radar-modal').classList.remove('hidden');
       fetchRadarData();
     }
 
-
     function closeRadarModal() {
       document.getElementById('radar-modal').classList.add('hidden');
     }
-
 
     function setRadarFilter(filter) {
       currentRadarFilter = filter;
@@ -2443,12 +2262,10 @@
       renderRadarProducts();
     }
 
-
     async function fetchRadarData() {
       const loadingEl = document.getElementById('radar-loading');
       loadingEl.classList.remove('hidden');
       document.getElementById('radar-products-list').innerHTML = '';
-
 
       try {
         const { data, error } = await client
@@ -2456,7 +2273,6 @@
           .select('preco, data_registro, mercados(nome), produtos(id, nome, marca, codigo_barras)')
           .order('data_registro', { ascending: false })
           .limit(150);
-
 
         if (error) throw error;
         radarData = data || [];
@@ -2468,20 +2284,17 @@
       }
     }
 
-
     function renderRadarProducts() {
       const listContainer = document.getElementById('radar-products-list');
       const searchVal = (document.getElementById('radar-search-input').value || '').toLowerCase().trim();
       const cestaBox = document.getElementById('cesta-summary-box');
       listContainer.innerHTML = '';
 
-
       if (radarData.length === 0) {
         listContainer.innerHTML = '<div style="text-align:center; color:#888; font-size:13px; padding:25px;">Nenhum preço registrado ainda nesta região.<br>Bipe produtos na gôndola para alimentar o Radar da sua cidade!</div>';
         cestaBox.classList.add('hidden');
         return;
       }
-
 
       // Agrupa os registros por produto
       const grouped = {};
@@ -2504,9 +2317,7 @@
         });
       });
 
-
       let productsList = Object.values(grouped);
-
 
       // Filtro de Busca
       if (searchVal) {
@@ -2515,7 +2326,6 @@
           p.marca.toLowerCase().includes(searchVal)
         );
       }
-
 
       // Filtro da Cesta Básica Oficial
       if (currentRadarFilter === 'cesta') {
@@ -2529,12 +2339,10 @@
         cestaBox.classList.add('hidden');
       }
 
-
       if (productsList.length === 0) {
         listContainer.innerHTML = '<div style="text-align:center; color:#888; font-size:13px; padding:20px;">Nenhum produto encontrado com os filtros selecionados.</div>';
         return;
       }
-
 
       productsList.forEach(p => {
         // Encontra o menor preço e os outros
@@ -2542,7 +2350,6 @@
         const menor = sorted[0];
         const maior = sorted[sorted.length - 1];
         const isCesta = CESTA_TERMS.some(t => p.nome.toLowerCase().includes(t));
-
 
         let diffHtml = '';
         if (sorted.length > 1 && maior.preco > menor.preco) {
@@ -2556,7 +2363,6 @@
           `;
         }
 
-
         const card = document.createElement('div');
         card.className = 'radar-card';
         card.innerHTML = `
@@ -2567,7 +2373,6 @@
             </div>
             ${isCesta ? '<span class="cesta-badge">🧺 Cesta Básica</span>' : ''}
           </div>
-
 
           <div class="radar-price-comparison">
             <div class="best-market-row">
@@ -2581,14 +2386,12 @@
       });
     }
 
-
     function renderCestaRanking(cestaProducts) {
       const box = document.getElementById('cesta-markets-ranking');
       if (cestaProducts.length === 0) {
         box.innerHTML = '<div style="color:#666;">Ainda não há dados suficientes de itens da Cesta Básica registrados.</div>';
         return;
       }
-
 
       // Soma por mercado
       const marketSums = {};
@@ -2600,17 +2403,14 @@
         });
       });
 
-
       const ranking = Object.keys(marketSums)
         .map(m => ({ mercado: m, total: marketSums[m].total, count: marketSums[m].count }))
         .sort((a, b) => (a.total / a.count) - (b.total / b.count));
-
 
       if (ranking.length === 0) {
         box.innerHTML = '<div style="color:#666;">Bipe os itens da cesta básica para gerar o ranking da cidade.</div>';
         return;
       }
-
 
       const campeao = ranking[0];
       let html = `<div style="margin-bottom:6px; font-weight:bold; color:#2e7d32;">🏆 Mercado Mais Barato do Básico: <b>${campeao.mercado}</b></div>`;
@@ -2626,7 +2426,6 @@
       box.innerHTML = html;
     }
 
-
     // PWA Install Prompt Listener
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
@@ -2634,7 +2433,6 @@
       const installBtn = document.getElementById('install-pwa-btn');
       if (installBtn) installBtn.classList.remove('hidden');
     });
-
 
         function openInstallModal() {
       const nativeBox = document.getElementById('install-native-box');
@@ -2646,11 +2444,9 @@
       document.getElementById('install-modal').classList.remove('hidden');
     }
 
-
     function closeInstallModal() {
       document.getElementById('install-modal').classList.add('hidden');
     }
-
 
     function triggerNativeInstall() {
       if (deferredPrompt) {
@@ -2668,7 +2464,6 @@
       }
     }
 
-
     function installPWA() {
       if (deferredPrompt) {
         triggerNativeInstall();
@@ -2677,6 +2472,53 @@
       }
     }
 
+    
+    // ==========================================
+    // DETECTOR UNIVERSAL DE PWA & INSTALAÇÃO OBRIGATÓRIA
+    // ==========================================
+    function isRunningStandalone() {
+      return window.matchMedia('(display-mode: standalone)').matches || 
+             window.navigator.standalone === true || 
+             document.referrer.includes('android-app://');
+    }
+
+    function checkUniversalPWA() {
+      // Se já está instalado na tela inicial, esconde botões e não perturba
+      if (isRunningStandalone()) {
+        const installBtn = document.getElementById('install-pwa-btn');
+        if (installBtn) installBtn.classList.add('hidden');
+        const welcomeInstall = document.getElementById('welcome-install-box');
+        if (welcomeInstall) welcomeInstall.classList.add('hidden');
+        return;
+      }
+
+      const isInstagramOrWhatsApp = /Instagram|FBAN|FBAV|WhatsApp/i.test(navigator.userAgent);
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+      // Se abriu pelo navegador interno do Instagram/WhatsApp
+      if (isInstagramOrWhatsApp) {
+        const tipBox = document.getElementById('whatsapp-browser-tip');
+        if (tipBox) {
+          tipBox.classList.remove('hidden');
+          tipBox.innerHTML = `⚠️ <b>Atenção:</b> Você abriu pelo Instagram/WhatsApp.<br>Para instalar o app e salvar suas compras offline, toque nos <b>três pontinhos (...) no topo</b> e escolha <b>"Abrir no Chrome"</b> ou <b>"Abrir no Safari"</b>.`;
+        }
+      }
+
+      // Mostra botão de instalar no topo
+      const installBtn = document.getElementById('install-pwa-btn');
+      if (installBtn) installBtn.classList.remove('hidden');
+
+      // Se for o primeiro acesso e não for standalone, abre o modal de boas-vindas com a instalação
+      const hasVisited = localStorage.getItem('nutri_user_city');
+      if (!hasVisited) {
+        openInstallModal();
+      }
+    }
+
+    // Executa verificação PWA no carregamento
+    window.addEventListener('DOMContentLoaded', () => {
+      setTimeout(checkUniversalPWA, 800);
+    });
 
     async function checkAuthSession() {
       const { data: { session } } = await client.auth.getSession();
@@ -2690,7 +2532,6 @@
       }
     }
 
-
     function openAuthModal() {
       if (currentUser) {
         document.getElementById('auth-logged-in-view').classList.remove('hidden');
@@ -2703,11 +2544,9 @@
       document.getElementById('auth-modal').classList.remove('hidden');
     }
 
-
     function closeAuthModal() {
       document.getElementById('auth-modal').classList.add('hidden');
     }
-
 
     async function logoutUser() {
       await client.auth.signOut();
@@ -2719,7 +2558,6 @@
       closeAuthModal();
       showToast('Você saiu da sua conta.', 'info');
     }
-
 
     async function deleteUserAccount() {
       const confirmed = await showConfirmDialog({
@@ -2736,17 +2574,14 @@
       }
     }
 
-
     async function handleAuth(type) {
       const email = document.getElementById('auth-email').value.trim();
       const password = document.getElementById('auth-password').value;
-
 
       if (!email || password.length < 6) {
         showToast('Digite um e-mail válido e uma senha de no mínimo 6 caracteres.', 'warning');
         return;
       }
-
 
       try {
         if (type === 'login') {
@@ -2770,7 +2605,6 @@
       }
     }
 
-
     function selectMarket(el, name) {
       document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
       el.classList.add('active');
@@ -2784,7 +2618,6 @@
       checkQuickConfirm();
       checkPriceComparison();
     }
-
 
     function startScanner() {
       detectGPSLocation(false);
@@ -2800,7 +2633,6 @@
         document.getElementById('start-btn').classList.remove('hidden');
       });
     }
-
 
     async function onCodeScanned(barcode) {
       if (html5QrCode) await html5QrCode.stop();
@@ -2913,7 +2745,6 @@
       historyList.innerHTML = '';
       bestPriceBox.classList.add('hidden');
 
-
       const { data: precos } = await client
         .from('registros_precos')
         .select('preco, data_registro, mercados(nome)')
@@ -2921,9 +2752,7 @@
         .order('data_registro', { ascending: false })
         .limit(10);
 
-
       cachedPrices = precos || [];
-
 
       if (cachedPrices.length === 0) {
         historyList.innerHTML = '<div style="color:#888; font-size:13px; text-align:center; padding:10px;">Nenhum preço registrado ainda nesta região. Seja o primeiro a informar!</div>';
@@ -2931,22 +2760,18 @@
         return;
       }
 
-
       const valores = cachedPrices.map(p => parseFloat(p.preco));
       const menor = Math.min(...valores);
       const registroMaisBarato = cachedPrices.find(p => parseFloat(p.preco) === menor);
       const mercadoBarato = registroMaisBarato?.mercados?.nome || 'Mercado';
 
-
       bestPriceBox.innerHTML = `🏆 <b>Menor Preço em Cabo Frio:</b> R$ ${menor.toFixed(2)} (${mercadoBarato})`;
       bestPriceBox.classList.remove('hidden');
-
 
       cachedPrices.slice(0, 5).forEach(item => {
         const dataObj = new Date(item.data_registro);
         const tempoFormatado = formatRelativeTime(dataObj);
         const mercadoNome = item.mercados?.nome || 'Supermercado';
-
 
         const row = document.createElement('div');
         row.className = 'history-item';
@@ -2962,11 +2787,9 @@
         historyList.appendChild(row);
       });
 
-
       checkQuickConfirm();
       checkPriceComparison();
     }
-
 
     function formatRelativeTime(date) {
       const diffHrs = Math.round((new Date() - date) / (1000 * 60 * 60));
@@ -2976,12 +2799,10 @@
       return diffDays === 1 ? 'Visto ontem' : `Visto há ${diffDays} dias`;
     }
 
-
     function checkQuickConfirm() {
       const currentMarket = document.getElementById('market-input').value.trim();
       const confirmBox = document.getElementById('quick-confirm-box');
       const confirmVal = document.getElementById('quick-confirm-val');
-
 
       const match = cachedPrices.find(p => (p.mercados?.nome || '').toLowerCase() === currentMarket.toLowerCase());
       if (match) {
@@ -2994,31 +2815,25 @@
       }
     }
 
-
     function checkPriceComparison() {
       const priceVal = parseFloat(document.getElementById('price-input').value);
       const currentMarket = document.getElementById('market-input').value.trim();
       const alertBox = document.getElementById('compare-alert');
-
 
       if (!priceVal || isNaN(priceVal) || cachedPrices.length === 0) {
         alertBox.classList.add('hidden');
         return;
       }
 
-
       const outroMercado = cachedPrices.find(p => (p.mercados?.nome || '').toLowerCase() !== currentMarket.toLowerCase()) || cachedPrices[0];
       const outroPreco = parseFloat(outroMercado.preco);
       const outroNome = outroMercado.mercados?.nome || 'outro mercado';
-
 
       const diff = priceVal - outroPreco;
       const diffAbs = Math.abs(diff).toFixed(2);
       const perc = Math.round((Math.abs(diff) / outroPreco) * 100);
 
-
       alertBox.classList.remove('hidden', 'cheaper', 'expensive', 'equal');
-
 
       if (diff < -0.05) {
         alertBox.classList.add('cheaper');
@@ -3032,14 +2847,12 @@
       }
     }
 
-
     async function confirmExistingPrice() {
       if (!existingPriceForCurrentMarket) return;
       await recordPriceInDb(existingPriceForCurrentMarket);
       addToCart(currentName || 'Produto', existingPriceForCurrentMarket);
       resetScan();
     }
-
 
     async function saveAndAddToCart() {
       const priceVal = parseFloat(document.getElementById('price-input').value);
@@ -3145,7 +2958,6 @@
       }
     }
 
-
     function addToCart(name, price) {
       const existing = cart.find(i => i.barcode === currentBarcode);
       if (existing) {
@@ -3159,22 +2971,71 @@
       showToast(`🛒 ${name} adicionado ao Pré-Caixa!`, "success");
     }
 
-
     function updateCartDisplay() {
       const total = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
       const count = cart.reduce((acc, item) => acc + item.qty, 0);
 
+      const cartCountEl = document.getElementById('cart-count');
+      if (cartCountEl) cartCountEl.innerText = count;
+      const cartTotalEl = document.getElementById('cart-total');
+      if (cartTotalEl) cartTotalEl.innerText = `R$ ${total.toFixed(2).replace('.', ',')}`;
 
-      document.getElementById('cart-count').innerText = count;
-      document.getElementById('cart-total').innerText = `R$ ${total.toFixed(2)}`;
-      document.getElementById('modal-cart-total').innerText = `R$ ${total.toFixed(2)}`;
+      const topHudTotal = document.getElementById('top-hud-total');
+      if (topHudTotal) topHudTotal.innerText = `R$ ${total.toFixed(2).replace('.', ',')}`;
+      const topHudCount = document.getElementById('top-hud-count');
+      if (topHudCount) topHudCount.innerText = count;
+
+      const modalCartTotal = document.getElementById('modal-cart-total');
+      if (modalCartTotal) modalCartTotal.innerText = `R$ ${total.toFixed(2).replace('.', ',')}`;
+
+      updateMascotProgress(count, total);
+      updateBudgetDisplay();
     }
 
+    function updateMascotProgress(count, total) {
+      const walkingMascot = document.getElementById('walking-mascot');
+      const progressBar = document.getElementById('mascot-progress-bar');
+      const bubble = document.getElementById('mascot-bubble');
+      const bipsLabel = document.getElementById('mascot-bips-label');
+      const levelBadge = document.getElementById('mascot-level-badge');
+      const hint = document.getElementById('mascot-status-hint');
+
+      if (!walkingMascot || !progressBar) return;
+
+      const targetGoal = 15;
+      const pct = Math.min(Math.round((count / targetGoal) * 100), 100);
+      walkingMascot.style.left = `${pct}%`;
+      progressBar.style.width = `${pct}%`;
+
+      if (bipsLabel) bipsLabel.innerText = `${count} item${count === 1 ? '' : 'ns'} (R$ ${total.toFixed(2).replace('.', ',')})`;
+
+      if (count === 0) {
+        if (bubble) bubble.innerText = 'Bipe um item! 🛒';
+        if (levelBadge) levelBadge.innerText = 'Nível 1';
+        if (hint) hint.innerText = 'Alimente o mascote bipando suas compras';
+      } else if (count < 5) {
+        if (bubble) bubble.innerText = 'Economizando! 😋';
+        if (levelBadge) levelBadge.innerText = 'Iniciante';
+        if (hint) hint.innerText = `Faltam ${targetGoal - count} itens para completar o carrinho!`;
+      } else if (count < 10) {
+        if (bubble) bubble.innerText = 'Carrinho cheio! ⚡';
+        if (levelBadge) levelBadge.innerText = 'Guardião';
+        if (hint) hint.innerText = 'Ótimo ritmo de economia no atacarejo!';
+      } else if (count < targetGoal) {
+        if (bubble) bubble.innerText = 'Quase lá! 🔥';
+        if (levelBadge) levelBadge.innerText = 'Mestre';
+        if (hint) hint.innerText = `Só mais ${targetGoal - count} itens para atingir a meta!`;
+      } else {
+        if (bubble) bubble.innerText = 'Meta batida! 🏆';
+        if (levelBadge) levelBadge.innerText = 'Lenda';
+        if (hint) hint.innerText = 'Carrinho 100% calculado e sob controle!';
+      }
+    }`;
+    }
 
     function openCartModal() {
       const list = document.getElementById('cart-items-list');
       list.innerHTML = '';
-
 
       if (cart.length === 0) {
         list.innerHTML = '<div style="text-align:center; color:#888; padding:20px;">O seu carrinho ainda está vazio.<br>Bipe produtos para somar!</div>';
@@ -3198,15 +3059,12 @@
         });
       }
 
-
       document.getElementById('cart-modal').classList.remove('hidden');
     }
-
 
     function closeCartModal() {
       document.getElementById('cart-modal').classList.add('hidden');
     }
-
 
     function changeQty(idx, delta) {
       cart[idx].qty += delta;
@@ -3216,7 +3074,6 @@
       updateBudgetDisplay();
       openCartModal();
     }
-
 
     async function clearCart() {
       if (!cart || cart.length === 0) {
@@ -3241,7 +3098,6 @@
       }
     }
 
-
     // Finalizar e Salvar no Histórico Local
     function finalizeAndSavePurchase() {
       if (cart.length === 0) {
@@ -3249,12 +3105,10 @@
         return;
       }
 
-
       const total = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
       const marketName = document.getElementById('market-input').value.trim() || 'Supermercado';
       const now = new Date();
       const dateStr = now.toLocaleDateString('pt-BR') + ' às ' + now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-
 
       const newPurchase = {
         id: Date.now(),
@@ -3265,10 +3119,8 @@
         itens: [...cart]
       };
 
-
       purchaseHistory.unshift(newPurchase);
       localStorage.setItem('nutri_purchases_history', JSON.stringify(purchaseHistory));
-
 
       // Limpa carrinho atual
       cart = [];
@@ -3277,21 +3129,17 @@
       updateBudgetDisplay();
       closeCartModal();
 
-
       showToast(`🎉 Compra de R$ ${total.toFixed(2).replace(".", ",")} salva com sucesso nas Minhas Compras!`, "success");
     }
-
 
     // Modal de Histórico de Compras Salvas
     function openHistoryModal() {
       const container = document.getElementById('history-items-container');
       container.innerHTML = '';
 
-
       const totalMonth = purchaseHistory.reduce((acc, p) => acc + (p.total || 0), 0);
       document.getElementById('stat-month-total').innerText = `R$ ${totalMonth.toFixed(2)}`;
       document.getElementById('stat-purchases-count').innerText = purchaseHistory.length;
-
 
       if (purchaseHistory.length === 0) {
         container.innerHTML = '<div style="text-align:center; color:#888; padding:25px;">Você ainda não salvou nenhuma compra.<br>Ao terminar as compras, toque em "Finalizar e Salvar" no carrinho!</div>';
@@ -3301,7 +3149,6 @@
           card.className = 'saved-purchase-card';
           
           let itensHtml = compra.itens.map(i => `• ${i.qty}x ${i.name} (R$ ${(i.price * i.qty).toFixed(2)})`).join('<br>');
-
 
           card.innerHTML = `
             <div class="purchase-header">
@@ -3321,16 +3168,13 @@
         });
       }
 
-
       document.getElementById('history-modal').classList.remove('hidden');
     }
-
 
     function toggleDetails(id) {
       const el = document.getElementById(`details-${id}`);
       if (el) el.classList.toggle('hidden');
     }
-
 
     async function deleteSavedPurchase(index) {
       const confirmed = await showConfirmDialog({
@@ -3349,11 +3193,9 @@
       }
     }
 
-
     function closeHistoryModal() {
       document.getElementById('history-modal').classList.add('hidden');
     }
-
 
     // Compartilhamento no WhatsApp
     function shareCartWhatsApp() {
@@ -3364,11 +3206,9 @@
       const total = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
       const marketName = document.getElementById('market-input').value.trim() || 'Supermercado';
 
-
       let msg = `🛒 *Minha Compra no NutriPreço*
 `;
       msg += `📍 Supermercado: *${marketName}* (Cabo Frio)
-
 
 `;
       cart.forEach(i => {
@@ -3378,22 +3218,18 @@
       msg += `
 💰 *Total:* R$ ${total.toFixed(2)}
 
-
 `;
       msg += `🥗 Calculei e conferi os preços com o *NutriPreço*!`;
-
 
       const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
       window.open(url, '_blank');
     }
-
 
     function shareAppWhatsApp() {
       const msg = `Oi! Estou usando o *NutriPreço* para somar minhas compras no mercado e ver onde tá mais barato em Cabo Frio (Atacadão, Assaí, etc). É muito bom para não passar sufoco no caixa! Testa aí também: https://arthursantosmedia-stack.github.io/Nutri-preco1/`;
       const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
       window.open(url, '_blank');
     }
-
 
     function openSupportEmail() {
       const email = 'contato.nutripreco@gmail.com';
@@ -3407,7 +3243,6 @@
       openSupportEmail();
     }
 
-
     function resetScan() {
       const scaleBadge = document.getElementById('scale-badge-box');
       if (scaleBadge) scaleBadge.classList.add('hidden');
@@ -3420,7 +3255,6 @@
       document.getElementById('scan-section').classList.remove('hidden');
       document.getElementById('start-btn').classList.remove('hidden');
     }
-
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -4040,7 +3874,6 @@
     }
 
   </script>
-
 
 </body>
 </html>
