@@ -594,49 +594,109 @@
   <!-- ========================================== -->
   <div class="modal hidden" id="welcome-modal" style="z-index: 200;">
     <div class="modal-content" style="max-height: 94vh; padding: 22px 18px; text-align: center;">
-      <div style="font-size: 40px; margin-bottom: 6px;">🥗🛒</div>
-      <h2 id="welcome-time-greeting" style="color: #1b5e20; font-size: 21px; margin-bottom: 6px; font-weight: bold;">
-        Olá! Bem-vindo ao NutriPreço
-      </h2>
-      <p style="font-size: 13.5px; color: #555; line-height: 1.45; margin-bottom: 16px;">
-        O seu assistente para calcular o carrinho na gôndola, nunca mais passar sufoco no caixa e achar o menor preço em <b>Cabo Frio e região</b>!
-      </p>
-
-      <!-- Dica se estiver abrindo de dentro do WhatsApp -->
-      <div id="whatsapp-browser-tip" class="hidden" style="background:#fff3e0; border:1px solid #ffe0b2; border-radius:10px; padding:10px; font-size:12px; color:#e65100; text-align:left; margin-bottom:14px; line-height:1.4;">
-        ⚠️ <b>Dica de Instalação:</b> Você abriu pelo WhatsApp. Para instalar o app com 1 clique na sua tela inicial, toque nos <b>três pontinhos no canto superior</b> do WhatsApp e escolha <b>"Abrir no Chrome"</b>.
+      <div style="font-size: 38px; margin-bottom: 4px;">🥗🛒</div>
+      
+      <!-- Indicador de Etapas -->
+      <div style="display:flex; justify-content:center; gap:6px; margin-bottom:12px;">
+        <span id="welcome-step-indicator" style="font-size:11.5px; font-weight:bold; color:#2e7d32; background:#e8f5e9; padding:3px 10px; border-radius:12px; border:1px solid #c8e6c9;">
+          Etapa 1 de 2: Sua Apresentação
+        </span>
       </div>
 
-      <!-- Botão de Instalação em 1 Toque Nativo -->
-      <div id="welcome-install-box" style="margin-bottom: 16px;">
-        <button type="button" onclick="triggerNativeInstallFromWelcome()" style="width: 100%; background: #ffd600; color: #1b5e20; border: none; padding: 12px; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; box-shadow: 0 3px 8px rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center; gap: 8px;">
-          📲 Instalar no Meu Celular (1 Toque)
+      <!-- ETAPA 1: NOME, ESTADO E CIDADE -->
+      <div id="welcome-step-1">
+        <h2 style="color: #1b5e20; font-size: 20px; margin-bottom: 6px; font-weight: bold;">
+          Seja bem-vindo ao NutriPreço!
+        </h2>
+        <p style="font-size: 13px; color: #555; line-height: 1.45; margin-bottom: 16px;">
+          Seu assistente inteligente de supermercado na gôndola. Diga quem é você e sua cidade de origem para ativar suas cotações:
+        </p>
+
+        <div style="background: #f9fbf9; border: 1px solid #c8e6c9; border-radius: 12px; padding: 14px; text-align: left; margin-bottom: 14px;">
+          <label style="font-size: 12px; font-weight: bold; color: #1b5e20; display: block; margin-bottom: 5px;">
+            👤 1. Como podemos te chamar?
+          </label>
+          <input type="text" id="welcome-user-name" placeholder="Ex: Arthur" style="margin-bottom: 12px; font-size: 14px; padding: 10px; border-radius: 8px;">
+
+          <label style="font-size: 12px; font-weight: bold; color: #1b5e20; display: block; margin-bottom: 5px;">
+            🌎 2. Qual é o seu Estado (UF)?
+          </label>
+          <select id="welcome-select-uf" onchange="onWelcomeUfChanged()" style="width:100%; padding:10px; border-radius:8px; border:1px solid #ccc; font-size:13.5px; margin-bottom:12px; background:#fff;">
+            <option value="RJ" selected>Rio de Janeiro (RJ)</option>
+            <option value="SP">São Paulo (SP)</option>
+            <option value="MG">Minas Gerais (MG)</option>
+            <option value="ES">Espírito Santo (ES)</option>
+            <option value="BA">Bahia (BA)</option>
+            <option value="PR">Paraná (PR)</option>
+            <option value="SC">Santa Catarina (SC)</option>
+            <option value="RS">Rio Grande do Sul (RS)</option>
+            <option value="GO">Goiás (GO)</option>
+            <option value="DF">Distrito Federal (DF)</option>
+            <option value="PE">Pernambuco (PE)</option>
+            <option value="CE">Ceará (CE)</option>
+            <option value="OUTRO">Outro Estado...</option>
+          </select>
+
+          <label style="font-size: 12px; font-weight: bold; color: #1b5e20; display: block; margin-bottom: 5px;">
+            📍 3. Qual é a sua Cidade?
+          </label>
+          <select id="welcome-select-city" style="width:100%; padding:10px; border-radius:8px; border:1px solid #2e7d32; font-size:13.5px; margin-bottom:4px; background:#fff; font-weight:600; color:#1b5e20;">
+            <option value="Cabo Frio">Cabo Frio</option>
+            <option value="Araruama">Araruama</option>
+            <option value="São Pedro da Aldeia">São Pedro da Aldeia</option>
+            <option value="Búzios">Armação dos Búzios</option>
+            <option value="Arraial do Cabo">Arraial do Cabo</option>
+            <option value="Rio de Janeiro">Rio de Janeiro</option>
+            <option value="Niterói">Niterói</option>
+            <option value="Macaé">Macaé</option>
+          </select>
+          <small style="font-size: 11px; color: #777; display: block; margin-top: 4px;">Você poderá trocar de cidade a qualquer momento no app.</small>
+        </div>
+
+        <button type="button" onclick="goToWelcomeStep(2)" class="save-btn" style="margin-top:0; font-size:15px; padding:13px; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:8px;">
+          Avançar para Cadastro ➔
         </button>
-        <span style="font-size: 11px; color: #777; display: block; margin-top: 4px;">Adiciona o ícone direto à sua tela de início</span>
       </div>
 
-      <div style="background: #f9fbf9; border: 1px solid #e0e0e0; border-radius: 12px; padding: 14px; text-align: left; margin-bottom: 16px;">
-        <label style="font-size: 12.5px; font-weight: bold; color: #333; display: block; margin-bottom: 5px;">
-          👤 Como podemos te chamar?
-        </label>
-        <input type="text" id="welcome-user-name" placeholder="Ex: Arthur" style="margin-bottom: 12px; font-size: 14px; padding: 10px;">
+      <!-- ETAPA 2: CADASTRO RÁPIDO COM E-MAIL E SENHA -->
+      <div id="welcome-step-2" class="hidden">
+        <h2 style="color: #1b5e20; font-size: 20px; margin-bottom: 6px; font-weight: bold;">
+          Tudo pronto, <span id="welcome-name-preview">Visitante</span>!
+        </h2>
+        <p style="font-size: 13px; color: #555; line-height: 1.45; margin-bottom: 16px;">
+          Crie seu acesso grátis para salvar seu histórico de compras e consultar os melhores preços em <b id="welcome-city-preview">Cabo Frio - RJ</b>:
+        </p>
 
-        <label style="font-size: 12.5px; font-weight: bold; color: #333; display: block; margin-bottom: 5px;">
-          📍 Sua Cidade e Estado:
-        </label>
-        <input type="text" id="welcome-user-city" value="Cabo Frio - RJ" placeholder="Ex: Cabo Frio - RJ" style="margin-bottom: 4px; font-size: 14px; padding: 10px;">
-        <small style="color: #666; font-size: 11px;">Você pode alterar sua cidade a qualquer momento no app.</small>
+        <div style="background: #f9fbf9; border: 1px solid #c8e6c9; border-radius: 12px; padding: 14px; text-align: left; margin-bottom: 14px;">
+          <label style="font-size: 12px; font-weight: bold; color: #1b5e20; display: block; margin-bottom: 5px;">
+            ✉️ Seu melhor E-mail:
+          </label>
+          <input type="email" id="welcome-auth-email" placeholder="seuemail@exemplo.com" style="margin-bottom: 12px; font-size: 14px; padding: 10px; border-radius: 8px;">
+
+          <label style="font-size: 12px; font-weight: bold; color: #1b5e20; display: block; margin-bottom: 5px;">
+            🔒 Crie uma Senha (mínimo 6 dígitos):
+          </label>
+          <input type="password" id="welcome-auth-password" placeholder="Digite sua senha" style="margin-bottom: 6px; font-size: 14px; padding: 10px; border-radius: 8px;">
+          <small style="font-size: 11px; color: #777; display: block;">Sem burocracia de ativação. Acesso liberado no mesmo instante.</small>
+        </div>
+
+        <button type="button" onclick="finalizeWelcomeOnboarding()" class="save-btn" style="margin-top:0; font-size:15px; padding:14px; border-radius:10px; display:flex; align-items:center; justify-content:center; gap:8px;">
+          🚀 Finalizar Cadastro & Entrar
+        </button>
+
+        <div style="margin-top:14px; display:flex; justify-content:space-between; align-items:center; font-size:12px;">
+          <button type="button" onclick="goToWelcomeStep(1)" style="background:none; border:none; color:#555; text-decoration:underline; cursor:pointer;">
+            ← Voltar
+          </button>
+          <button type="button" onclick="skipWelcomeAuth()" style="background:none; border:none; color:#777; text-decoration:underline; cursor:pointer;">
+            Continuar como visitante por enquanto
+          </button>
+        </div>
       </div>
 
-      <button onclick="saveWelcomeOnboarding()" class="save-btn" style="margin: 0; background: #2e7d32; font-size: 15px; padding: 14px; border-radius: 12px;">
-        Começar a Economizar 🚀
-      </button>
     </div>
   </div>
 
-    <!-- ========================================== -->
-  <!-- MODAL: ENCARTES & OFERTAS DA SEMANA (VITRINE PÚBLICA) -->
-  <!-- ========================================== -->
   <div class="modal hidden" id="public-encartes-modal" style="z-index: 180;">
     <div class="modal-content" style="max-height: 90vh;">
       <div class="modal-header">
@@ -998,137 +1058,127 @@
 
     <div id="loading" class="loading hidden">🔍 Consultando preços em Cabo Frio e produto...</div>
 
-    <!-- Seção Resultado -->
+    <!-- Seção Resultado (Zero Rolagem na Gôndola) -->
     <div id="result-section" class="hidden">
-      
-      <!-- Cabeçalho do Produto -->
-      
-      <!-- Banner e Atalhos para Etiquetas de Balança (Açougue / Frios / Padaria) -->
-      <div id="scale-badge-box" class="hidden" style="margin-bottom: 12px; background: #e8f5e9; border: 1.5px dashed #2e7d32; border-radius: 10px; padding: 10px 12px;">
-        <div style="display: flex; align-items: center; justify-content: space-between;">
-          <span style="font-weight: bold; color: #1b5e20; font-size: 13px;">⚖️ Etiqueta de Balança Detectada</span>
-          <span id="scale-badge-price" style="font-weight: 800; color: #2e7d32; font-size: 15px;"></span>
-        </div>
-        <div style="font-size: 11.5px; color: #444; margin-top: 4px;">Toque no setor para definir o nome rápido:</div>
-        <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px;">
-          <button type="button" class="budget-chip" style="font-size: 12px; padding: 5px 10px;" onclick="setScaleProductName('🥩 Carne / Açougue')">🥩 Açougue</button>
-          <button type="button" class="budget-chip" style="font-size: 12px; padding: 5px 10px;" onclick="setScaleProductName('🧀 Queijo / Frios')">🧀 Frios</button>
-          <button type="button" class="budget-chip" style="font-size: 12px; padding: 5px 10px;" onclick="setScaleProductName('🍎 Frutas & Legumes')">🍎 Hortifrúti</button>
-          <button type="button" class="budget-chip" style="font-size: 12px; padding: 5px 10px;" onclick="setScaleProductName('🥖 Pão / Padaria')">🥖 Padaria</button>
-        </div>
-      </div>
-
-<div class="card" style="padding-bottom: 10px; margin-bottom: 12px;">
-        <h2 id="prod-name" style="font-size: 20px; color: #1a1a1a; margin-bottom: 3px;">Nome do Produto</h2>
-        <p id="prod-brand" style="color: #666; font-size: 13px; margin-bottom: 0;">Marca | EAN</p>
-
-        <!-- Campo para dar nome caso produto não exista no catálogo -->
-        <div id="unnamed-box" class="hidden" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee;">
-          <label style="color:#2e7d32; font-weight:bold;">📝 Produto sem nome no catálogo. Digite o nome dele:</label>
-          <input type="text" id="manual-name-input" placeholder="Ex: Biscoito Recheado 130g">
-        </div>
-      </div>
-
-      <!-- 1º LUGAR: PREÇO & ECONOMIA -->
-      <div class="card" style="border: 2px solid #c8e6c9;">
-        <div class="card-title card-title-price">
-          <span>💰 Preço & Economia</span>
-          <span style="font-size: 12px; color: #666; font-weight: normal;">Cabo Frio</span>
+      <!-- Card Consolidado do Produto e Gôndola -->
+      <div class="card" style="padding: 16px; margin-bottom: 14px; border: 1.5px solid #c8e6c9; border-radius: 16px; box-shadow: 0 4px 14px rgba(46,125,50,0.08);">
+        
+        <!-- Identificação do Produto -->
+        <div style="border-bottom: 1px solid #edf2f7; padding-bottom: 10px; margin-bottom: 10px;">
+          <h2 id="prod-name" style="font-size: 19px; font-weight: 800; color: #1b5e20; line-height: 1.3; margin-bottom: 4px;">Nome do Produto</h2>
+          <div id="prod-brand" style="font-size: 12.5px; color: #666; font-weight: 500;">Marca | EAN</div>
         </div>
 
-        <div id="best-price-box" class="best-price-badge hidden"></div>
+        <!-- Alerta se o produto não tem nome no catálogo -->
+        <div id="unnamed-box" class="hidden" style="background:#fff8e1; border:1px solid #ffe082; border-radius:10px; padding:10px 12px; margin-bottom:12px;">
+          <span style="font-size:12px; font-weight:bold; color:#f57f17; display:block; margin-bottom:4px;">⚠️ Produto sem nome no catálogo. Digite o nome:</span>
+          <input type="text" id="manual-name-input" placeholder="Ex: Biscoito Cream Cracker, Detergente..." style="margin-top:2px; font-size:14px; padding:9px; border-radius:8px; border:1.5px solid #ffd54f;">
+        </div>
 
-        <div id="quick-confirm-box" class="confirm-price-box hidden">
-          <div>Preço visto recentemente aqui: <strong id="quick-confirm-val">R$ 0,00</strong></div>
+        <!-- Banner de Balança (Se detectado) -->
+        <div id="scale-badge-box" class="hidden" style="background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 8px; padding: 6px 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-weight: bold; color: #1b5e20; font-size: 12px;">⚖️ Etiqueta de Balança</span>
+          <strong id="scale-badge-price" style="color: #2e7d32; font-size: 13px;">R$ 0,00</strong>
+        </div>
+
+        <!-- SELETOR COMPACTO DE SUPERMERCADO (1 LINHA - NÃO OCUPA O MEIO DA TELA) -->
+        <div style="background:#f1f8e9; border:1px solid #c8e6c9; border-radius:10px; padding:8px 12px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; align-items:center; gap:6px; font-size:13px; font-weight:600; color:#1b5e20;">
+            <span>📍</span>
+            <span>Mercado:</span>
+            <strong id="current-market-badge" style="color:#2e7d32;">Atacadão</strong>
+          </div>
+          <button type="button" onclick="toggleMarketPicker()" style="background:#fff; border:1px solid #a5d6a7; color:#1b5e20; padding:4px 10px; border-radius:14px; font-size:11.5px; font-weight:bold; cursor:pointer;">
+            Trocar ▾
+          </button>
+        </div>
+
+        <!-- Lista Expansível de Mercados (Apenas se clicar em Trocar) -->
+        <div id="market-picker-dropdown" class="hidden" style="background:#fff; border:1px solid #c8e6c9; border-radius:10px; padding:10px; margin-bottom:12px; box-shadow:0 3px 8px rgba(0,0,0,0.06);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <span style="font-size:11.5px; font-weight:bold; color:#555;">Selecione o estabelecimento:</span>
+            <button type="button" onclick="detectGPSLocation(true)" style="background:none; border:none; color:#1b5e20; font-size:11px; font-weight:bold; cursor:pointer;">📍 GPS</button>
+          </div>
+          <div class="market-chips" id="market-chips-container" style="margin-bottom:8px;">
+            <div class="chip active" onclick="selectMarket(this, 'Atacadão')">Atacadão</div>
+            <div class="chip" onclick="selectMarket(this, 'Assaí')">Assaí</div>
+            <div class="chip" onclick="selectMarket(this, 'Avistão')">Avistão</div>
+            <div class="chip" onclick="selectMarket(this, 'Multimarket')">Multimarket</div>
+            <div class="chip" onclick="selectMarket(this, 'Supermarket')">Supermarket</div>
+            <div class="chip" onclick="selectMarket(this, 'Princesa')">Princesa</div>
+            <div class="chip" onclick="selectMarket(this, 'Extra')">Extra</div>
+            <div class="chip" onclick="selectMarket(this, 'Outro')">Outro</div>
+          </div>
+          <input type="text" id="market-input" value="Atacadão" oninput="checkPriceComparison()" style="font-size:13px; padding:8px;">
+        </div>
+
+        <!-- Atalho Preço Confere (Se já houver cotação) -->
+        <div id="confirm-price-box" class="confirm-price-box hidden">
+          <div style="font-size: 13px; color: #1b5e20;">Preço recente neste mercado: <b id="existing-price-display">R$ 0,00</b></div>
           <button class="confirm-price-btn" onclick="confirmExistingPrice()">👍 Preço Confere (+ Colocar no Carrinho)</button>
         </div>
 
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-          <label style="margin-bottom:0; font-weight:bold;">Supermercado onde você está:</label>
-          <button type="button" onclick="detectGPSLocation(true)" style="background:none; border:none; color:#1b5e20; font-size:12px; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:4px;">
-            📍 Auto-detectar GPS
-          </button>
-        </div>
-        <div id="gps-status-badge" class="hidden" style="font-size:12px; color:#1b5e20; background:#e8f5e9; border:1px solid #c8e6c9; padding:5px 10px; border-radius:12px; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
-          <span>📍</span> <span id="gps-status-text">Detectando localização...</span>
-        </div>
-        <div class="market-chips" id="market-chips-container">
-          <div class="chip active" onclick="selectMarket(this, 'Atacadão')">Atacadão</div>
-          <div class="chip" onclick="selectMarket(this, 'Assaí')">Assaí</div>
-          <div class="chip" onclick="selectMarket(this, 'Avistão')">Avistão</div>
-          <div class="chip" onclick="selectMarket(this, 'Multimarket')">Multimarket</div>
-          <div class="chip" onclick="selectMarket(this, 'Supermarket')">Supermarket</div>
-          <div class="chip" onclick="selectMarket(this, 'Princesa')">Princesa</div>
-          <div class="chip" onclick="selectMarket(this, 'Extra')">Extra</div>
-          <div class="chip" onclick="openNewMarketModal()" style="border: 1px dashed #2e7d32; color: #2e7d32; font-weight:bold;">+ Cadastrar Mercado</div>
+        <!-- BLOCO CENTRAL: PREÇO NA GÔNDOLA (GRANDE & VISÍVEL) -->
+        <div style="margin-bottom: 12px; text-align: center;">
+          <label style="font-size: 13px; font-weight: 700; color: #333; margin-bottom: 4px;">Preço deste Produto na Gôndola (R$):</label>
+          <input type="number" step="0.01" id="price-input" class="price-input" placeholder="0,00" oninput="checkPriceComparison(); updateItemTotalCalc();" style="height: 56px; font-size: 32px; font-weight: 800; border-radius: 12px; width: 100%;">
         </div>
 
-        <input type="text" id="market-input" value="Atacadão" oninput="checkPriceComparison()">
+        <!-- SELETOR DE QUANTIDADE & TIPO (INTEGRADO LOGO ABAIXO DO VALOR) -->
+        <div style="background: #fafafa; border: 1px solid #eee; border-radius: 12px; padding: 10px 12px; margin-bottom: 14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <span style="font-size:12px; font-weight:bold; color:#444;">Quantidade:</span>
+            <!-- Alternador Unidade vs Kg -->
+            <div style="display:inline-flex; background:#e8f5e9; border-radius:16px; padding:2px;">
+              <button type="button" id="type-btn-un" onclick="setProductUnitType('un')" style="background:#2e7d32; color:#fff; border:none; padding:4px 11px; border-radius:14px; font-size:11px; font-weight:bold; cursor:pointer;">unidade</button>
+              <button type="button" id="type-btn-kg" onclick="setProductUnitType('kg')" style="background:transparent; color:#444; border:none; padding:4px 11px; border-radius:14px; font-size:11px; font-weight:bold; cursor:pointer;">quilo (kg)</button>
+            </div>
+          </div>
 
-        
-        <!-- Seletor de Tipo: Unidade vs Quilo (Kg) -->
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; margin-bottom:4px;">
-          <label style="margin:0; font-weight:bold;">Tipo & Quantidade:</label>
-          <div style="display:flex; gap:4px;">
-            <button type="button" id="type-btn-un" onclick="setProductUnitType('un')" style="background:#2e7d32; color:#fff; border:none; padding:4px 10px; border-radius:6px; font-size:11.5px; font-weight:bold; cursor:pointer;">unidade</button>
-            <button type="button" id="type-btn-kg" onclick="setProductUnitType('kg')" style="background:#eee; color:#444; border:none; padding:4px 10px; border-radius:6px; font-size:11.5px; font-weight:bold; cursor:pointer;">por quilo (kg)</button>
+          <!-- Controle - / Valor / + -->
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+            <button type="button" onclick="adjustProductQty(-1)" style="width:42px; height:42px; background:#eee; border:none; border-radius:10px; font-size:20px; font-weight:bold; cursor:pointer; display:flex; align-items:center; justify-content:center;">-</button>
+            <input type="number" id="product-qty-input" value="1" step="1" min="0.1" oninput="updateItemTotalCalc()" style="flex:1; text-align:center; font-size:18px; font-weight:bold; height:42px; padding:0; border:1px solid #ccc; border-radius:10px;">
+            <button type="button" onclick="adjustProductQty(1)" style="width:42px; height:42px; background:#eee; border:none; border-radius:10px; font-size:20px; font-weight:bold; cursor:pointer; display:flex; align-items:center; justify-content:center;">+</button>
+          </div>
+
+          <!-- Chips de Quantidade Rápida -->
+          <div id="quick-qty-chips" style="display:flex; gap:6px; overflow-x:auto; padding-bottom:2px;">
+            <button type="button" class="budget-chip active" onclick="setQuickQty(1)">1 un</button>
+            <button type="button" class="budget-chip" onclick="setQuickQty(2)">2 un</button>
+            <button type="button" class="budget-chip" onclick="setQuickQty(3)">3 un</button>
+            <button type="button" class="budget-chip" onclick="setQuickQty(6)">6 un</button>
+            <button type="button" class="budget-chip" onclick="setQuickQty(12)">12 un</button>
           </div>
         </div>
 
-        <!-- Stepper de Quantidade / Peso -->
-        <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
-          <button type="button" onclick="adjustProductQty(-1)" style="width:40px; height:40px; background:#f0f0f0; border:1px solid #ccc; border-radius:8px; font-size:20px; font-weight:bold; cursor:pointer;">-</button>
-          <input type="number" id="product-qty-input" value="1" step="any" min="0.1" oninput="updateItemTotalCalc()" style="text-align:center; font-size:18px; font-weight:bold; flex:1; padding:8px;">
-          <button type="button" onclick="adjustProductQty(1)" style="width:40px; height:40px; background:#f0f0f0; border:1px solid #ccc; border-radius:8px; font-size:20px; font-weight:bold; cursor:pointer;">+</button>
+        <!-- Subtotal Calculado em Tempo Real -->
+        <div style="text-align: center; margin-bottom: 12px;">
+          <span style="font-size: 13.5px; font-weight: bold; color: #1b5e20;" id="item-subtotal-display">Subtotal deste item: R$ 0,00 (1 un.)</span>
         </div>
 
-        <!-- Atalhos rápidos de peso/quantidade -->
-        <div id="quick-qty-chips" style="display:flex; gap:6px; margin-bottom:12px; overflow-x:auto;">
-          <button type="button" class="budget-chip" onclick="setQuickQty(1)">1 un</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(2)">2 un</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(3)">3 un</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(6)">6 un</button>
-          <button type="button" class="budget-chip" onclick="setQuickQty(12)">12 un</button>
-        </div>
-
-        <label>Preço deste Produto na Gôndola (R$):</label>
-        <input type="number" step="0.01" id="price-input" class="price-input" placeholder="0,00" oninput="checkPriceComparison(); updateItemTotalCalc();">
-
-        <!-- Subtotal do Item -->
-        <div id="item-subtotal-preview" style="text-align:right; font-size:13px; color:#1b5e20; font-weight:bold; margin-top:4px;">
-          Subtotal deste item: R$ 0,00
-        </div>
-
+        <!-- Alerta de Comparação com Outros Mercados -->
         <div id="compare-alert" class="compare-alert hidden"></div>
 
-        <button class="save-btn" onclick="saveAndAddToCart()">➕ Gravar e Colocar no Meu Pré-Caixa</button>
+        <!-- BOTÃO PRINCIPAL DE GRAVAÇÃO (AO ALCANCE DO POLEGAR - ZERO ROLAGEM) -->
+        <button class="save-btn" onclick="saveAndAddToCart()" style="margin-top: 0; margin-bottom: 8px; font-size: 16px; padding: 15px; border-radius: 12px; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow: 0 4px 12px rgba(46,125,50,0.3);">
+          ➕ Gravar e Colocar no Meu Pré-Caixa
+        </button>
+
+        <button class="reset-btn" onclick="resetScan()" style="margin-top: 0; background: #eceff1; border-radius: 10px; padding: 11px;">
+          📷 Escanear Outro Produto
+        </button>
       </div>
 
-      <!-- Histórico de Outros Mercados -->
-      <div class="card">
-        <div class="card-title">
+      <!-- Histórico de Outros Mercados (Abaixo, caso haja) -->
+      <div class="card" style="padding: 14px; margin-bottom: 14px;">
+        <div class="card-title" style="font-size: 13.5px; margin-bottom: 8px;">
           <span>📊 Últimos Preços em Outros Mercados</span>
         </div>
-        <div id="history-list"></div>
+        <div id="history-list" style="font-size: 12px;"></div>
       </div>
-
-      <!-- 2º LUGAR: SAÚDE & NUTRIÇÃO -->
-      <div class="card">
-        <div class="card-title">🥗 Informações Nutricionais (por 100g)</div>
-        <div class="nutri-row"><span>🔥 Energia / Calorias</span><span class="nutri-val" id="prod-cal">0 kcal</span></div>
-        <div class="nutri-row"><span>🍬 Açúcares</span><span class="nutri-val" id="prod-sugar">0 g</span></div>
-        <div class="nutri-row"><span>🧂 Sódio</span><span class="nutri-val" id="prod-sodium">0 g</span></div>
-      </div>
-
-      <button class="reset-btn" onclick="resetScan()" style="margin-bottom: 20px;">📷 Escanear Outro Produto</button>
     </div>
-
-    <!-- Rodapé Legal e LGPD -->
-    
-  </div>
-
-  
-  </div>
+</div>
 
   <!-- Modal de Instalação PWA Profissional -->
   <div class="modal hidden" id="install-modal">
@@ -1343,7 +1393,154 @@
   <script>
     const SUPABASE_URL = 'https://fzoyldcfyiigwyxxhosd.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_asGr3f2xfay96fUJAkIHBg_L5vfLYvv';
-    const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    
+    // ==========================================
+    // CONTROLES DO NOVO SELETOR COMPACTO DE GÔNDOLA
+    // ==========================================
+    function toggleMarketPicker() {
+      const picker = document.getElementById('market-picker-dropdown');
+      if (picker) picker.classList.toggle('hidden');
+    }
+
+    // ==========================================
+    // ONBOARDING PROFISSIONAL EM 2 ETAPAS (WIZARD)
+    // ==========================================
+    function onWelcomeUfChanged() {
+      const ufSelect = document.getElementById('welcome-select-uf');
+      const citySelect = document.getElementById('welcome-select-city');
+      if (!ufSelect || !citySelect) return;
+      const uf = ufSelect.value;
+
+      citySelect.innerHTML = '<option value="">Carregando cidades...</option>';
+      if (typeof OFFLINE_CITIES_BACKUP !== 'undefined' && OFFLINE_CITIES_BACKUP[uf]) {
+        citySelect.innerHTML = '';
+        OFFLINE_CITIES_BACKUP[uf].forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c;
+          opt.innerText = c;
+          if (c === 'Cabo Frio') opt.selected = true;
+          citySelect.appendChild(opt);
+        });
+      }
+
+      fetch(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios`)
+        .then(res => res.json())
+        .then(cities => {
+          if (Array.isArray(cities) && cities.length > 0) {
+            citySelect.innerHTML = '';
+            cities.forEach(item => {
+              const opt = document.createElement('option');
+              opt.value = item.nome;
+              opt.innerText = item.nome;
+              if (item.nome === 'Cabo Frio' || (uf === 'RJ' && item.nome === 'Cabo Frio')) opt.selected = true;
+              citySelect.appendChild(opt);
+            });
+          }
+        })
+        .catch(() => {});
+    }
+
+    function goToWelcomeStep(step) {
+      const step1 = document.getElementById('welcome-step-1');
+      const step2 = document.getElementById('welcome-step-2');
+      const indicator = document.getElementById('welcome-step-indicator');
+
+      if (step === 2) {
+        const name = (document.getElementById('welcome-user-name').value || '').trim();
+        const city = document.getElementById('welcome-select-city').value;
+        const uf = document.getElementById('welcome-select-uf').value;
+
+        if (!name) {
+          showToast('Por favor, informe seu nome para continuarmos.', 'warning');
+          const input = document.getElementById('welcome-user-name');
+          if (input) input.focus();
+          return;
+        }
+
+        if (!city) {
+          showToast('Por favor, selecione sua cidade de origem.', 'warning');
+          return;
+        }
+
+        document.getElementById('welcome-name-preview').innerText = name;
+        document.getElementById('welcome-city-preview').innerText = `${city} - ${uf}`;
+
+        step1.classList.add('hidden');
+        step2.classList.remove('hidden');
+        indicator.innerText = 'Etapa 2 de 2: Criar Acesso';
+      } else {
+        step2.classList.add('hidden');
+        step1.classList.remove('hidden');
+        indicator.innerText = 'Etapa 1 de 2: Sua Apresentação';
+      }
+    }
+
+    async function finalizeWelcomeOnboarding() {
+      const name = (document.getElementById('welcome-user-name').value || '').trim();
+      const uf = document.getElementById('welcome-select-uf').value;
+      const city = document.getElementById('welcome-select-city').value;
+      const email = (document.getElementById('welcome-auth-email').value || '').trim();
+      const password = (document.getElementById('welcome-auth-password').value || '');
+
+      if (!email || password.length < 6) {
+        showToast('Digite um e-mail válido e uma senha de no mínimo 6 dígitos.', 'warning');
+        return;
+      }
+
+      try {
+        showToast('Criando sua conta...', 'info');
+        const { data, error } = await client.auth.signUp({
+          email: email,
+          password: password,
+          options: {
+            data: { nome: name, cidade: city, uf: uf }
+          }
+        });
+        if (error) throw error;
+
+        currentUser = data.user;
+        checkAdminAccess(currentUser);
+
+        localStorage.setItem('nutri_user_name', name);
+        localStorage.setItem('nutri_user_uf', uf);
+        localStorage.setItem('nutri_user_city', `${city} - ${uf}`);
+        localStorage.setItem('nutri_onboarding_completed', 'true');
+
+        trackAppEvent('user_signup', { name: name, city: city, uf: uf });
+
+        const bannerName = document.getElementById('banner-user-name');
+        const bannerCity = document.getElementById('banner-user-city');
+        const headerAuthBtn = document.getElementById('header-auth-btn');
+        if (bannerName) bannerName.innerText = name;
+        if (bannerCity) bannerCity.innerText = `${city} - ${uf}`;
+        if (headerAuthBtn) headerAuthBtn.innerText = '👤 ' + name;
+
+        document.getElementById('welcome-modal').classList.add('hidden');
+        showToast(`🎉 Conta criada com sucesso! Bem-vindo, ${name}!`, 'success');
+      } catch (err) {
+        showToast('Erro no cadastro: ' + err.message, 'error');
+      }
+    }
+
+    function skipWelcomeAuth() {
+      const name = (document.getElementById('welcome-user-name').value || '').trim() || 'Visitante';
+      const uf = document.getElementById('welcome-select-uf').value || 'RJ';
+      const city = document.getElementById('welcome-select-city').value || 'Cabo Frio';
+
+      localStorage.setItem('nutri_user_name', name);
+      localStorage.setItem('nutri_user_uf', uf);
+      localStorage.setItem('nutri_user_city', `${city} - ${uf}`);
+      localStorage.setItem('nutri_onboarding_completed', 'true');
+
+      const bannerName = document.getElementById('banner-user-name');
+      const bannerCity = document.getElementById('banner-user-city');
+      if (bannerName) bannerName.innerText = name;
+      if (bannerCity) bannerCity.innerText = `${city} - ${uf}`;
+
+      document.getElementById('welcome-modal').classList.add('hidden');
+      showToast(`Bem-vindo, ${name}! Preços ativos para ${city} - ${uf}.`, 'info');
+    }
+const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     // ==========================================
     // SISTEMA DE TELEMETRIA & AUDITORIA PWA (DOWNLOADS E USUÁRIOS)
     // ==========================================
@@ -1948,18 +2145,12 @@
     }
 
     function detectGPSLocation(forceNotify = false) {
-      const badge = document.getElementById('gps-status-badge');
-      const text = document.getElementById('gps-status-text');
-
       if (!navigator.geolocation) {
         if (forceNotify) showToast('Geolocalização não suportada neste aparelho.', 'warning');
         return;
       }
 
-      if (badge) {
-        badge.classList.remove('hidden');
-        text.innerText = 'Detectando localização atual...';
-      }
+      if (forceNotify) showToast('📍 Detectando sua localização pelo GPS...', 'info');
 
       navigator.geolocation.getCurrentPosition(
         async (position) => {
@@ -1970,7 +2161,7 @@
           let closestMarket = null;
           let minDistance = Infinity;
 
-          // 1. Checa mercados padrão de Cabo Frio
+          // 1. Checa mercados conhecidos
           for (const m of CABO_FRIO_MARKETS_GPS) {
             const dist = getHaversineDistance(lat, lon, m.lat, m.lon);
             if (dist < minDistance) {
@@ -1981,23 +2172,13 @@
 
           // 2. Checa se o usuário está dentro de 250m de um mercado conhecido
           if (closestMarket && minDistance <= 250) {
-            if (badge) {
-              badge.classList.remove('hidden');
-              text.innerHTML = `<b>📍 Você está no ${closestMarket.nome}</b> (~${Math.round(minDistance)}m)`;
-            }
-            // Seleciona o mercado automaticamente
             autoSelectMarket(closestMarket.nome);
-            if (forceNotify) showToast(`Mercado detectado por GPS: ${closestMarket.nome}`, 'success');
+            if (forceNotify) showToast(`📍 Mercado detectado via GPS: ${closestMarket.nome}`, 'success');
           } else {
-            if (badge) {
-              badge.classList.remove('hidden');
-              text.innerText = '📍 GPS ativo: nenhum grande atacarejo detectado a menos de 250m.';
-            }
-            if (forceNotify) showToast('Nenhum mercado parceiro a menos de 250m. Selecione na lista.', 'info');
+            if (forceNotify) showToast('📍 Nenhum grande atacarejo a menos de 250m. Selecione na lista.', 'info');
           }
         },
         (error) => {
-          if (badge) badge.classList.add('hidden');
           if (forceNotify) showToast('Permissão de GPS negada ou indisponível.', 'warning');
         },
         { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
@@ -2005,6 +2186,8 @@
     }
 
     function autoSelectMarket(name) {
+      const badge = document.getElementById('current-market-badge');
+      if (badge) badge.innerText = name;
       const chips = document.querySelectorAll('.chip');
       let found = false;
       chips.forEach(c => {
@@ -2372,32 +2555,22 @@ async function exportPricesCSV() {
     }
 
     function checkFirstAccessOnboarding() {
+      const onboardDone = localStorage.getItem('nutri_onboarding_completed');
       const savedName = localStorage.getItem('nutri_user_name');
       const savedCity = localStorage.getItem('nutri_user_city') || 'Cabo Frio - RJ';
       const greeting = getTimeBasedGreeting();
 
-      // Atualiza banner no topo do app
       const bannerGreeting = document.getElementById('banner-greeting-text');
       const bannerName = document.getElementById('banner-user-name');
       const bannerCity = document.getElementById('banner-user-city');
 
       if (bannerGreeting) bannerGreeting.innerHTML = `<b>${greeting}</b>`;
       if (bannerCity) bannerCity.innerText = savedCity;
+      if (savedName && bannerName) bannerName.innerText = savedName;
 
-      if (!savedName) {
-        // Primeiro acesso do usuário na vida!
+      if (!onboardDone || !savedName) {
         const modal = document.getElementById('welcome-modal');
-        const greetingTitle = document.getElementById('welcome-time-greeting');
-        const waTip = document.getElementById('whatsapp-browser-tip');
-
-        if (greetingTitle) greetingTitle.innerText = `${greeting}! Bem-vindo ao NutriPreço`;
-        if (isInsideWhatsAppOrInstagram() && waTip) {
-          waTip.classList.remove('hidden');
-        }
-
         if (modal) modal.classList.remove('hidden');
-      } else {
-        if (bannerName) bannerName.innerText = savedName;
       }
     }
 
@@ -2415,7 +2588,6 @@ async function exportPricesCSV() {
 
     function saveWelcomeOnboarding() {
       const nameInput = document.getElementById('welcome-user-name');
-      const cityInput = document.getElementById('welcome-user-city');
 
       const name = (nameInput && nameInput.value.trim()) ? nameInput.value.trim() : 'Amigo(a)';
       const city = (cityInput && cityInput.value.trim()) ? cityInput.value.trim() : 'Cabo Frio - RJ';
@@ -2701,7 +2873,6 @@ async function exportPricesCSV() {
       if (isRunningStandalone()) {
         const installBtn = document.getElementById('install-pwa-btn');
         if (installBtn) installBtn.classList.add('hidden');
-        const welcomeInstall = document.getElementById('welcome-install-box');
         if (welcomeInstall) welcomeInstall.classList.add('hidden');
         return;
       }
@@ -2711,7 +2882,6 @@ async function exportPricesCSV() {
 
       // Se abriu pelo navegador interno do Instagram/WhatsApp
       if (isInstagramOrWhatsApp) {
-        const tipBox = document.getElementById('whatsapp-browser-tip');
         if (tipBox) {
           tipBox.classList.remove('hidden');
           tipBox.innerHTML = `⚠️ <b>Atenção:</b> Você abriu pelo Instagram/WhatsApp.<br>Para instalar o app e salvar suas compras offline, toque nos <b>três pontinhos (...) no topo</b> e escolha <b>"Abrir no Chrome"</b> ou <b>"Abrir no Safari"</b>.`;
@@ -2824,13 +2994,17 @@ async function exportPricesCSV() {
       document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
       el.classList.add('active');
       const input = document.getElementById('market-input');
+      const badge = document.getElementById('current-market-badge');
+      if (badge) badge.innerText = name;
       if (name === 'Outro') {
         input.value = '';
         input.focus();
       } else {
         input.value = name;
       }
-      checkQuickConfirm();
+      const picker = document.getElementById('market-picker-dropdown');
+      if (picker && name !== 'Outro') picker.classList.add('hidden');
+      if (typeof checkQuickConfirm === 'function') checkQuickConfirm();
       checkPriceComparison();
     }
 
@@ -2867,9 +3041,6 @@ async function exportPricesCSV() {
         currentBrand = 'Pesado no Mercado';
         document.getElementById('prod-name').innerText = currentName;
         document.getElementById('prod-brand').innerText = `⚖️ Balança | EAN: ${barcode}`;
-        document.getElementById('prod-cal').innerText = 'N/D';
-        document.getElementById('prod-sugar').innerText = 'N/D';
-        document.getElementById('prod-sodium').innerText = 'N/D';
         document.getElementById('price-input').value = scaleData.price.toFixed(2);
         
         if (scaleBadge) {
@@ -2891,17 +3062,11 @@ async function exportPricesCSV() {
         currentBrand = cached.marca || 'Marca Popular';
         document.getElementById('prod-name').innerText = currentName;
         document.getElementById('prod-brand').innerText = `${currentBrand} | EAN: ${barcode}`;
-        document.getElementById('prod-cal').innerText = 'N/D';
-        document.getElementById('prod-sugar').innerText = 'N/D';
-        document.getElementById('prod-sodium').innerText = 'N/D';
       } else {
         currentName = '';
         currentBrand = '';
         document.getElementById('prod-name').innerText = 'Produto Novo';
         document.getElementById('prod-brand').innerText = `EAN: ${barcode}`;
-        document.getElementById('prod-cal').innerText = 'N/D';
-        document.getElementById('prod-sugar').innerText = 'N/D';
-        document.getElementById('prod-sodium').innerText = 'N/D';
         document.getElementById('unnamed-box').classList.remove('hidden');
       }
 
@@ -2920,9 +3085,6 @@ async function exportPricesCSV() {
             currentBrand = p.brands || 'Marca não informada';
             document.getElementById('prod-name').innerText = currentName;
             document.getElementById('prod-brand').innerText = `${currentBrand} | EAN: ${barcode}`;
-            document.getElementById('prod-cal').innerText = (p.nutriments?.['energy-kcal_100g'] ?? 'N/D') + ' kcal';
-            document.getElementById('prod-sugar').innerText = (p.nutriments?.sugars_100g ?? 'N/D') + ' g';
-            document.getElementById('prod-sodium').innerText = (p.nutriments?.sodium_100g ?? 'N/D') + ' g';
             document.getElementById('unnamed-box').classList.add('hidden');
             saveProductToLocalCache(barcode, currentName, currentBrand);
           }
@@ -2963,7 +3125,6 @@ async function exportPricesCSV() {
 
     async function loadPriceHistory(productId) {
       const historyList = document.getElementById('history-list');
-      const bestPriceBox = document.getElementById('best-price-box');
       historyList.innerHTML = '';
       bestPriceBox.classList.add('hidden');
 
@@ -3023,8 +3184,8 @@ async function exportPricesCSV() {
 
     function checkQuickConfirm() {
       const currentMarket = document.getElementById('market-input').value.trim();
-      const confirmBox = document.getElementById('quick-confirm-box');
-      const confirmVal = document.getElementById('quick-confirm-val');
+      const confirmBox = document.getElementById('confirm-price-box');
+      const confirmVal = document.getElementById('existing-price-display');
 
       const match = cachedPrices.find(p => (p.mercados?.nome || '').toLowerCase() === currentMarket.toLowerCase());
       if (match) {
@@ -3496,7 +3657,7 @@ async function exportPricesCSV() {
       document.getElementById('price-input').value = '';
       document.getElementById('manual-name-input').value = '';
       document.getElementById('compare-alert').classList.add('hidden');
-      document.getElementById('quick-confirm-box').classList.add('hidden');
+      document.getElementById('confirm-price-box').classList.add('hidden');
       document.getElementById('unnamed-box').classList.add('hidden');
       document.getElementById('result-section').classList.add('hidden');
       document.getElementById('scan-section').classList.remove('hidden');
@@ -3624,7 +3785,7 @@ async function exportPricesCSV() {
     function updateItemTotalCalc() {
       const qtyInput = document.getElementById('product-qty-input');
       const priceInput = document.getElementById('price-input');
-      const preview = document.getElementById('item-subtotal-preview');
+      const preview = document.getElementById('item-subtotal-display');
 
       const qty = parseFloat(qtyInput?.value) || 1;
       const price = parseFloat(priceInput?.value) || 0;
